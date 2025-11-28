@@ -18,6 +18,12 @@ interface VerseData {
   translation: string
 }
 
+interface ExplanationData {
+  verse_explanation: string
+  connection_to_user_need: string
+  guidance_application: string
+}
+
 interface Message {
   id: string
   role: "user" | "assistant"
@@ -33,12 +39,52 @@ function GuidanceContent() {
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [verseData, setVerseData] = useState<VerseData | null>(null)
+  const [explanationData, setExplanationData] = useState<ExplanationData | null>(null)
   const [isLoadingVerse, setIsLoadingVerse] = useState(true)
+  const [isLoadingExplanation, setIsLoadingExplanation] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const fetchExplanation = useCallback(async (
+    userQuestion: string,
+    verseText: string,
+    verseReference: string,
+    translation: string
+  ) => {
+    setIsLoadingExplanation(true)
+
+    try {
+      const response = await fetch("/api/explain", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userQuestion,
+          verseText,
+          verseReference,
+          translation,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error("Failed to get explanation:", errorData)
+        return
+      }
+
+      const data: ExplanationData = await response.json()
+      setExplanationData(data)
+    } catch (err) {
+      console.error("Error fetching explanation:", err)
+    } finally {
+      setIsLoadingExplanation(false)
+    }
+  }, [])
 
   const fetchGuidance = useCallback(async (searchQuery: string) => {
     setIsLoadingVerse(true)
     setError(null)
+    setExplanationData(null)
 
     try {
       const response = await fetch("/api/guidance", {
@@ -56,12 +102,15 @@ function GuidanceContent() {
 
       const data: VerseData = await response.json()
       setVerseData(data)
+      
+      // Fetch explanation after getting the verse
+      fetchExplanation(searchQuery, data.text, data.reference.passage, data.translation)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong")
     } finally {
       setIsLoadingVerse(false)
     }
-  }, [])
+  }, [fetchExplanation])
 
   useEffect(() => {
     if (!query) {
@@ -138,15 +187,6 @@ function GuidanceContent() {
     return null
   }
 
-  // Generate a contextual explanation based on the verse and user's question
-  const explanation = `This verse from ${verseData.reference.passage} (${verseData.translation}) speaks directly to your heart.
-
-"${verseData.text}"
-
-This passage was selected because it addresses the themes in your question. The book of ${verseData.reference.book} offers wisdom that can provide comfort and direction during times like these.
-
-Take a moment to reflect on how these words apply to your situation. Sometimes the most profound guidance comes from sitting quietly with Scripture and allowing its meaning to unfold in your heart.`
-
   return (
     <main className="min-h-screen px-4 pt-24 pb-8 sm:px-6 sm:pt-28 sm:pb-12">
       <div className="mx-auto max-w-6xl">
@@ -161,7 +201,8 @@ Take a moment to reflect on how these words apply to your situation. Sometimes t
           <div className="space-y-6">
             <ExplanationPanel
               userQuestion={query}
-              explanation={explanation}
+              explanationData={explanationData}
+              isLoadingExplanation={isLoadingExplanation}
               onAskFollowUp={handleAskFollowUp}
               onGetAnotherVerse={handleGetAnotherVerse}
             />
