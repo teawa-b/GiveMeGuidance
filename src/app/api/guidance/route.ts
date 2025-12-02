@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server"
-import { OpenRouter } from "@openrouter/sdk"
 
 const SYSTEM_PROMPT = `You are the AI assistant for the website Give Me Guidance. Your task is to analyze the user's question or problem, perform a web search to determine the most contextually relevant Bible verse, and return the result in STRICT JSON format only.
 

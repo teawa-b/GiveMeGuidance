@@ -63,34 +63,6 @@ export function Navbar() {
               })}
             </div>
 
-<<<<<<< HEAD
-            {/* CTA Button / Auth - Desktop */}
-            <div className="hidden sm:flex items-center gap-2">
-              {isAuthenticated ? (
-                <button
-                  onClick={handleSignOut}
-                  className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-black/5 transition-colors"
-                >
-                  <LogOut className="h-4 w-4" />
-                  Sign out
-                </button>
-              ) : (
-                <button
-                  onClick={() => setShowAuthModal(true)}
-                  className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-black/5 transition-colors"
-                >
-                  <User className="h-4 w-4" />
-                  Sign in
-                </button>
-              )}
-              <Link
-                href="/"
-                className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-primary to-emerald-500 px-5 py-2 text-sm font-semibold text-white shadow-md shadow-primary/25 transition-all duration-300 hover:shadow-lg hover:shadow-primary/30 hover:scale-105 active:scale-100"
-              >
-                <Sparkles className="h-4 w-4" />
-                Get Guidance
-              </Link>
-=======
             {/* CTA Button - Desktop */}
             <div className="hidden sm:flex items-center gap-2">
               <SignedOut>
@@ -109,7 +81,6 @@ export function Navbar() {
               <SignedIn>
                 <UserButton />
               </SignedIn>
->>>>>>> 8d1fb4a (Add Clerk authentication and Google AdSense integration)
             </div>
 
             {/* Mobile menu button */}
@@ -154,36 +125,6 @@ export function Navbar() {
                 )
               })}
               <div className="pt-2 space-y-2">
-<<<<<<< HEAD
-                {isAuthenticated ? (
-                  <button
-                    onClick={handleSignOut}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-border px-4 py-3 text-base font-medium text-muted-foreground hover:bg-black/5"
-                  >
-                    <LogOut className="h-5 w-5" />
-                    Sign out
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => {
-                      setShowAuthModal(true)
-                      setMobileMenuOpen(false)
-                    }}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-border px-4 py-3 text-base font-medium text-muted-foreground hover:bg-black/5"
-                  >
-                    <User className="h-5 w-5" />
-                    Sign in
-                  </button>
-                )}
-                <Link
-                  href="/"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-emerald-500 px-4 py-3 text-base font-semibold text-white shadow-md"
-                >
-                  <Sparkles className="h-5 w-5" />
-                  Get Guidance
-                </Link>
-=======
                 <SignedOut>
                   <SignInButton mode="modal">
                     <button 
@@ -208,17 +149,11 @@ export function Navbar() {
                     <UserButton />
                   </div>
                 </SignedIn>
->>>>>>> 8d1fb4a (Add Clerk authentication and Google AdSense integration)
               </div>
             </div>
           </div>
         )}
       </nav>
-
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-      />
     </header>
   )
 }
