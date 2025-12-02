@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import { Search, ArrowRight, Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { InterstitialAd } from "@/components/ads"
 
 const placeholderPrompts = [
   "I'm feeling anxious about the future...",
@@ -22,6 +23,8 @@ export function SearchBar() {
   const [promptIndex, setPromptIndex] = useState(0)
   const [isTyping, setIsTyping] = useState(true)
   const [isFocused, setIsFocused] = useState(false)
+  const [showInterstitial, setShowInterstitial] = useState(false)
+  const [pendingQuery, setPendingQuery] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
 
@@ -71,7 +74,17 @@ export function SearchBar() {
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
     if (query.trim()) {
-      router.push(`/guidance?q=${encodeURIComponent(query.trim())}`)
+      // Show interstitial ad before navigating
+      setPendingQuery(query.trim())
+      setShowInterstitial(true)
+    }
+  }
+
+  const handleInterstitialClose = () => {
+    setShowInterstitial(false)
+    if (pendingQuery) {
+      router.push(`/guidance?q=${encodeURIComponent(pendingQuery)}`)
+      setPendingQuery("")
     }
   }
 
@@ -176,6 +189,14 @@ export function SearchBar() {
       <p className="text-center text-xs text-muted-foreground/60 sm:text-sm">
         Press Enter to submit • Your questions are private
       </p>
+
+      {/* Interstitial Ad */}
+      <InterstitialAd
+        adSlot="YOUR_INTERSTITIAL_AD_SLOT_ID"
+        isOpen={showInterstitial}
+        onClose={handleInterstitialClose}
+        countdownSeconds={5}
+      />
     </form>
   )
 }
