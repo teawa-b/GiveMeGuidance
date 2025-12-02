@@ -3,28 +3,35 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "NEXT_DISABLE_TURBOPACK=1 next build",
+    "dev": "next dev",
+    "build": "next build",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
+<<<<<<< HEAD
+    "@auth/core": "^0.37.4",
+    "@convex-dev/auth": "^0.0.90",
+    "@openrouter/sdk": "^0.1.27",
+=======
     "@clerk/nextjs": "^6.35.5",
+>>>>>>> 8d1fb4a (Add Clerk authentication and Google AdSense integration)
     "@radix-ui/react-slot": "^1.2.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "convex": "^1.29.3",
     "lucide-react": "^0.554.0",
-    "next": "15.1.6",
-    "react": "18.2.0",
-    "react-dom": "18.2.0",
+    "next": "16.0.4",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
     "tailwind-merge": "^3.4.0",
     "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
-    "@types/react": "^18.2.45",
-    "@types/react-dom": "^18.2.18",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.0.4",
     "tailwindcss": "^4",

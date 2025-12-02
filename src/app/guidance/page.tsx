@@ -5,7 +5,11 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { VerseCard } from "@/components/VerseCard"
 import { ExplanationPanel } from "@/components/ExplanationPanel"
 import { ChatBox } from "@/components/ChatBox"
+<<<<<<< HEAD
+import { Loader2 } from "lucide-react"
+=======
 import { SquareAd } from "@/components/ads"
+>>>>>>> 8d1fb4a (Add Clerk authentication and Google AdSense integration)
 
 interface VerseData {
   reference: {
@@ -154,12 +158,13 @@ function GuidanceContent() {
   if (!query) {
     return null
   }
+<<<<<<< HEAD
 
   if (isLoadingVerse) {
     return (
       <main className="min-h-screen flex items-center justify-center px-4 pt-24 sm:pt-28">
         <div className="text-center space-y-4">
-          <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto" />
+          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
           <p className="text-lg text-muted-foreground">Finding the perfect verse for you...</p>
         </div>
       </main>
@@ -188,18 +193,26 @@ function GuidanceContent() {
   }
 
   return (
+    <main className="min-h-screen px-4 pt-24 pb-8 sm:px-6 sm:pt-28 sm:pb-12">
+=======
+  return (
     <main className="min-h-[calc(100vh-3.5rem)] px-4 pt-24 pb-8 sm:px-6 sm:pt-28 sm:pb-12">
+>>>>>>> 8d1fb4a (Add Clerk authentication and Google AdSense integration)
       <div className="mx-auto max-w-6xl">
         {/* Two column layout on desktop, stacked on mobile */}
         <div className="grid gap-6 lg:grid-cols-2 lg:gap-8">
           {/* Left column - Verse Card */}
           <div className="space-y-6">
+<<<<<<< HEAD
             <VerseCard verseText={verseData.text} verseReference={verseData.reference.passage} />
+=======
+            <VerseCard verseText={mockVerse.text} verseReference={mockVerse.reference} />
             
             {/* Square Ad - Below verse card on mobile, visible on all screens */}
             <div className="flex justify-center lg:hidden">
               <SquareAd adSlot="YOUR_SQUARE_AD_SLOT_ID" />
             </div>
+>>>>>>> 8d1fb4a (Add Clerk authentication and Google AdSense integration)
           </div>
 
           {/* Right column - Explanation Panel */}
