@@ -1,77 +1,100 @@
-"use client"
-
-import { useState } from "react"
-import { useQuery, useMutation } from "convex/react"
-import { useConvexAuth } from "convex/react"
-import { api } from "../../convex/_generated/api"
-import { BookmarkButton } from "@/components/BookmarkButton"
-import { AuthModal } from "@/components/AuthModal"
+import React, { useState, useEffect } from "react";
+import { View, Text, StyleSheet, Pressable, Platform } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
 
 interface VerseCardProps {
-  verseText: string
-  verseReference: string
+  verseText: string;
+  verseReference: string;
 }
 
 export function VerseCard({ verseText, verseReference }: VerseCardProps) {
-  const { isAuthenticated, isLoading: authLoading } = useConvexAuth()
-  const [showAuthModal, setShowAuthModal] = useState(false)
-  
-  const isBookmarkedResult = useQuery(
-    api.bookmarks.isBookmarked,
-    { verseReference }
-  )
-  const bookmarks = useQuery(api.bookmarks.getBookmarks)
-  
-  const addBookmark = useMutation(api.bookmarks.addBookmark)
-  const removeBookmark = useMutation(api.bookmarks.removeBookmark)
+  const isBookmarkedQuery = useQuery(api.bookmarks.isBookmarked, { verseReference });
+  const addBookmark = useMutation(api.bookmarks.addBookmark);
+  const [isBookmarking, setIsBookmarking] = useState(false);
 
-  const bookmarked = isBookmarkedResult ?? false
+  const bookmarked = isBookmarkedQuery ?? false;
 
   const handleToggleBookmark = async () => {
-    if (!isAuthenticated) {
-      setShowAuthModal(true)
-      return
+    if (isBookmarking || bookmarked) return; // Don't allow unbookmarking from here, only from bookmarks screen
+    
+    setIsBookmarking(true);
+    try {
+      await addBookmark({ verseText, verseReference });
+    } catch (error) {
+      console.error("Error bookmarking verse:", error);
+    } finally {
+      setIsBookmarking(false);
     }
-
-    if (bookmarked) {
-      // Find the bookmark to remove
-      const bookmark = bookmarks?.find((b) => b.verseReference === verseReference)
-      if (bookmark) {
-        await removeBookmark({ bookmarkId: bookmark._id })
-      }
-    } else {
-      await addBookmark({ verseText, verseReference })
-    }
-  }
+  };
 
   return (
-    <>
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex-1 space-y-4">
-            <p className="text-xl font-serif leading-relaxed text-card-foreground sm:text-2xl md:text-3xl">
-              "{verseText}"
-            </p>
-            <p className="text-base font-medium text-primary sm:text-lg">
-              — {verseReference}
-            </p>
-          </div>
-          <BookmarkButton 
-            isBookmarked={bookmarked} 
-            onToggle={handleToggleBookmark}
-            isLoading={authLoading}
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.textContainer}>
+          <Text style={styles.verseText}>"{verseText}"</Text>
+          <Text style={styles.reference}>— {verseReference}</Text>
+        </View>
+        <Pressable
+          style={styles.bookmarkButton}
+          onPress={handleToggleBookmark}
+        >
+          <Ionicons
+            name={bookmarked ? "bookmark" : "bookmark-outline"}
+            size={24}
+            color={bookmarked ? "#10b981" : "#9ca3af"}
           />
-        </div>
-      </div>
-
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        onSuccess={() => {
-          // Bookmark will be added after successful auth
-          addBookmark({ verseText, verseReference })
-        }}
-      />
-    </>
-  )
+        </Pressable>
+      </View>
+    </View>
+  );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 1,
+      },
+      web: {
+        boxShadow: "0 1px 4px rgba(0, 0, 0, 0.05)",
+      },
+    }),
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  textContainer: {
+    flex: 1,
+    gap: 12,
+  },
+  verseText: {
+    fontSize: 22,
+    fontStyle: "italic",
+    lineHeight: 32,
+    color: "#111827",
+  },
+  reference: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#10b981",
+  },
+  bookmarkButton: {
+    padding: 8,
+    marginLeft: 8,
+    marginTop: -4,
+  },
+});

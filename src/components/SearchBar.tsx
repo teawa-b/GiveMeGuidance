@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 "use client"
 
 import { useState, useEffect, useRef, FormEvent } from "react"
@@ -5,6 +6,19 @@ import { useRouter } from "next/navigation"
 import { Search, ArrowRight, Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { InterstitialAd } from "@/components/ads"
+=======
+import React, { useState, useEffect, useRef } from "react";
+import {
+  View,
+  TextInput,
+  Text,
+  StyleSheet,
+  Pressable,
+  Animated,
+  Platform,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+>>>>>>> Stashed changes
 
 const placeholderPrompts = [
   "I'm feeling anxious about the future...",
@@ -15,8 +29,9 @@ const placeholderPrompts = [
   "Help me overcome my fears...",
   "I'm dealing with grief and loss...",
   "How can I strengthen my faith?",
-]
+];
 
+<<<<<<< Updated upstream
 export function SearchBar() {
   const [query, setQuery] = useState("")
   const [placeholder, setPlaceholder] = useState("")
@@ -27,53 +42,61 @@ export function SearchBar() {
   const [pendingQuery, setPendingQuery] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
+=======
+interface SearchBarProps {
+  onSubmit: (query: string) => void;
+}
+
+export function SearchBar({ onSubmit }: SearchBarProps) {
+  const [query, setQuery] = useState("");
+  const [placeholderText, setPlaceholderText] = useState("");
+  const [promptIndex, setPromptIndex] = useState(0);
+  const [isTyping, setIsTyping] = useState(true);
+  const [isFocused, setIsFocused] = useState(false);
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+>>>>>>> Stashed changes
 
   // Typewriter effect
   useEffect(() => {
-    if (isFocused || query) return // Stop animation when focused or has input
+    if (isFocused || query) return;
 
-    const currentPrompt = placeholderPrompts[promptIndex]
-    let timeout: NodeJS.Timeout
+    const currentPrompt = placeholderPrompts[promptIndex];
+    let timeout: ReturnType<typeof setTimeout>;
 
     if (isTyping) {
-      // Typing phase
-      if (placeholder.length < currentPrompt.length) {
+      if (placeholderText.length < currentPrompt.length) {
         timeout = setTimeout(() => {
-          setPlaceholder(currentPrompt.slice(0, placeholder.length + 1))
-        }, 60) // Typing speed
+          setPlaceholderText(currentPrompt.slice(0, placeholderText.length + 1));
+        }, 60);
       } else {
-        // Pause at end of typing
         timeout = setTimeout(() => {
-          setIsTyping(false)
-        }, 2000) // Pause before erasing
+          setIsTyping(false);
+        }, 2000);
       }
     } else {
-      // Erasing phase
-      if (placeholder.length > 0) {
+      if (placeholderText.length > 0) {
         timeout = setTimeout(() => {
-          setPlaceholder(placeholder.slice(0, -1))
-        }, 30) // Erasing speed (faster than typing)
+          setPlaceholderText(placeholderText.slice(0, -1));
+        }, 30);
       } else {
-        // Move to next prompt
-        setPromptIndex((prev) => (prev + 1) % placeholderPrompts.length)
-        setIsTyping(true)
+        setPromptIndex((prev) => (prev + 1) % placeholderPrompts.length);
+        setIsTyping(true);
       }
     }
 
-    return () => clearTimeout(timeout)
-  }, [placeholder, isTyping, promptIndex, isFocused, query])
+    return () => clearTimeout(timeout);
+  }, [placeholderText, isTyping, promptIndex, isFocused, query]);
 
-  // Reset animation when focus is lost and no query
   useEffect(() => {
     if (!isFocused && !query) {
-      setPlaceholder("")
-      setIsTyping(true)
+      setPlaceholderText("");
+      setIsTyping(true);
     }
-  }, [isFocused, query])
+  }, [isFocused, query]);
 
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = () => {
     if (query.trim()) {
+<<<<<<< Updated upstream
       // Show interstitial ad before navigating
       setPendingQuery(query.trim())
       setShowInterstitial(true)
@@ -85,106 +108,65 @@ export function SearchBar() {
     if (pendingQuery) {
       router.push(`/guidance?q=${encodeURIComponent(pendingQuery)}`)
       setPendingQuery("")
+=======
+      onSubmit(query.trim());
+>>>>>>> Stashed changes
     }
-  }
+  };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault()
-      handleSubmit(e)
-    }
-  }
+  const handleFocus = () => {
+    setIsFocused(true);
+    Animated.spring(scaleAnim, {
+      toValue: 1.02,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handleBlur = () => {
+    setIsFocused(false);
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+    }).start();
+  };
 
   return (
-    <form onSubmit={handleSubmit} className="w-full max-w-xl space-y-4">
-      {/* Search container */}
-      <div className="group relative">
-        {/* Animated gradient border */}
-        <div className={cn(
-          "absolute -inset-[2px] rounded-full bg-gradient-to-r from-primary via-emerald-400 to-teal-400 opacity-0 blur-sm transition-all duration-500",
-          isFocused ? "opacity-100" : "group-hover:opacity-60"
-        )} />
-        
-        {/* Glow effect */}
-        <div className={cn(
-          "absolute -inset-4 rounded-full bg-gradient-to-r from-primary/20 via-emerald-400/20 to-teal-400/20 opacity-0 blur-2xl transition-all duration-500",
-          isFocused ? "opacity-100" : "group-hover:opacity-50"
-        )} />
-        
-        {/* Input wrapper */}
-        <div className="relative overflow-hidden rounded-full bg-white shadow-xl ring-1 ring-black/5">
-          {/* Subtle inner gradient */}
-          <div className="absolute inset-0 bg-gradient-to-br from-white via-white to-primary/5" />
-          
-          <div className="relative flex items-center gap-3 px-5 py-4 sm:px-6 sm:py-5">
-            {/* Search icon */}
-            <div className={cn(
-              "flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all duration-300",
-              isFocused 
-                ? "bg-gradient-to-br from-primary to-emerald-500 text-white shadow-lg shadow-primary/30" 
-                : "bg-primary/10 text-primary"
-            )}>
-              <Search className="h-5 w-5" />
-            </div>
-            
-            {/* Input */}
-            <div className="relative flex-1">
-              <input
-                ref={inputRef as React.RefObject<HTMLInputElement>}
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onFocus={() => setIsFocused(true)}
-                onBlur={() => setIsFocused(false)}
-                onKeyDown={handleKeyDown}
-                className="w-full bg-transparent text-base text-foreground outline-none sm:text-lg"
-              />
-              
-              {/* Animated placeholder */}
-              {!query && (
-                <div className="pointer-events-none absolute inset-0 flex items-center">
-                  <span className="text-base text-muted-foreground/70 sm:text-lg">
-                    {placeholder}
-                    <span className={cn(
-                      "ml-0.5 inline-block h-5 w-0.5 bg-primary/50 align-middle",
-                      isTyping && !isFocused ? "animate-pulse" : "opacity-0"
-                    )} />
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Submit button */}
-      <button
-        type="submit"
-        disabled={!query.trim()}
-        className={cn(
-          "group/btn relative w-full overflow-hidden rounded-full p-[2px] transition-all duration-300",
-          query.trim() 
-            ? "hover:scale-[1.02] active:scale-[0.98]" 
-            : "opacity-50 cursor-not-allowed"
-        )}
+    <View style={styles.wrapper}>
+      <Animated.View
+        style={[
+          styles.container,
+          isFocused && styles.containerFocused,
+          { transform: [{ scale: scaleAnim }] },
+        ]}
       >
-        {/* Animated gradient background */}
-        <div className={cn(
-          "absolute inset-0 rounded-full bg-gradient-to-r from-primary via-emerald-500 to-teal-500 transition-all duration-300",
-          query.trim() && "group-hover/btn:from-emerald-500 group-hover/btn:via-primary group-hover/btn:to-emerald-500"
-        )} />
-        
-        {/* Button inner */}
-        <div className="relative flex h-14 items-center justify-center gap-3 rounded-full bg-gradient-to-r from-primary via-emerald-500 to-teal-500 px-8 text-base font-semibold text-white shadow-lg shadow-primary/25 sm:h-16 sm:text-lg">
-          <Sparkles className="h-5 w-5" />
-          <span>Get Guidance</span>
-          <ArrowRight className={cn(
-            "h-5 w-5 transition-transform duration-300",
-            query.trim() && "group-hover/btn:translate-x-1"
-          )} />
-        </div>
-      </button>
+        {/* Search input row */}
+        <View style={styles.inputContainer}>
+          <Ionicons
+            name="search"
+            size={20}
+            color={isFocused ? "#10b981" : "#9ca3af"}
+            style={styles.searchIcon}
+          />
+          <TextInput
+            style={styles.input}
+            value={query}
+            onChangeText={setQuery}
+            placeholder={isFocused ? "Share what's on your heart..." : placeholderText}
+            placeholderTextColor="#9ca3af"
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+            onSubmitEditing={handleSubmit}
+            returnKeyType="search"
+            multiline={false}
+          />
+          {query.length > 0 && (
+            <Pressable style={styles.clearButton} onPress={() => setQuery("")}>
+              <Ionicons name="close-circle" size={20} color="#9ca3af" />
+            </Pressable>
+          )}
+        </View>
 
+<<<<<<< Updated upstream
       {/* Helper text */}
       <p className="text-center text-xs text-muted-foreground/60 sm:text-sm">
         Press Enter to submit • Your questions are private
@@ -199,4 +181,119 @@ export function SearchBar() {
       />
     </form>
   )
+=======
+        {/* Submit button inside card */}
+        <View style={styles.buttonContainer}>
+          <Pressable
+            style={[styles.submitButton, !query.trim() && styles.submitButtonDisabled]}
+            onPress={handleSubmit}
+            disabled={!query.trim()}
+          >
+            <Text style={styles.submitButtonText}>Get Guidance</Text>
+            <Ionicons name="arrow-forward" size={18} color="#ffffff" />
+          </Pressable>
+        </View>
+      </Animated.View>
+    </View>
+  );
+>>>>>>> Stashed changes
 }
+
+const styles = StyleSheet.create({
+  wrapper: {
+    width: "100%",
+    maxWidth: 500,
+    gap: 14,
+  },
+  container: {
+    borderRadius: 20,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "rgba(0, 0, 0, 0.06)",
+    paddingBottom: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 16,
+      },
+      android: {
+        elevation: 4,
+      },
+      web: {
+        boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)",
+      },
+    }),
+  },
+  containerFocused: {
+    borderColor: "#10b981",
+    ...Platform.select({
+      ios: {
+        shadowOpacity: 0.12,
+      },
+      web: {
+        boxShadow: "0 4px 20px rgba(16, 185, 129, 0.15)",
+      },
+    }),
+  },
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  searchIcon: {
+    marginRight: 12,
+  },
+  input: {
+    flex: 1,
+    fontSize: 16,
+    color: "#111827",
+    paddingVertical: 12,
+  },
+  clearButton: {
+    padding: 4,
+    marginLeft: 8,
+  },
+  buttonContainer: {
+    paddingHorizontal: 16,
+  },
+  submitButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#10b981",
+    paddingVertical: 14,
+    borderRadius: 28,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#10b981",
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.25,
+        shadowRadius: 6,
+      },
+      android: {
+        elevation: 3,
+      },
+      web: {
+        boxShadow: "0 3px 8px rgba(16, 185, 129, 0.25)",
+      },
+    }),
+  },
+  submitButtonDisabled: {
+    opacity: 0.6,
+  },
+  submitButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#ffffff",
+  },
+  helperText: {
+    textAlign: "center",
+    fontSize: 13,
+    color: "#9ca3af",
+  },
+});

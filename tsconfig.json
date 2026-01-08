@@ -1,14 +1,8 @@
 {
+  "extends": "expo/tsconfig.base",
   "compilerOptions": {
-    "target": "es5",
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
-    "allowJs": true,
-    "skipLibCheck": true,
     "strict": true,
+<<<<<<< Updated upstream
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
@@ -22,20 +16,17 @@
         "name": "next"
       }
     ],
+=======
+>>>>>>> Stashed changes
     "paths": {
-      "@/*": [
-        "./src/*"
-      ]
-    }
+      "@/*": ["./src/*"]
+    },
+    "baseUrl": "."
   },
   "include": [
-    "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
-    ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts"
-  ],
-  "exclude": [
-    "node_modules"
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
   ]
 }
