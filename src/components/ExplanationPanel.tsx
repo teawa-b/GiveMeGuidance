@@ -12,6 +12,7 @@ interface ExplanationPanelProps {
   userQuestion: string;
   explanationData: ExplanationData | null;
   isLoadingExplanation: boolean;
+  onAskFollowUp?: () => void;
   onGetAnotherVerse: () => void;
 }
 
@@ -19,6 +20,7 @@ export function ExplanationPanel({
   userQuestion,
   explanationData,
   isLoadingExplanation,
+  onAskFollowUp,
   onGetAnotherVerse,
 }: ExplanationPanelProps) {
   return (
