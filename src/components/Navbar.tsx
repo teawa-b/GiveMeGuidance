@@ -9,7 +9,6 @@ import { useAuthActions } from "@convex-dev/auth/react"
 import { Button } from "@/components/ui/button"
 import { AuthModal } from "@/components/AuthModal"
 import { cn } from "@/lib/utils"
-import { SignInButton, SignUpButton, UserButton, SignedIn, SignedOut } from "@clerk/nextjs"
 
 const navLinks = [
   { href: "/", label: "Home", icon: Home },
@@ -74,7 +73,6 @@ export function Navbar() {
               })}
             </div>
 
-<<<<<<< HEAD
             {/* CTA Button / Auth - Desktop */}
             <div className="hidden sm:flex items-center gap-2">
               {isAuthenticated ? (
@@ -101,26 +99,6 @@ export function Navbar() {
                 <Sparkles className="h-4 w-4" />
                 Get Guidance
               </Link>
-=======
-            {/* CTA Button - Desktop */}
-            <div className="hidden sm:flex items-center gap-2">
-              <SignedOut>
-                <SignInButton mode="modal">
-                  <button className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-2">
-                    Sign In
-                  </button>
-                </SignInButton>
-                <SignUpButton mode="modal">
-                  <button className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-primary to-emerald-500 px-5 py-2 text-sm font-semibold text-white shadow-md shadow-primary/25 transition-all duration-300 hover:shadow-lg hover:shadow-primary/30 hover:scale-105 active:scale-100">
-                    <Sparkles className="h-4 w-4" />
-                    Sign Up
-                  </button>
-                </SignUpButton>
-              </SignedOut>
-              <SignedIn>
-                <UserButton />
-              </SignedIn>
->>>>>>> 8d1fb4a (Add Clerk authentication and Google AdSense integration)
             </div>
 
             {/* Mobile menu button */}
@@ -165,7 +143,6 @@ export function Navbar() {
                 )
               })}
               <div className="pt-2 space-y-2">
-<<<<<<< HEAD
                 {isAuthenticated ? (
                   <button
                     onClick={handleSignOut}
@@ -194,32 +171,6 @@ export function Navbar() {
                   <Sparkles className="h-5 w-5" />
                   Get Guidance
                 </Link>
-=======
-                <SignedOut>
-                  <SignInButton mode="modal">
-                    <button 
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-input bg-background px-4 py-3 text-base font-medium shadow-sm hover:bg-accent hover:text-accent-foreground"
-                    >
-                      Sign In
-                    </button>
-                  </SignInButton>
-                  <SignUpButton mode="modal">
-                    <button 
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-emerald-500 px-4 py-3 text-base font-semibold text-white shadow-md"
-                    >
-                      <Sparkles className="h-5 w-5" />
-                      Sign Up
-                    </button>
-                  </SignUpButton>
-                </SignedOut>
-                <SignedIn>
-                  <div className="flex justify-center py-2">
-                    <UserButton />
-                  </div>
-                </SignedIn>
->>>>>>> 8d1fb4a (Add Clerk authentication and Google AdSense integration)
               </div>
             </div>
           </div>

@@ -1,12 +1,3 @@
-<<<<<<< Updated upstream
-"use client"
-
-import { useState, useEffect, useRef, FormEvent } from "react"
-import { useRouter } from "next/navigation"
-import { Search, ArrowRight, Sparkles } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { InterstitialAd } from "@/components/ads"
-=======
 import React, { useState, useEffect, useRef } from "react";
 import {
   View,
@@ -18,7 +9,6 @@ import {
   Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
->>>>>>> Stashed changes
 
 const placeholderPrompts = [
   "I'm feeling anxious about the future...",
@@ -31,18 +21,6 @@ const placeholderPrompts = [
   "How can I strengthen my faith?",
 ];
 
-<<<<<<< Updated upstream
-export function SearchBar() {
-  const [query, setQuery] = useState("")
-  const [placeholder, setPlaceholder] = useState("")
-  const [promptIndex, setPromptIndex] = useState(0)
-  const [isTyping, setIsTyping] = useState(true)
-  const [isFocused, setIsFocused] = useState(false)
-  const [showInterstitial, setShowInterstitial] = useState(false)
-  const [pendingQuery, setPendingQuery] = useState("")
-  const inputRef = useRef<HTMLInputElement>(null)
-  const router = useRouter()
-=======
 interface SearchBarProps {
   onSubmit: (query: string) => void;
 }
@@ -54,7 +32,6 @@ export function SearchBar({ onSubmit }: SearchBarProps) {
   const [isTyping, setIsTyping] = useState(true);
   const [isFocused, setIsFocused] = useState(false);
   const scaleAnim = useRef(new Animated.Value(1)).current;
->>>>>>> Stashed changes
 
   // Typewriter effect
   useEffect(() => {
@@ -96,21 +73,7 @@ export function SearchBar({ onSubmit }: SearchBarProps) {
 
   const handleSubmit = () => {
     if (query.trim()) {
-<<<<<<< Updated upstream
-      // Show interstitial ad before navigating
-      setPendingQuery(query.trim())
-      setShowInterstitial(true)
-    }
-  }
-
-  const handleInterstitialClose = () => {
-    setShowInterstitial(false)
-    if (pendingQuery) {
-      router.push(`/guidance?q=${encodeURIComponent(pendingQuery)}`)
-      setPendingQuery("")
-=======
       onSubmit(query.trim());
->>>>>>> Stashed changes
     }
   };
 
@@ -166,22 +129,6 @@ export function SearchBar({ onSubmit }: SearchBarProps) {
           )}
         </View>
 
-<<<<<<< Updated upstream
-      {/* Helper text */}
-      <p className="text-center text-xs text-muted-foreground/60 sm:text-sm">
-        Press Enter to submit • Your questions are private
-      </p>
-
-      {/* Interstitial Ad */}
-      <InterstitialAd
-        adSlot="YOUR_INTERSTITIAL_AD_SLOT_ID"
-        isOpen={showInterstitial}
-        onClose={handleInterstitialClose}
-        countdownSeconds={5}
-      />
-    </form>
-  )
-=======
         {/* Submit button inside card */}
         <View style={styles.buttonContainer}>
           <Pressable
@@ -196,7 +143,6 @@ export function SearchBar({ onSubmit }: SearchBarProps) {
       </Animated.View>
     </View>
   );
->>>>>>> Stashed changes
 }
 
 const styles = StyleSheet.create({
