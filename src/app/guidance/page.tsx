@@ -5,11 +5,8 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { VerseCard } from "@/components/VerseCard"
 import { ExplanationPanel } from "@/components/ExplanationPanel"
 import { ChatBox } from "@/components/ChatBox"
-<<<<<<< HEAD
 import { Loader2 } from "lucide-react"
-=======
 import { SquareAd } from "@/components/ads"
->>>>>>> 8d1fb4a (Add Clerk authentication and Google AdSense integration)
 
 interface VerseData {
   reference: {
@@ -148,7 +145,7 @@ function GuidanceContent() {
         id: crypto.randomUUID(),
         role: "assistant",
         content:
-          "That's a great question. Based on the verse and your situation, I would encourage you to take time each day to pray and reflect on God's guidance. Sometimes clarity comes through patience and continued trust. Is there a specific area where you're seeking more direction?",
+          "That's a great question. Based on the verse and your situation, I would encourage you to take time each day to pray and reflect on God's guidance. Sometimes clarity comes through patience and trust.",
       }
       setMessages((prev) => [...prev, assistantMessage])
       setIsLoading(false)
@@ -158,7 +155,6 @@ function GuidanceContent() {
   if (!query) {
     return null
   }
-<<<<<<< HEAD
 
   if (isLoadingVerse) {
     return (
@@ -194,25 +190,17 @@ function GuidanceContent() {
 
   return (
     <main className="min-h-screen px-4 pt-24 pb-8 sm:px-6 sm:pt-28 sm:pb-12">
-=======
-  return (
-    <main className="min-h-[calc(100vh-3.5rem)] px-4 pt-24 pb-8 sm:px-6 sm:pt-28 sm:pb-12">
->>>>>>> 8d1fb4a (Add Clerk authentication and Google AdSense integration)
       <div className="mx-auto max-w-6xl">
         {/* Two column layout on desktop, stacked on mobile */}
         <div className="grid gap-6 lg:grid-cols-2 lg:gap-8">
           {/* Left column - Verse Card */}
           <div className="space-y-6">
-<<<<<<< HEAD
             <VerseCard verseText={verseData.text} verseReference={verseData.reference.passage} />
-=======
-            <VerseCard verseText={mockVerse.text} verseReference={mockVerse.reference} />
             
-            {/* Square Ad - Below verse card on mobile, visible on all screens */}
+            {/* Square Ad - Below verse card on mobile */}
             <div className="flex justify-center lg:hidden">
               <SquareAd adSlot="YOUR_SQUARE_AD_SLOT_ID" />
             </div>
->>>>>>> 8d1fb4a (Add Clerk authentication and Google AdSense integration)
           </div>
 
           {/* Right column - Explanation Panel */}
