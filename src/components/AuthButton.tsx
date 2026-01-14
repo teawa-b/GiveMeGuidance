@@ -9,6 +9,7 @@ import {
   Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { mediumHaptic } from "../lib/haptics";
 
 interface AuthButtonProps {
   type: "apple" | "google" | "email";
@@ -69,7 +70,10 @@ export function AuthButton({ type, onPress, loading, disabled }: AuthButtonProps
         pressed && styles.pressed,
         disabled && styles.disabled,
       ]}
-      onPress={onPress}
+      onPress={() => {
+        mediumHaptic();
+        onPress();
+      }}
       disabled={disabled || loading}
     >
       {renderContent()}

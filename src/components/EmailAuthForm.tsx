@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { mediumHaptic, lightHaptic, errorHaptic } from "../lib/haptics";
 
 interface EmailAuthFormProps {
   onSignIn: (email: string, password: string) => Promise<void>;
@@ -37,20 +38,24 @@ export function EmailAuthForm({
     setLocalError(null);
 
     if (!email.trim() || !password.trim()) {
+      errorHaptic();
       setLocalError("Please fill in all fields");
       return;
     }
 
     if (mode === "signup" && password !== confirmPassword) {
+      errorHaptic();
       setLocalError("Passwords don't match");
       return;
     }
 
     if (password.length < 8) {
+      errorHaptic();
       setLocalError("Password must be at least 8 characters");
       return;
     }
 
+    mediumHaptic();
     try {
       if (mode === "signin") {
         await onSignIn(email.trim(), password);
@@ -70,7 +75,10 @@ export function EmailAuthForm({
       style={styles.container}
     >
       {/* Back button */}
-      <Pressable style={styles.backButton} onPress={onBack}>
+      <Pressable style={styles.backButton} onPress={() => {
+        lightHaptic();
+        onBack();
+      }}>
         <Ionicons name="arrow-back" size={24} color="#6b7280" />
         <Text style={styles.backText}>Back</Text>
       </Pressable>
@@ -192,6 +200,7 @@ export function EmailAuthForm({
           </Text>
           <Pressable
             onPress={() => {
+              lightHaptic();
               setMode(mode === "signin" ? "signup" : "signin");
               setLocalError(null);
             }}

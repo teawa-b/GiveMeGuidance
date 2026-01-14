@@ -1,9 +1,9 @@
 import { Redirect } from "expo-router";
-import { useConvexAuth } from "convex/react";
+import { useAuth } from "../src/lib/AuthContext";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
 
 export default function Index() {
-  const { isLoading, isAuthenticated } = useConvexAuth();
+  const { isLoading, isAuthenticated } = useAuth();
 
   if (isLoading) {
     return (

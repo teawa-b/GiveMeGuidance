@@ -17,7 +17,13 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.yourname.givemeguidance",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "GADApplicationIdentifier": "ca-app-pub-7517928309502563~6866156559",
+        "SKAdNetworkItems": [
+          {
+            "SKAdNetworkIdentifier": "cstr6suwn9.skadnetwork"
+          }
+        ]
       }
     },
     "android": {
@@ -35,7 +41,14 @@
     "plugins": [
       "expo-router",
       "expo-asset",
-      "expo-font"
+      "expo-font",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-7517928309502563~8405457175",
+          "iosAppId": "ca-app-pub-7517928309502563~6866156559"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

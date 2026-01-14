@@ -1,11 +1,11 @@
 import { useRouter } from "expo-router";
-import { useConvexAuth } from "convex/react";
 import { useEffect } from "react";
+import { useAuth } from "../../src/lib/AuthContext";
 import { AuthScreen } from "../../src/components";
 
 export default function AuthIndex() {
   const router = useRouter();
-  const { isAuthenticated } = useConvexAuth();
+  const { isAuthenticated } = useAuth();
 
   // Auto-redirect when auth state changes
   useEffect(() => {

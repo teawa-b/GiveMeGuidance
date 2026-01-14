@@ -1,7 +1,7 @@
 import Constants from "expo-constants";
 
 // Get the base URL from environment - this points to a server that can make OpenRouter calls
-// For production, you'll need a backend server or Convex action to call OpenRouter
+// For production, you'll need a backend server to call OpenRouter
 const API_BASE_URL =
   Constants.expoConfig?.extra?.apiBaseUrl ||
   process.env.EXPO_PUBLIC_API_BASE_URL ||

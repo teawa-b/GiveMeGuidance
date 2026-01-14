@@ -7,13 +7,12 @@ import {
   Platform,
   Alert,
   Image,
+  Pressable,
 } from "react-native";
-import { useAuthActions, useAuthToken } from "@convex-dev/auth/react";
-import { useConvexAuth } from "convex/react";
+import { useAuth } from "../lib/AuthContext";
 import { useRouter } from "expo-router";
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as WebBrowser from "expo-web-browser";
-import * as Linking from "expo-linking";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthButton } from "./AuthButton";
 import { EmailAuthForm } from "./EmailAuthForm";
@@ -27,18 +26,17 @@ interface AuthScreenProps {
 }
 
 export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
-  const { signIn } = useAuthActions();
-  const token = useAuthToken();
-  const { isLoading, isAuthenticated } = useConvexAuth();
+  const { signIn, signUp, signInWithGoogle, signInWithApple, isLoading, isAuthenticated } = useAuth();
   const router = useRouter();
   const [showEmailForm, setShowEmailForm] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
   const [loading, setLoading] = useState<"apple" | "google" | "email" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Debug: log auth state changes in AuthScreen
   useEffect(() => {
-    console.log("[AuthScreen] Auth state - token:", token ? "present" : "null", "isLoading:", isLoading, "isAuthenticated:", isAuthenticated);
-  }, [token, isLoading, isAuthenticated]);
+    console.log("[AuthScreen] Auth state - isLoading:", isLoading, "isAuthenticated:", isAuthenticated);
+  }, [isLoading, isAuthenticated]);
 
   // Handle Apple Sign In (iOS native)
   const handleAppleAuth = async () => {
@@ -58,13 +56,14 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
         ],
       });
 
-      // Sign in with Convex using the Apple credential
-      await signIn("apple", {
-        idToken: credential.identityToken,
-        nonce: credential.authorizationCode,
-      });
-
-      onAuthenticated?.();
+      if (credential.identityToken) {
+        const result = await signInWithApple(credential.identityToken);
+        if (result.error) {
+          setError(result.error);
+        } else {
+          onAuthenticated?.();
+        }
+      }
     } catch (e: any) {
       if (e.code === "ERR_REQUEST_CANCELED") {
         // User canceled - don't show error
@@ -83,11 +82,12 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
       setLoading("google");
       setError(null);
 
-      // Use Convex's built-in OAuth flow
-      const redirectTo = Linking.createURL("/");
-      await signIn("google", { redirectTo });
-
-      onAuthenticated?.();
+      const result = await signInWithGoogle();
+      if (result.error) {
+        setError(result.error);
+      } else {
+        onAuthenticated?.();
+      }
     } catch (e) {
       setError("Google sign in failed. Please try again.");
       console.error("Google auth error:", e);
@@ -103,23 +103,21 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
       setError(null);
 
       console.log("[AuthScreen] Calling signIn with password...");
-      const result = await signIn("password", {
-        email,
-        password,
-        flow: "signIn",
-      });
-      console.log("[AuthScreen] signIn result:", JSON.stringify(result, null, 2));
-      console.log("[AuthScreen] signingIn:", result?.signingIn);
+      const result = await signIn(email, password);
 
-      // Workaround: isAuthenticated state not updating properly after signIn
-      // Force navigation when signIn succeeds
-      if (result?.signingIn) {
-        console.log("[AuthScreen] signIn successful, navigating to tabs...");
-        router.replace("/(tabs)");
+      if (result.error) {
+        console.error("[AuthScreen] signIn error:", result.error);
+        setError(result.error);
+        throw new Error(result.error);
       }
+
+      console.log("[AuthScreen] signIn successful, navigating to tabs...");
+      router.replace("/(tabs)");
     } catch (e: any) {
       console.error("[AuthScreen] signIn error:", e);
-      setError(e.message || "Invalid email or password");
+      if (!error) {
+        setError(e.message || "Invalid email or password");
+      }
       throw e;
     } finally {
       setLoading(null);
@@ -132,29 +130,64 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
       setLoading("email");
       setError(null);
 
-      console.log("[AuthScreen] Calling signIn with password (signUp flow)...");
-      const result = await signIn("password", {
-        email,
-        password,
-        flow: "signUp",
-      });
-      console.log("[AuthScreen] signUp result:", JSON.stringify(result, null, 2));
-      console.log("[AuthScreen] signingIn:", result?.signingIn);
+      console.log("[AuthScreen] Calling signUp...");
+      const result = await signUp(email, password);
 
-      // Workaround: isAuthenticated state not updating properly after signIn
-      // Force navigation when signUp succeeds
-      if (result?.signingIn) {
-        console.log("[AuthScreen] signUp successful, navigating to tabs...");
-        router.replace("/(tabs)");
+      if (result.error) {
+        console.error("[AuthScreen] signUp error:", result.error);
+        setError(result.error);
+        throw new Error(result.error);
       }
+
+      // Check if email confirmation is required
+      if (result.needsConfirmation) {
+        console.log("[AuthScreen] Email confirmation required");
+        setShowConfirmation(true);
+        setShowEmailForm(false);
+        return;
+      }
+
+      console.log("[AuthScreen] signUp successful, navigating to tabs...");
+      router.replace("/(tabs)");
     } catch (e: any) {
       console.error("[AuthScreen] signUp error:", e);
-      setError(e.message || "Could not create account");
+      if (!error) {
+        setError(e.message || "Could not create account");
+      }
       throw e;
     } finally {
       setLoading(null);
     }
   };
+
+  // Show confirmation message
+  if (showConfirmation) {
+    return (
+      <View style={styles.container}>
+        <EtherealBackground />
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.content}>
+            <View style={styles.confirmationContainer}>
+              <Ionicons name="mail-outline" size={64} color="#10b981" />
+              <Text style={styles.confirmationTitle}>Check your email</Text>
+              <Text style={styles.confirmationText}>
+                We've sent you a confirmation link. Please check your email and click the link to verify your account.
+              </Text>
+              <Pressable
+                style={styles.backButton}
+                onPress={() => {
+                  setShowConfirmation(false);
+                  setShowEmailForm(true);
+                }}
+              >
+                <Text style={styles.backButtonText}>Back to Sign In</Text>
+              </Pressable>
+            </View>
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
 
   // Show email form
   if (showEmailForm) {
@@ -339,5 +372,37 @@ const styles = StyleSheet.create({
   termsLink: {
     color: "#6b7280",
     textDecorationLine: "underline",
+  },
+  confirmationContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+    gap: 16,
+  },
+  confirmationTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#111827",
+    marginTop: 16,
+  },
+  confirmationText: {
+    fontSize: 16,
+    color: "#6b7280",
+    textAlign: "center",
+    lineHeight: 24,
+    paddingHorizontal: 20,
+  },
+  backButton: {
+    marginTop: 24,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    backgroundColor: "#10b981",
+    borderRadius: 12,
+  },
+  backButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#ffffff",
   },
 });

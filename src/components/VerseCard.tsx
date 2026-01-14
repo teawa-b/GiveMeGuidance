@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, Pressable, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { isBookmarked as checkIsBookmarked, addBookmark } from "../services/bookmarks";
+import { successHaptic } from "../lib/haptics";
 
 interface VerseCardProps {
   verseText: string;
@@ -10,18 +10,33 @@ interface VerseCardProps {
 }
 
 export function VerseCard({ verseText, verseReference }: VerseCardProps) {
-  const isBookmarkedQuery = useQuery(api.bookmarks.isBookmarked, { verseReference });
-  const addBookmark = useMutation(api.bookmarks.addBookmark);
+  const [bookmarked, setBookmarked] = useState(false);
   const [isBookmarking, setIsBookmarking] = useState(false);
+  const [isChecking, setIsChecking] = useState(true);
 
-  const bookmarked = isBookmarkedQuery ?? false;
+  // Check if verse is already bookmarked
+  useEffect(() => {
+    const checkBookmark = async () => {
+      try {
+        const result = await checkIsBookmarked(verseReference);
+        setBookmarked(result);
+      } catch (error) {
+        console.error("Error checking bookmark:", error);
+      } finally {
+        setIsChecking(false);
+      }
+    };
+    checkBookmark();
+  }, [verseReference]);
 
   const handleToggleBookmark = async () => {
-    if (isBookmarking || bookmarked) return; // Don't allow unbookmarking from here, only from bookmarks screen
-    
+    if (isBookmarking || bookmarked || isChecking) return; // Don't allow unbookmarking from here, only from bookmarks screen
+
     setIsBookmarking(true);
     try {
-      await addBookmark({ verseText, verseReference });
+      await addBookmark(verseText, verseReference);
+      setBookmarked(true);
+      successHaptic();
     } catch (error) {
       console.error("Error bookmarking verse:", error);
     } finally {

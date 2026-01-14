@@ -1,6 +1,7 @@
 import { Tabs, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { View, Pressable, StyleSheet, Platform } from "react-native";
+import { mediumHaptic } from "../../src/lib/haptics";
 
 function CenterButton() {
   const router = useRouter();
@@ -8,10 +9,13 @@ function CenterButton() {
   return (
     <Pressable
       style={styles.centerButton}
-      onPress={() => router.push("/")}
+      onPress={() => {
+        mediumHaptic();
+        router.push("/");
+      }}
     >
       <View style={styles.centerButtonInner}>
-        <Ionicons name="add" size={28} color="#ffffff" />
+        <Ionicons name="add" size={26} color="#ffffff" />
       </View>
     </Pressable>
   );
@@ -23,29 +27,37 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: "#10b981",
-        tabBarInactiveTintColor: "#9ca3af",
+        tabBarInactiveTintColor: "#94a3b8",
         tabBarStyle: {
-          backgroundColor: "rgba(255, 255, 255, 0.95)",
-          borderTopWidth: 0,
-          paddingTop: 8,
-          paddingBottom: Platform.OS === "ios" ? 24 : 12,
-          height: Platform.OS === "ios" ? 88 : 70,
+          backgroundColor: "rgba(255, 255, 255, 0.3)",
+          borderTopWidth: 1,
+          borderTopColor: "rgba(226, 232, 240, 0.2)",
+          paddingTop: 12,
+          paddingBottom: Platform.OS === "ios" ? 28 : 16,
+          height: Platform.OS === "ios" ? 85 : 70,
           ...Platform.select({
             ios: {
               shadowColor: "#000",
               shadowOffset: { width: 0, height: -2 },
-              shadowOpacity: 0.05,
+              shadowOpacity: 0.03,
               shadowRadius: 8,
             },
             android: {
-              elevation: 8,
+              elevation: 0,
             },
             web: {
-              boxShadow: "0 -2px 8px rgba(0, 0, 0, 0.05)",
+              backdropFilter: "blur(24px)",
             } as any,
           }),
         },
-        tabBarShowLabel: false,
+        tabBarLabelStyle: {
+          fontSize: 9,
+          fontWeight: "700",
+          textTransform: "uppercase",
+          letterSpacing: 1,
+          marginTop: 4,
+        },
+        tabBarShowLabel: true,
         headerShown: false,
       }}
     >
@@ -56,7 +68,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <Ionicons 
               name={focused ? "home" : "home-outline"} 
-              size={26} 
+              size={24} 
               color={color} 
             />
           ),
@@ -75,16 +87,22 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="bookmarks"
+        name="chats"
         options={{
-          title: "Chat",
+          title: "Chats",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons 
-              name={focused ? "chatbubble" : "chatbubble-outline"} 
+              name={focused ? "chatbubbles" : "chatbubbles-outline"} 
               size={24} 
               color={color} 
             />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="bookmarks"
+        options={{
+          href: null, // Hide from tab bar but keep accessible
         }}
       />
     </Tabs>
@@ -97,26 +115,27 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     flex: 1,
+    marginTop: -8,
   },
   centerButtonInner: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: "#10b981",
     justifyContent: "center",
     alignItems: "center",
     ...Platform.select({
       ios: {
         shadowColor: "#10b981",
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0, height: 6 },
         shadowOpacity: 0.35,
-        shadowRadius: 8,
+        shadowRadius: 12,
       },
       android: {
         elevation: 8,
       },
       web: {
-        boxShadow: "0 4px 12px rgba(16, 185, 129, 0.35)",
+        boxShadow: "0 6px 20px rgba(16, 185, 129, 0.35)",
       } as any,
     }),
   },

@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet, Pressable, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { errorHaptic } from "../lib/haptics";
 
 interface BookmarkCardProps {
   verseText: string;
@@ -32,7 +33,10 @@ export function BookmarkCard({
           <Text style={styles.date}>{formattedDate}</Text>
         </View>
       </View>
-      <Pressable style={styles.removeButton} onPress={onRemove}>
+      <Pressable style={styles.removeButton} onPress={() => {
+        errorHaptic();
+        onRemove();
+      }}>
         <Ionicons name="trash-outline" size={20} color="#ef4444" />
       </Pressable>
     </View>

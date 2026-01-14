@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -8,25 +8,45 @@ import {
   SafeAreaView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { useFocusEffect } from "expo-router";
+import { getBookmarks, removeBookmark, type Bookmark } from "../../src/services/bookmarks";
 import { BookmarkCard } from "../../src/components/BookmarkCard";
-import type { Id } from "../../convex/_generated/dataModel";
 
 export default function BookmarksScreen() {
-  const bookmarks = useQuery(api.bookmarks.getBookmarks);
-  const removeBookmark = useMutation(api.bookmarks.removeBookmark);
+  const [bookmarks, setBookmarks] = useState<Bookmark[] | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const handleRemoveBookmark = async (bookmarkId: Id<"bookmarks">) => {
+  const fetchBookmarks = useCallback(async () => {
     try {
-      await removeBookmark({ bookmarkId });
+      const data = await getBookmarks();
+      setBookmarks(data);
+    } catch (error) {
+      console.error("Error fetching bookmarks:", error);
+      setBookmarks([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Refresh bookmarks when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchBookmarks();
+    }, [fetchBookmarks])
+  );
+
+  const handleRemoveBookmark = async (bookmarkId: string) => {
+    try {
+      await removeBookmark(bookmarkId);
+      // Refresh the list
+      fetchBookmarks();
     } catch (error) {
       console.error("Error removing bookmark:", error);
     }
   };
 
   // Loading state
-  if (bookmarks === undefined) {
+  if (loading || bookmarks === null) {
     return (
       <SafeAreaView style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#10b981" />
@@ -53,15 +73,15 @@ export default function BookmarksScreen() {
     <SafeAreaView style={styles.container}>
       <FlatList
         data={bookmarks}
-        keyExtractor={(item) => item._id}
+        keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         renderItem={({ item }) => (
           <BookmarkCard
-            verseText={item.verseText}
-            verseReference={item.verseReference}
-            timestamp={item.createdAt}
-            onRemove={() => handleRemoveBookmark(item._id)}
+            verseText={item.verse_text}
+            verseReference={item.verse_reference}
+            timestamp={new Date(item.created_at).getTime()}
+            onRemove={() => handleRemoveBookmark(item.id)}
           />
         )}
       />

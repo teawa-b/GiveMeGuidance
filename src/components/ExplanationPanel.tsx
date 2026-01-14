@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet, Pressable, ActivityIndicator, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 
 interface ExplanationData {
   verse_explanation: string;
@@ -13,6 +14,8 @@ interface ExplanationPanelProps {
   explanationData: ExplanationData | null;
   isLoadingExplanation: boolean;
   onGetAnotherVerse: () => void;
+  verseReference?: string;
+  verseText?: string;
 }
 
 export function ExplanationPanel({
@@ -20,7 +23,30 @@ export function ExplanationPanel({
   explanationData,
   isLoadingExplanation,
   onGetAnotherVerse,
+  verseReference,
+  verseText,
 }: ExplanationPanelProps) {
+  const router = useRouter();
+
+  const handleChatMore = () => {
+    if (!explanationData || !verseReference || !verseText) return;
+    
+    // Navigate to chat screen with all context
+    router.push({
+      pathname: "/chat",
+      params: {
+        verseReference,
+        verseText,
+        userQuestion,
+        explanation: JSON.stringify({
+          verse_explanation: explanationData.verse_explanation,
+          connection_to_user_need: explanationData.connection_to_user_need,
+          guidance_application: explanationData.guidance_application,
+        }),
+      },
+    });
+  };
+
   return (
     <View style={styles.container}>
       {/* User's original question */}
@@ -71,6 +97,17 @@ export function ExplanationPanel({
 
       {/* Action buttons */}
       <View style={styles.actionsContainer}>
+        {/* Chat More Button - Primary */}
+        {explanationData && verseReference && verseText && (
+          <Pressable
+            style={styles.chatButton}
+            onPress={handleChatMore}
+          >
+            <Ionicons name="chatbubble-ellipses" size={20} color="#ffffff" />
+            <Text style={styles.chatButtonText}>Chat more about this verse</Text>
+          </Pressable>
+        )}
+        
         <Pressable
           style={styles.actionButton}
           onPress={onGetAnotherVerse}
@@ -160,6 +197,20 @@ const styles = StyleSheet.create({
   actionsContainer: {
     marginTop: 24,
     gap: 12,
+  },
+  chatButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 16,
+    borderRadius: 12,
+    backgroundColor: "#10b981",
+  },
+  chatButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#ffffff",
   },
   actionButton: {
     flexDirection: "row",

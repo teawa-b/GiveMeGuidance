@@ -1,7 +1,7 @@
-// Polyfills for React Native to support Convex
+// Polyfills for React Native
 import "react-native-get-random-values";
 
-// Polyfill for window.addEventListener (needed by Convex WebSocket)
+// Polyfill for window.addEventListener (needed for some libraries)
 if (typeof window !== "undefined" && !window.addEventListener) {
   // @ts-ignore
   window.addEventListener = () => {};
@@ -9,7 +9,7 @@ if (typeof window !== "undefined" && !window.addEventListener) {
   window.removeEventListener = () => {};
 }
 
-// Polyfill for navigator.onLine (needed by Convex)
+// Polyfill for navigator.onLine
 if (typeof navigator !== "undefined" && navigator.onLine === undefined) {
   // @ts-ignore
   Object.defineProperty(navigator, "onLine", {

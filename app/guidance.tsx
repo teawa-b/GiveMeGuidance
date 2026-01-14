@@ -6,88 +6,206 @@ import {
   ScrollView,
   ActivityIndicator,
   Pressable,
-  SafeAreaView,
+  Platform,
+  Share,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useAction } from "convex/react";
-import { api } from "../convex/_generated/api";
-import { VerseCard } from "../src/components/VerseCard";
-import { ExplanationPanel } from "../src/components/ExplanationPanel";
-
-interface VerseData {
-  reference: {
-    book: string;
-    chapter: number;
-    verse: number;
-    passage: string;
-  };
-  text: string;
-  translation: string;
-}
-
-interface ExplanationData {
-  verse_explanation: string;
-  connection_to_user_need: string;
-  guidance_application: string;
-}
+import { getGuidance, getExplanation, type VerseData, type ExplanationData } from "../src/services/guidance";
+import { isBookmarked as checkIsBookmarked, addBookmark } from "../src/services/bookmarks";
+import { 
+  getTodaysGuidance, 
+  type DailyGuidance,
+  getGuidanceHistory,
+  getDaysOfGuidance,
+} from "../src/services/dailyGuidance";
+import { NativeAdLoading } from "../src/components/NativeAdLoading";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { successHaptic, mediumHaptic, lightHaptic } from "../src/lib/haptics";
 
 export default function GuidanceScreen() {
-  const { q: query } = useLocalSearchParams<{ q: string }>();
+  const params = useLocalSearchParams<{
+    q: string;
+    verseText?: string;
+    verseReference?: string;
+    verseTheme?: string;
+    explanationData?: string;
+  }>();
+  const { q: query } = params;
   const router = useRouter();
 
-  // Convex actions
-  const getGuidance = useAction(api.guidance.getGuidance);
-  const getExplanation = useAction(api.guidance.getExplanation);
+  // Check if we have restored data from a saved chat
+  const restoredVerseData: VerseData | null = params.verseText && params.verseReference
+    ? {
+        reference: {
+          book: "",
+          chapter: 0,
+          verse: 0,
+          passage: params.verseReference,
+        },
+        text: params.verseText,
+        translation: "NIV",
+        theme: params.verseTheme || "",
+      }
+    : null;
 
-  const [verseData, setVerseData] = useState<VerseData | null>(null);
-  const [explanationData, setExplanationData] = useState<ExplanationData | null>(null);
-  const [isLoadingVerse, setIsLoadingVerse] = useState(true);
+  const restoredExplanationData: ExplanationData | null = params.explanationData
+    ? JSON.parse(params.explanationData)
+    : null;
+
+  const [verseData, setVerseData] = useState<VerseData | null>(restoredVerseData);
+  const [explanationData, setExplanationData] = useState<ExplanationData | null>(restoredExplanationData);
+  const [isLoadingVerse, setIsLoadingVerse] = useState(!restoredVerseData);
   const [isLoadingExplanation, setIsLoadingExplanation] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [bookmarked, setBookmarked] = useState(false);
+  const [isBookmarking, setIsBookmarking] = useState(false);
+
+  // Check if verse is already bookmarked
+  useEffect(() => {
+    if (verseData?.reference.passage) {
+      const checkBookmark = async () => {
+        try {
+          const result = await checkIsBookmarked(verseData.reference.passage);
+          setBookmarked(result);
+        } catch (error) {
+          console.error("Error checking bookmark:", error);
+        }
+      };
+      checkBookmark();
+    }
+  }, [verseData?.reference.passage]);
+
+  const handleSaveBookmark = async () => {
+    if (isBookmarking || bookmarked || !verseData) return;
+
+    setIsBookmarking(true);
+    try {
+      await addBookmark(verseData.text, verseData.reference.passage);
+      setBookmarked(true);
+      successHaptic();
+    } catch (error) {
+      console.error("Error bookmarking verse:", error);
+    } finally {
+      setIsBookmarking(false);
+    }
+  };
+
+  const handleShare = async () => {
+    if (!verseData) return;
+    
+    mediumHaptic();
+    try {
+      await Share.share({
+        message: `"${verseData.text}"\n\n— ${verseData.reference.passage}\n\nShared from Give Me Guidance`,
+        title: "Share Verse",
+      });
+    } catch (error) {
+      console.error("Error sharing:", error);
+    }
+  };
 
   const fetchExplanation = useCallback(
     async (
       userQuestion: string,
-      verseText: string,
-      verseReference: string,
-      translation: string
+      verse: VerseData
     ) => {
       setIsLoadingExplanation(true);
 
       try {
-        const data = await getExplanation({
+        const data = await getExplanation(
           userQuestion,
-          verseText,
-          verseReference,
-          translation,
-        });
+          verse.text,
+          verse.reference.passage,
+          verse.translation
+        );
         setExplanationData(data);
+        
+        // Save to daily guidance cache for history (with theme from verse)
+        saveToDailyCache(userQuestion, verse, data);
       } catch (err) {
         console.error("Error fetching explanation:", err);
       } finally {
         setIsLoadingExplanation(false);
       }
     },
-    [getExplanation]
+    []
   );
+
+  // Save guidance to daily cache for history tracking
+  const saveToDailyCache = async (
+    userQuery: string,
+    verse: VerseData,
+    explanation: ExplanationData | null
+  ) => {
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      const DAILY_GUIDANCE_KEY = "daily_guidance";
+      const GUIDANCE_HISTORY_KEY = "guidance_history";
+      const DAYS_OF_GUIDANCE_KEY = "days_of_guidance";
+
+      // Check if we already saved today
+      const existingData = await AsyncStorage.getItem(DAILY_GUIDANCE_KEY);
+      if (existingData) {
+        const existing = JSON.parse(existingData);
+        if (existing.date === today) {
+          return; // Already saved today
+        }
+      }
+
+      // Save daily guidance
+      const dailyGuidance: DailyGuidance = {
+        date: today,
+        query: userQuery,
+        verse: verse,
+        explanation: explanation,
+        receivedAt: new Date().toISOString(),
+      };
+      await AsyncStorage.setItem(DAILY_GUIDANCE_KEY, JSON.stringify(dailyGuidance));
+
+      // Add to history
+      const historyStr = await AsyncStorage.getItem(GUIDANCE_HISTORY_KEY);
+      const history = historyStr ? JSON.parse(historyStr) : [];
+      const historyEntry = {
+        date: today,
+        theme: verse.theme || "Guidance",
+        passage: verse.reference.passage,
+        verseSnippet: verse.text.substring(0, 60) + (verse.text.length > 60 ? "..." : ""),
+      };
+      
+      // Check if today already exists in history
+      const existingIndex = history.findIndex((h: any) => h.date === today);
+      if (existingIndex >= 0) {
+        history[existingIndex] = historyEntry;
+      } else {
+        history.unshift(historyEntry);
+      }
+      await AsyncStorage.setItem(GUIDANCE_HISTORY_KEY, JSON.stringify(history.slice(0, 90)));
+
+      // Increment days counter
+      const daysStr = await AsyncStorage.getItem(DAYS_OF_GUIDANCE_KEY);
+      const days = daysStr ? parseInt(daysStr, 10) : 0;
+      if (existingIndex < 0) {
+        await AsyncStorage.setItem(DAYS_OF_GUIDANCE_KEY, String(days + 1));
+      }
+    } catch (error) {
+      console.error("Error saving to daily cache:", error);
+    }
+  };
 
   const fetchGuidance = useCallback(
     async (searchQuery: string) => {
       setIsLoadingVerse(true);
       setError(null);
       setExplanationData(null);
+      setBookmarked(false);
 
       try {
-        const data = await getGuidance({ query: searchQuery });
+        const data = await getGuidance(searchQuery);
         setVerseData(data);
 
-        fetchExplanation(
-          searchQuery,
-          data.text,
-          data.reference.passage,
-          data.translation
-        );
+        fetchExplanation(searchQuery, data);
       } catch (err) {
         console.error("Error fetching guidance:", err);
         setError(err instanceof Error ? err.message : "Something went wrong");
@@ -95,7 +213,7 @@ export default function GuidanceScreen() {
         setIsLoadingVerse(false);
       }
     },
-    [getGuidance, fetchExplanation]
+    [fetchExplanation]
   );
 
   useEffect(() => {
@@ -103,13 +221,52 @@ export default function GuidanceScreen() {
       router.back();
       return;
     }
+    // Skip fetching if we have restored data from a saved chat
+    if (restoredVerseData) {
+      return;
+    }
     fetchGuidance(query);
-  }, [query, router, fetchGuidance]);
+  }, [query, router, fetchGuidance, restoredVerseData]);
 
   const handleGetAnotherVerse = () => {
     if (query) {
       fetchGuidance(query);
     }
+  };
+
+  const handleChatMore = () => {
+    if (!explanationData || !verseData) return;
+    
+    router.push({
+      pathname: "/chat",
+      params: {
+        verseReference: verseData.reference.passage,
+        verseText: verseData.text,
+        verseTheme: verseData.theme || "",
+        userQuestion: query,
+        explanation: JSON.stringify({
+          verse_explanation: explanationData.verse_explanation,
+          connection_to_user_need: explanationData.connection_to_user_need,
+          guidance_application: explanationData.guidance_application,
+          reflection_prompt: explanationData.reflection_prompt || "",
+        }),
+      },
+    });
+  };
+
+  const handleReflectionPrompt = (prompt: string) => {
+    if (!verseData) return;
+    
+    router.push({
+      pathname: "/chat",
+      params: {
+        verseReference: verseData.reference.passage,
+        verseText: verseData.text,
+        userQuestion: query, // Original user question for the chat title
+        reflectionPrompt: prompt, // The "Reflect Deeper" question
+        explanation: explanationData ? JSON.stringify(explanationData) : undefined,
+      },
+    });
   };
 
   if (!query) {
@@ -118,23 +275,27 @@ export default function GuidanceScreen() {
 
   if (isLoadingVerse) {
     return (
-      <SafeAreaView style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#10b981" />
-        <Text style={styles.loadingText}>Finding the perfect verse for you...</Text>
-      </SafeAreaView>
+      <View style={styles.centerContainer}>
+        <NativeAdLoading 
+          isVisible={true} 
+          loadingMessage="Finding the perfect verse for you..." 
+        />
+      </View>
     );
   }
 
   if (error) {
     return (
-      <SafeAreaView style={styles.centerContainer}>
-        <Ionicons name="alert-circle-outline" size={48} color="#ef4444" />
+      <View style={styles.centerContainer}>
+        <View style={styles.errorIcon}>
+          <Ionicons name="alert-circle-outline" size={48} color="#ef4444" />
+        </View>
         <Text style={styles.errorTitle}>Something went wrong</Text>
         <Text style={styles.errorMessage}>{error}</Text>
         <Pressable style={styles.retryButton} onPress={() => fetchGuidance(query)}>
           <Text style={styles.retryButtonText}>Try Again</Text>
         </Pressable>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -143,49 +304,242 @@ export default function GuidanceScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
+      {/* Organic gradient background */}
+      <LinearGradient
+        colors={["rgba(16, 185, 129, 0.03)", "transparent", "rgba(16, 185, 129, 0.05)"]}
+        locations={[0, 0.5, 1]}
+        style={StyleSheet.absoluteFill}
+      />
+      
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <VerseCard
-          verseText={verseData.text}
-          verseReference={verseData.reference.passage}
-        />
+        {/* User Query Display */}
+        {query && (
+          <View style={styles.userQueryContainer}>
+            <Text style={styles.userQueryLabel}>You shared:</Text>
+            <Text style={styles.userQueryText}>"{query}"</Text>
+          </View>
+        )}
 
-        <ExplanationPanel
-          userQuestion={query}
-          explanationData={explanationData}
-          isLoadingExplanation={isLoadingExplanation}
-          onGetAnotherVerse={handleGetAnotherVerse}
-        />
+        {/* Header Label with Theme */}
+        <View style={styles.headerLabel}>
+          {verseData.theme && (
+            <View style={styles.themeBadge}>
+              <Text style={styles.themeBadgeText}>{verseData.theme.toUpperCase()}</Text>
+            </View>
+          )}
+          <Text style={styles.headerLabelText}>TODAY'S GUIDANCE</Text>
+          <Text style={styles.headerSubtitle}>For you</Text>
+        </View>
+
+        {/* Main Verse Card */}
+        <View style={styles.verseCard}>
+          {/* Decorative blur circle */}
+          <View style={styles.decorativeCircle} />
+          
+          {/* Quote icon */}
+          <Text style={styles.quoteIcon}>"</Text>
+          
+          {/* Verse text */}
+          <Text style={styles.verseText}>{verseData.text}</Text>
+          
+          {/* Reference divider */}
+          <View style={styles.referenceDivider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.verseReference}>{verseData.reference.passage}</Text>
+            <View style={styles.dividerLine} />
+          </View>
+          
+          {/* Guidance message */}
+          {isLoadingExplanation ? (
+            <View style={styles.guidanceLoading}>
+              <ActivityIndicator size="small" color="#10b981" />
+              <Text style={styles.guidanceLoadingText}>Preparing your guidance...</Text>
+            </View>
+          ) : null}
+        </View>
+
+        {/* Full Explanation Section */}
+        {explanationData && (
+          <View style={styles.explanationCard}>
+            {/* Understanding This Verse */}
+            <View style={styles.explanationSection}>
+              <View style={styles.sectionHeader}>
+                <Ionicons name="book-outline" size={18} color="#10b981" />
+                <Text style={styles.sectionTitle}>Understanding This Verse</Text>
+              </View>
+              <Text style={styles.sectionBody}>{explanationData.verse_explanation}</Text>
+            </View>
+
+            <View style={styles.sectionDivider} />
+
+            {/* How This Speaks to You */}
+            <View style={styles.explanationSection}>
+              <View style={styles.sectionHeader}>
+                <Ionicons name="heart-outline" size={18} color="#10b981" />
+                <Text style={styles.sectionTitle}>How This Speaks to You</Text>
+              </View>
+              <Text style={styles.sectionBody}>{explanationData.connection_to_user_need}</Text>
+            </View>
+
+            <View style={styles.sectionDivider} />
+
+            {/* Living It Out */}
+            <View style={styles.explanationSection}>
+              <View style={styles.sectionHeader}>
+                <Ionicons name="footsteps-outline" size={18} color="#10b981" />
+                <Text style={styles.sectionTitle}>Living It Out</Text>
+              </View>
+              <Text style={styles.sectionBody}>{explanationData.guidance_application}</Text>
+            </View>
+          </View>
+        )}
+
+        {/* Reflect Deeper Section */}
+        {explanationData && (
+          <View style={styles.reflectSection}>
+            <Text style={styles.reflectTitle}>REFLECT DEEPER</Text>
+            
+            {/* Dynamic AI-generated reflection prompt */}
+            {explanationData.reflection_prompt && (
+              <Pressable
+                style={({ pressed }) => [
+                  styles.reflectButton,
+                  styles.reflectButtonHighlight,
+                  pressed && styles.reflectButtonPressed,
+                ]}
+                onPress={() => handleReflectionPrompt(explanationData.reflection_prompt)}
+              >
+                <Ionicons name="sparkles" size={18} color="#10b981" style={styles.reflectIcon} />
+                <Text style={styles.reflectButtonTextHighlight}>{explanationData.reflection_prompt}</Text>
+                <Ionicons name="chevron-forward" size={20} color="#10b981" />
+              </Pressable>
+            )}
+            
+            <Pressable
+              style={({ pressed }) => [
+                styles.reflectButton,
+                pressed && styles.reflectButtonPressed,
+              ]}
+              onPress={() => handleReflectionPrompt("What is weighing heaviest on my heart right now?")}
+            >
+              <Text style={styles.reflectButtonText}>What is weighing heaviest on your heart?</Text>
+              <Ionicons name="chevron-forward" size={20} color="#d1d5db" />
+            </Pressable>
+            
+            <Pressable
+              style={({ pressed }) => [
+                styles.reflectButton,
+                pressed && styles.reflectButtonPressed,
+              ]}
+              onPress={() => handleReflectionPrompt("Who can I share this peace with today?")}
+            >
+              <Text style={styles.reflectButtonText}>Who can you share this peace with today?</Text>
+              <Ionicons name="chevron-forward" size={20} color="#d1d5db" />
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.reflectButton,
+                pressed && styles.reflectButtonPressed,
+              ]}
+              onPress={handleChatMore}
+            >
+              <Text style={styles.reflectButtonText}>Chat more about this verse...</Text>
+              <Ionicons name="chatbubble-ellipses-outline" size={20} color="#10b981" />
+            </Pressable>
+          </View>
+        )}
+
+        {/* Another verse button */}
+        <Pressable
+          style={({ pressed }) => [
+            styles.anotherVerseButton,
+            pressed && styles.anotherVerseButtonPressed,
+          ]}
+          onPress={handleGetAnotherVerse}
+          disabled={isLoadingExplanation}
+        >
+          <Ionicons name="refresh" size={18} color="#10b981" />
+          <Text style={styles.anotherVerseText}>Give me another verse</Text>
+        </Pressable>
       </ScrollView>
-    </SafeAreaView>
+
+      {/* Footer Actions */}
+      <View style={styles.footer}>
+        <View style={styles.footerActions}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.saveButton,
+              bookmarked && styles.saveButtonSaved,
+              pressed && styles.saveButtonPressed,
+            ]}
+            onPress={handleSaveBookmark}
+            disabled={isBookmarking || bookmarked}
+          >
+            <Ionicons
+              name={bookmarked ? "bookmark" : "bookmark-outline"}
+              size={22}
+              color="#ffffff"
+            />
+            <Text style={styles.saveButtonText}>
+              {bookmarked ? "Saved" : "Save for Later"}
+            </Text>
+          </Pressable>
+          
+          <Pressable
+            style={({ pressed }) => [
+              styles.shareButton,
+              pressed && styles.shareButtonPressed,
+            ]}
+            onPress={handleShare}
+          >
+            <Ionicons name="share-outline" size={22} color="#64748b" />
+          </Pressable>
+        </View>
+        
+        {/* Home indicator */}
+        <View style={styles.homeIndicator} />
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fafafa",
+    backgroundColor: "#f0fdf4",
   },
   scrollContent: {
-    padding: 16,
-    gap: 16,
-    paddingBottom: 32,
+    padding: 24,
+    paddingBottom: 140,
   },
   centerContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     padding: 24,
-    backgroundColor: "#fafafa",
+    backgroundColor: "#f0fdf4",
     gap: 12,
   },
+  loadingAnimation: {
+    marginBottom: 8,
+  },
   loadingText: {
-    fontSize: 16,
-    color: "#6b7280",
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#1f2937",
     marginTop: 8,
+  },
+  loadingSubtext: {
+    fontSize: 14,
+    color: "#6b7280",
+  },
+  errorIcon: {
+    marginBottom: 8,
   },
   errorTitle: {
     fontSize: 18,
@@ -199,14 +553,343 @@ const styles = StyleSheet.create({
   },
   retryButton: {
     backgroundColor: "#10b981",
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 24,
-    marginTop: 8,
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    borderRadius: 16,
+    marginTop: 12,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#10b981",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+      web: {
+        boxShadow: "0 4px 12px rgba(16, 185, 129, 0.3)",
+      },
+    }),
   },
   retryButtonText: {
     color: "#ffffff",
     fontSize: 16,
     fontWeight: "600",
+  },
+  headerLabel: {
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  themeBadge: {
+    backgroundColor: "rgba(16, 185, 129, 0.1)",
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.2)",
+  },
+  themeBadgeText: {
+    fontSize: 13,
+    fontWeight: "700",
+    letterSpacing: 2,
+    color: "#059669",
+  },
+  headerLabelText: {
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 2,
+    color: "#10b981",
+    opacity: 0.8,
+    textTransform: "uppercase",
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1f2937",
+    marginTop: 2,
+  },
+  userQueryContainer: {
+    alignItems: "center",
+    marginBottom: 20,
+    paddingHorizontal: 16,
+  },
+  userQueryLabel: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#6b7280",
+    marginBottom: 4,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  userQueryText: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#374151",
+    textAlign: "center",
+    fontStyle: "italic",
+    lineHeight: 26,
+  },
+  verseCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 32,
+    padding: 32,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
+    overflow: "hidden",
+    position: "relative",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#064e3b",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.08,
+        shadowRadius: 24,
+      },
+      android: {
+        elevation: 8,
+      },
+      web: {
+        boxShadow: "0 8px 32px rgba(6, 78, 59, 0.08)",
+      },
+    }),
+  },
+  decorativeCircle: {
+    position: "absolute",
+    top: -40,
+    right: -40,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "rgba(16, 185, 129, 0.05)",
+  },
+  quoteIcon: {
+    fontSize: 64,
+    color: "rgba(16, 185, 129, 0.2)",
+    fontFamily: Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" }),
+    lineHeight: 64,
+    marginBottom: 8,
+    marginTop: -16,
+    marginLeft: -8,
+  },
+  verseText: {
+    fontSize: 20,
+    lineHeight: 32,
+    color: "#1f2937",
+    fontStyle: "italic",
+    fontFamily: Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" }),
+  },
+  referenceDivider: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 28,
+    gap: 12,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#f1f5f9",
+  },
+  verseReference: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#9ca3af",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  guidanceLoading: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 24,
+    gap: 10,
+    paddingVertical: 8,
+  },
+  guidanceLoadingText: {
+    fontSize: 14,
+    color: "#6b7280",
+  },
+  explanationCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 24,
+    padding: 24,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#064e3b",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 4,
+      },
+      web: {
+        boxShadow: "0 4px 16px rgba(6, 78, 59, 0.05)",
+      },
+    }),
+  },
+  explanationSection: {
+    gap: 8,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1f2937",
+  },
+  sectionBody: {
+    fontSize: 15,
+    lineHeight: 24,
+    color: "#4b5563",
+    paddingLeft: 26,
+  },
+  sectionDivider: {
+    height: 1,
+    backgroundColor: "#f1f5f9",
+    marginVertical: 20,
+  },
+  reflectSection: {
+    marginBottom: 16,
+    gap: 12,
+  },
+  reflectTitle: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1.5,
+    color: "#9ca3af",
+    marginBottom: 4,
+    paddingHorizontal: 4,
+  },
+  reflectButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "rgba(255, 255, 255, 0.6)",
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
+    borderRadius: 16,
+    padding: 16,
+  },
+  reflectButtonPressed: {
+    backgroundColor: "#ffffff",
+  },
+  reflectButtonHighlight: {
+    backgroundColor: "rgba(16, 185, 129, 0.08)",
+    borderColor: "rgba(16, 185, 129, 0.2)",
+  },
+  reflectIcon: {
+    marginRight: 10,
+  },
+  reflectButtonText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "500",
+    color: "#374151",
+  },
+  reflectButtonTextHighlight: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "500",
+    color: "#065f46",
+    fontStyle: "italic",
+  },
+  anotherVerseButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    backgroundColor: "#ffffff",
+    marginTop: 8,
+  },
+  anotherVerseButtonPressed: {
+    backgroundColor: "#f9fafb",
+  },
+  anotherVerseText: {
+    fontSize: 15,
+    fontWeight: "500",
+    color: "#10b981",
+  },
+  footer: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "#ffffff",
+    borderTopWidth: 1,
+    borderTopColor: "#f1f5f9",
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: Platform.select({ ios: 34, android: 24, web: 24 }),
+  },
+  footerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  saveButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    backgroundColor: "#10b981",
+    paddingVertical: 16,
+    borderRadius: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#10b981",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+      web: {
+        boxShadow: "0 4px 12px rgba(16, 185, 129, 0.25)",
+      },
+    }),
+  },
+  saveButtonSaved: {
+    backgroundColor: "#059669",
+  },
+  saveButtonPressed: {
+    opacity: 0.9,
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#ffffff",
+  },
+  shareButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: "#f1f5f9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  shareButtonPressed: {
+    backgroundColor: "#e2e8f0",
+  },
+  homeIndicator: {
+    alignSelf: "center",
+    width: 128,
+    height: 4,
+    backgroundColor: "#e2e8f0",
+    borderRadius: 2,
+    marginTop: 16,
   },
 });
