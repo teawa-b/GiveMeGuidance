@@ -1,7 +1,24 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { Platform } from "react-native";
-import mobileAds, { MaxAdContentRating } from "react-native-google-mobile-ads";
+import Constants from "expo-constants";
 import { usePremium } from "./PremiumContext";
+
+// Check if running in Expo Go (native modules don't work in Expo Go)
+const isExpoGo = Constants.appOwnership === "expo";
+
+// Conditionally import the native ads module
+let mobileAds: any = null;
+let MaxAdContentRating: any = { G: "G" };
+
+if (!isExpoGo && Platform.OS !== "web") {
+  try {
+    const adsModule = require("react-native-google-mobile-ads");
+    mobileAds = adsModule.default;
+    MaxAdContentRating = adsModule.MaxAdContentRating;
+  } catch (e) {
+    console.log("[AdMob] Native module not available");
+  }
+}
 
 // ============================================================================
 // PRODUCTION AD UNIT IDs - Give Me Guidance
@@ -69,8 +86,9 @@ export function AdsProvider({ children }: { children: ReactNode }) {
 
   // Initialize Google Mobile Ads
   const initializeAds = useCallback(async () => {
-    if (Platform.OS === "web") {
-      console.log("[AdMob] Ads not supported on web");
+    // Don't initialize on web, in Expo Go, or if native module isn't available
+    if (Platform.OS === "web" || isExpoGo || !mobileAds) {
+      console.log("[AdMob] Skipping initialization (web, Expo Go, or native module not available)");
       return;
     }
 
@@ -105,8 +123,8 @@ export function AdsProvider({ children }: { children: ReactNode }) {
     }
   }, [isAdsInitialized]);
 
-  // Whether to show ads (false if premium or on web)
-  const shouldShowAds = !isPremium && Platform.OS !== "web";
+  // Whether to show ads (false if premium, on web, or in Expo Go)
+  const shouldShowAds = !isPremium && Platform.OS !== "web" && !isExpoGo && !!mobileAds;
 
   // Initialize on mount
   useEffect(() => {
