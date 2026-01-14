@@ -1,28 +1,28 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, StyleSheet, Platform, Text } from "react-native";
 import Constants from "expo-constants";
 import { useAds } from "../lib/AdsContext";
 import { usePremium } from "../lib/PremiumContext";
 
-// Check if running in Expo Go (native modules don't work in Expo Go)
+interface BannerAdComponentProps {
+  style?: object;
+}
+
+// Check if running in Expo Go
 const isExpoGo = Constants.appOwnership === "expo";
 
-// Conditionally import the native ads module
+// Dynamically import BannerAd only if not in Expo Go
 let BannerAd: any = null;
-let BannerAdSize: any = { BANNER: "BANNER" };
+let BannerAdSize: any = null;
 
 if (!isExpoGo && Platform.OS !== "web") {
   try {
-    const adsModule = require("react-native-google-mobile-ads");
-    BannerAd = adsModule.BannerAd;
-    BannerAdSize = adsModule.BannerAdSize;
+    const ads = require("react-native-google-mobile-ads");
+    BannerAd = ads.BannerAd;
+    BannerAdSize = ads.BannerAdSize;
   } catch (e) {
-    console.log("[AdMob] BannerAd not available");
+    console.log("[AdMob] Failed to load native module:", e);
   }
-}
-
-interface BannerAdComponentProps {
-  style?: object;
 }
 
 export function BannerAdComponent({ style }: BannerAdComponentProps) {
@@ -31,12 +31,13 @@ export function BannerAdComponent({ style }: BannerAdComponentProps) {
   const [adLoaded, setAdLoaded] = useState(false);
   const [adError, setAdError] = useState(false);
 
-  // Don't show ads for premium users, on web, in Expo Go, or if BannerAd is not available
-  if (isPremium || Platform.OS === "web" || isExpoGo || !BannerAd) {
+  // Don't render anything if premium, on web, or in Expo Go
+  if (isPremium || Platform.OS === "web" || isExpoGo) {
     return null;
   }
 
-  if (!shouldShowAds) {
+  // Don't show if ads shouldn't be displayed or native module not available
+  if (!shouldShowAds || !BannerAd) {
     return null;
   }
 
@@ -53,7 +54,7 @@ export function BannerAdComponent({ style }: BannerAdComponentProps) {
             console.log("[AdMob] Banner ad loaded");
             setAdLoaded(true);
           }}
-          onAdFailedToLoad={(error) => {
+          onAdFailedToLoad={(error: any) => {
             console.log("[AdMob] Banner ad failed to load:", error);
             setAdError(true);
           }}
