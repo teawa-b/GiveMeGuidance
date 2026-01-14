@@ -37,7 +37,7 @@ export function BannerAdComponent({ style }: BannerAdComponentProps) {
   }
 
   // Don't show if ads shouldn't be displayed or native module not available
-  if (!shouldShowAds || !BannerAd) {
+  if (!shouldShowAds || !BannerAd || !BannerAdSize) {
     return null;
   }
 
