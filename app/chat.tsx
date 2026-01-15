@@ -18,6 +18,7 @@ import { getChat, getChatMessages, addChatMessage, createChat, resetChatMessages
 import { sendChatMessage, type ChatContext } from "../src/services/chatAI";
 import { ChatLoadingBubble } from "../src/components/ChatLoadingBubble";
 import { lightHaptic, mediumHaptic } from "../src/lib/haptics";
+import { EtherealBackground } from "../src/components/EtherealBackground";
 
 interface Message {
   id: string;
@@ -87,7 +88,7 @@ export default function ChatScreen() {
           }
         }
       } else if (params.verseText && params.explanation) {
-        // Creating new chat from verse
+        // Creating new chat from verse with explanation
         const explanationData = JSON.parse(params.explanation);
         const originalQuestion = params.userQuestion?.trim() || "";
         const reflectionQuestion = params.reflectionPrompt?.trim() || "";
@@ -151,6 +152,56 @@ export default function ChatScreen() {
         } catch (error) {
           console.error("Error creating chat:", error);
         }
+      } else if (params.verseText && !params.explanation) {
+        // Creating new chat from bookmark (no explanation data)
+        const originalQuestion = params.userQuestion?.trim() || "Discuss this verse";
+        
+        // Create a minimal explanation for bookmarked verses
+        const minimalExplanation = {
+          verse_explanation: "This verse from Scripture offers wisdom and guidance for your life.",
+          connection_to_user_need: "Take a moment to reflect on how this verse speaks to your current situation.",
+          guidance_application: "Consider how you might apply the wisdom of this verse in your daily life.",
+        };
+        
+        const newContext: ChatContext = {
+          verseText: params.verseText,
+          verseReference: params.verseReference || "",
+          userQuestion: originalQuestion,
+          explanationData: minimalExplanation,
+        };
+        setContext(newContext);
+
+        // Create the chat in database
+        try {
+          const newChatId = await createChat(
+            newContext.verseText,
+            newContext.verseReference,
+            originalQuestion,
+            minimalExplanation
+          );
+          setChatId(newChatId);
+
+          // Add initial assistant message for bookmarked verse
+          const initialMessage = formatBookmarkChatMessage(
+            newContext.verseText,
+            newContext.verseReference
+          );
+          
+          const initialMessages: Message[] = [{
+            id: "initial",
+            role: "assistant",
+            content: initialMessage,
+          }];
+
+          // Save initial message to database
+          if (newChatId) {
+            await addChatMessage(newChatId, "assistant", initialMessage);
+          }
+
+          setMessages(initialMessages);
+        } catch (error) {
+          console.error("Error creating chat from bookmark:", error);
+        }
       }
 
       setIsLoading(false);
@@ -171,6 +222,18 @@ export default function ChatScreen() {
     message += `💡 How This Speaks to You:\n${explanationData.connection_to_user_need}\n\n`;
     message += `🙏 Living It Out:\n${explanationData.guidance_application}\n\n`;
     message += `Feel free to ask me anything about this verse or how to apply it to your life!`;
+    
+    return message;
+  };
+
+  const formatBookmarkChatMessage = (verseText: string, verseRef: string): string => {
+    let message = `📖 "${verseText}"\n— ${verseRef}\n\n`;
+    message += `🍃 This verse is from your saved bookmarks. I'd love to help you explore its meaning and how it applies to your life.\n\n`;
+    message += `Here are some things we could discuss:\n`;
+    message += `• What this verse means in its original context\n`;
+    message += `• How it speaks to your current situation\n`;
+    message += `• Practical ways to apply its wisdom\n\n`;
+    message += `What would you like to explore about this verse?`;
     
     return message;
   };
@@ -387,34 +450,10 @@ export default function ChatScreen() {
     );
   };
 
-  // Background orbs component
-  const BackgroundOrbs = () => (
-    <View style={styles.orbsContainer}>
-      <View style={[styles.orb, styles.orbTopLeft]}>
-        <LinearGradient
-          colors={["rgba(167, 243, 208, 0.4)", "rgba(167, 243, 208, 0.05)"]}
-          style={styles.orbGradient}
-        />
-      </View>
-      <View style={[styles.orb, styles.orbRight]}>
-        <LinearGradient
-          colors={["rgba(209, 250, 229, 0.35)", "rgba(209, 250, 229, 0.02)"]}
-          style={styles.orbGradient}
-        />
-      </View>
-      <View style={[styles.orb, styles.orbBottomLeft]}>
-        <LinearGradient
-          colors={["rgba(153, 246, 228, 0.25)", "rgba(153, 246, 228, 0.02)"]}
-          style={styles.orbGradient}
-        />
-      </View>
-    </View>
-  );
-
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <BackgroundOrbs />
+        <EtherealBackground />
         <View style={styles.loadingContent}>
           <View style={styles.loadingIconContainer}>
             <ActivityIndicator size="large" color="#10b981" />
@@ -433,7 +472,7 @@ export default function ChatScreen() {
           headerTitle: context?.verseReference || "Chat",
           headerBackTitle: "Back",
           headerTintColor: "#10b981",
-          headerStyle: { backgroundColor: "#f0fdf4" },
+          headerStyle: { backgroundColor: "#fafaf6" },
           headerTitleStyle: { fontWeight: "600", fontSize: 17 },
           headerShadowVisible: false,
           headerRight: () => (
@@ -462,11 +501,11 @@ export default function ChatScreen() {
         }}
       />
       <View style={styles.container}>
-        <BackgroundOrbs />
+        <EtherealBackground />
         <KeyboardAvoidingView
           style={styles.keyboardView}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+          behavior={Platform.OS === "ios" ? "padding" : "padding"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 60}
         >
           {/* Messages */}
           <FlatList
@@ -478,6 +517,7 @@ export default function ChatScreen() {
             showsVerticalScrollIndicator={false}
             onContentSizeChange={scrollToBottom}
             ListFooterComponent={isSending ? <ChatLoadingBubble /> : null}
+            keyboardShouldPersistTaps="handled"
           />
 
           {/* Input Area */}
@@ -523,54 +563,16 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f0fdf4",
+    backgroundColor: "#fafaf6",
   },
   keyboardView: {
     flex: 1,
   },
   
-  // Background orbs
-  orbsContainer: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    overflow: "hidden",
-  },
-  orb: {
-    position: "absolute",
-    borderRadius: 999,
-    overflow: "hidden",
-  },
-  orbGradient: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 999,
-  },
-  orbTopLeft: {
-    top: -60,
-    left: -50,
-    width: 200,
-    height: 200,
-  },
-  orbRight: {
-    top: "40%",
-    right: -70,
-    width: 220,
-    height: 220,
-  },
-  orbBottomLeft: {
-    bottom: "20%",
-    left: -30,
-    width: 150,
-    height: 150,
-  },
-  
   // Loading
   loadingContainer: {
     flex: 1,
-    backgroundColor: "#f0fdf4",
+    backgroundColor: "#fafaf6",
   },
   loadingContent: {
     flex: 1,
@@ -582,20 +584,22 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: "rgba(255, 255, 255, 0.8)",
     justifyContent: "center",
     alignItems: "center",
     ...Platform.select({
       ios: {
+        backgroundColor: "rgba(255, 255, 255, 0.8)",
         shadowColor: "#10b981",
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.1,
         shadowRadius: 12,
       },
       android: {
+        backgroundColor: "#ffffff",
         elevation: 3,
       },
       web: {
+        backgroundColor: "rgba(255, 255, 255, 0.8)",
         boxShadow: "0 4px 12px rgba(16, 185, 129, 0.1)",
       },
     }),
@@ -626,7 +630,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 10,
@@ -634,15 +637,18 @@ const styles = StyleSheet.create({
     borderColor: "rgba(167, 243, 208, 0.4)",
     ...Platform.select({
       ios: {
+        backgroundColor: "rgba(255, 255, 255, 0.9)",
         shadowColor: "#10b981",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.08,
         shadowRadius: 6,
       },
       android: {
+        backgroundColor: "#ffffff",
         elevation: 2,
       },
       web: {
+        backgroundColor: "rgba(255, 255, 255, 0.9)",
         boxShadow: "0 2px 6px rgba(16, 185, 129, 0.08)",
       },
     }),
@@ -671,21 +677,23 @@ const styles = StyleSheet.create({
     }),
   },
   assistantContent: {
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
     borderBottomLeftRadius: 6,
     borderWidth: 1,
     borderColor: "rgba(236, 253, 245, 0.8)",
     ...Platform.select({
       ios: {
+        backgroundColor: "rgba(255, 255, 255, 0.95)",
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.04,
         shadowRadius: 8,
       },
       android: {
+        backgroundColor: "#ffffff",
         elevation: 1,
       },
       web: {
+        backgroundColor: "rgba(255, 255, 255, 0.95)",
         boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
       },
     }),
@@ -717,7 +725,6 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: "row",
     alignItems: "flex-end",
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
     borderRadius: 28,
     paddingLeft: 18,
     paddingRight: 6,
@@ -726,15 +733,18 @@ const styles = StyleSheet.create({
     borderColor: "rgba(167, 243, 208, 0.3)",
     ...Platform.select({
       ios: {
+        backgroundColor: "rgba(255, 255, 255, 0.9)",
         shadowColor: "#10b981",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.06,
         shadowRadius: 10,
       },
       android: {
+        backgroundColor: "#ffffff",
         elevation: 2,
       },
       web: {
+        backgroundColor: "rgba(255, 255, 255, 0.9)",
         boxShadow: "0 2px 10px rgba(16, 185, 129, 0.06)",
       },
     }),

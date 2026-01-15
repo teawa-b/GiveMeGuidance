@@ -41,9 +41,12 @@ export function PremiumPopup({
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
+  // Check if we should use RevenueCat's native paywall
+  const shouldUseNativePaywall = useRevenueCatPaywall && Platform.OS !== "web";
+
   // Use RevenueCat's native paywall
   useEffect(() => {
-    if (visible && useRevenueCatPaywall && Platform.OS !== "web") {
+    if (visible && shouldUseNativePaywall) {
       // Present RevenueCat's paywall and close our modal
       const showPaywall = async () => {
         const purchased = await presentPaywall();
@@ -54,15 +57,13 @@ export function PremiumPopup({
       };
       showPaywall();
     }
-  }, [visible, useRevenueCatPaywall, presentPaywall, onClose]);
-
-  // If using RevenueCat paywall on native, don't render our custom UI
-  if (useRevenueCatPaywall && Platform.OS !== "web" && visible) {
-    return null;
-  }
+  }, [visible, shouldUseNativePaywall, presentPaywall, onClose]);
 
   // Animation setup for custom popup
   useEffect(() => {
+    // Only animate if not using native paywall
+    if (shouldUseNativePaywall) return;
+    
     if (visible) {
       // Default to yearly (better value)
       const yearlyPackage = packages.find(p => p.period === "yearly");
@@ -96,7 +97,16 @@ export function PremiumPopup({
         }),
       ]).start();
     }
-  }, [visible, packages]);
+  }, [visible, packages, shouldUseNativePaywall]);
+
+  // All hooks have been called - now we can do early returns
+  // Don't show if already premium
+  if (isPremium) return null;
+  
+  // If using RevenueCat paywall on native, don't render our custom UI
+  if (shouldUseNativePaywall && visible) {
+    return null;
+  }
 
   const handlePurchase = async () => {
     if (!selectedPackage || isPurchasing) return;
@@ -136,9 +146,6 @@ export function PremiumPopup({
     lightHaptic();
     onClose();
   };
-
-  // Don't show if already premium
-  if (isPremium) return null;
 
   // Find packages by period
   const monthlyPackage = packages.find(p => p.period === "monthly");

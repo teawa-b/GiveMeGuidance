@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
   Alert,
   TextInput,
   Image,
+  Animated,
+  StatusBar,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -21,11 +23,130 @@ import { BannerAdComponent } from "../../src/components/BannerAdComponent";
 import { PremiumPopup } from "../../src/components/PremiumPopup";
 import { usePremium } from "../../src/lib/PremiumContext";
 import { mediumHaptic, lightHaptic } from "../../src/lib/haptics";
+import { playAppOpenedSound } from "../../src/lib/sounds";
 
-const trustIndicators = [
-  { icon: "sparkles" as const, text: "Biblical wisdom" },
-  { icon: "leaf" as const, text: "Personalized guidance" },
-  { icon: "lock-closed" as const, text: "Private & secure" },
+const suggestionPrompts = [
+  // Anxiety & Worry
+  "I feel anxious about the future",
+  "I'm worried about tomorrow",
+  "My mind won't stop racing",
+  "I can't stop overthinking",
+  "I feel overwhelmed by life",
+  
+  // Strength & Courage
+  "I need strength for today",
+  "I feel weak and tired",
+  "I need courage to face this",
+  "I'm running out of energy",
+  "I need to be brave today",
+  
+  // Peace & Calm
+  "Help me find peace in chaos",
+  "I want inner peace",
+  "My heart feels restless",
+  "I need calm in the storm",
+  "I want to feel still inside",
+  
+  // Discouragement & Hope
+  "I feel weak and discouraged",
+  "I've lost my motivation",
+  "I need hope right now",
+  "I feel like giving up",
+  "I need encouragement today",
+  
+  // Direction & Purpose
+  "I want clarity on my path",
+  "I feel lost in life",
+  "I don't know what to do",
+  "I need direction for my future",
+  "I'm searching for purpose",
+  
+  // Loneliness & Connection
+  "I feel so alone",
+  "I need to feel loved",
+  "I'm struggling with loneliness",
+  "I feel disconnected",
+  "I need comfort today",
+  
+  // Forgiveness & Guilt
+  "I need to forgive someone",
+  "I'm carrying guilt",
+  "I need to let go of the past",
+  "I feel ashamed of myself",
+  "I need a fresh start",
+  
+  // Faith & Doubt
+  "My faith feels weak",
+  "I'm struggling to trust God",
+  "I have so many doubts",
+  "I want to believe again",
+  "I need to grow spiritually",
+  
+  // Relationships
+  "I'm struggling in my relationship",
+  "I need patience with others",
+  "I want to be a better friend",
+  "I need wisdom for my family",
+  "I'm dealing with conflict",
+  
+  // Grief & Loss
+  "I'm grieving a loss",
+  "My heart is broken",
+  "I miss someone deeply",
+  "I need healing from pain",
+  "I'm processing a big change",
+  
+  // Gratitude & Joy
+  "I want to be more grateful",
+  "I've lost my joy",
+  "I want to appreciate life more",
+  "I need to count my blessings",
+  "I want to find happiness",
+  
+  // Work & Stress
+  "I'm stressed about work",
+  "I feel burnt out",
+  "I need balance in life",
+  "I'm facing a big decision",
+  "I need wisdom for my career",
+  
+  // Self-Worth
+  "I don't feel good enough",
+  "I'm struggling with self-doubt",
+  "I need to love myself more",
+  "I feel like a failure",
+  "I want to see my worth",
+  
+  // Fear
+  "I'm afraid of what's ahead",
+  "Fear is holding me back",
+  "I need to overcome my fears",
+  "I'm scared to take a step",
+  "I want freedom from fear",
+  
+  // Patience & Waiting
+  "I'm tired of waiting",
+  "I need patience right now",
+  "I'm struggling with timing",
+  "I want to trust the process",
+  "I need to slow down",
+];
+
+// Shuffle array helper function
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+const suggestionChips = [
+  { text: "I feel lost", icon: "compass-outline" as const },
+  { text: "I need hope", icon: "sunny-outline" as const },
+  { text: "I'm anxious", icon: "leaf-outline" as const },
+  { text: "I want peace", icon: "water-outline" as const },
 ];
 
 export default function HomeScreen() {
@@ -37,6 +158,18 @@ export default function HomeScreen() {
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [historyModalVisible, setHistoryModalVisible] = useState(false);
   const [premiumPopupVisible, setPremiumPopupVisible] = useState(false);
+
+  // Shuffle prompts on mount for variety each time app opens
+  const [shuffledPrompts] = useState(() => shuffleArray(suggestionPrompts));
+  const [suggestionIndex, setSuggestionIndex] = useState(() => 
+    Math.floor(Math.random() * suggestionPrompts.length)
+  );
+  const suggestionFade = useRef(new Animated.Value(1)).current;
+
+  // Play app opened sound on mount
+  useEffect(() => {
+    playAppOpenedSound();
+  }, []);
 
   // Check if we should show premium popup
   useEffect(() => {
@@ -51,6 +184,26 @@ export default function HomeScreen() {
     };
     checkPopup();
   }, [shouldShowPopup]);
+
+  useEffect(() => {
+    const cycleSuggestion = () => {
+      Animated.timing(suggestionFade, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start(() => {
+        setSuggestionIndex((prev) => (prev + 1) % shuffledPrompts.length);
+        Animated.timing(suggestionFade, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }).start();
+      });
+    };
+
+    const interval = setInterval(cycleSuggestion, 3200);
+    return () => clearInterval(interval);
+  }, [suggestionFade, shuffledPrompts.length]);
 
   const handleSearch = () => {
     if (query.trim()) {
@@ -131,15 +284,6 @@ export default function HomeScreen() {
               <Text style={styles.logoTextLight}> from Scripture</Text>
             </Text>
           </View>
-          <Pressable 
-            style={styles.profileButton} 
-            onPress={() => {
-              lightHaptic();
-              setProfileModalVisible(true);
-            }}
-          >
-            <Ionicons name="person-circle-outline" size={28} color="#10b981" />
-          </Pressable>
         </View>
 
         <KeyboardAvoidingView
@@ -181,21 +325,48 @@ export default function HomeScreen() {
                 <Ionicons name="arrow-forward" size={20} color="#ffffff" />
               </Pressable>
             </View>
+
+            {/* Suggestions */}
+            <View style={styles.suggestionsContainer}>
+              <Text style={styles.suggestionsTitle}>Need a starting point?</Text>
+              <Pressable
+                onPress={() => {
+                  lightHaptic();
+                  setQuery(shuffledPrompts[suggestionIndex]);
+                }}
+              >
+                <Animated.View style={[styles.suggestionHighlight, { opacity: suggestionFade }]}>
+                  <Ionicons name="sparkles" size={16} color="#10b981" />
+                  <Text style={styles.suggestionHighlightText}>
+                    {shuffledPrompts[suggestionIndex]}
+                  </Text>
+                </Animated.View>
+              </Pressable>
+
+              <View style={styles.suggestionChipsRow}>
+                {suggestionChips.map((chip) => (
+                  <Pressable
+                    key={chip.text}
+                    style={({ pressed }) => [
+                      styles.suggestionChip,
+                      pressed && styles.suggestionChipPressed,
+                    ]}
+                    onPress={() => {
+                      lightHaptic();
+                      setQuery(chip.text);
+                    }}
+                  >
+                    <Ionicons name={chip.icon} size={14} color="#10b981" />
+                    <Text style={styles.suggestionChipText}>{chip.text}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
           </View>
         </KeyboardAvoidingView>
 
-        {/* Banner Ad - above trust indicators */}
+        {/* Banner Ad */}
         <BannerAdComponent style={styles.bannerAd} />
-
-        {/* Trust indicators - horizontal */}
-        <View style={styles.trustContainer}>
-          {trustIndicators.map((item, index) => (
-            <View key={index} style={styles.trustItem}>
-              <Ionicons name={item.icon} size={14} color="#6b7280" />
-              <Text style={styles.trustText}>{item.text}</Text>
-            </View>
-          ))}
-        </View>
       </SafeAreaView>
 
       {/* Profile Modal */}
@@ -206,6 +377,10 @@ export default function HomeScreen() {
         onViewHistory={() => {
           setProfileModalVisible(false);
           setHistoryModalVisible(true);
+        }}
+        onViewBookmarks={() => {
+          setProfileModalVisible(false);
+          router.push("/(tabs)/bookmarks");
         }}
       />
 
@@ -239,7 +414,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 12 : 16,
     paddingBottom: 12,
     zIndex: 10,
   },
@@ -299,18 +474,20 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.6)",
     ...Platform.select({
       ios: {
+        backgroundColor: "rgba(255, 255, 255, 0.6)",
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.05,
         shadowRadius: 4,
       },
       android: {
+        backgroundColor: "#ffffff",
         elevation: 1,
       },
       web: {
+        backgroundColor: "rgba(255, 255, 255, 0.6)",
         boxShadow: "0 1px 4px rgba(0, 0, 0, 0.05)",
       } as any,
     }),
@@ -347,40 +524,53 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: "center",
     color: "#94a3b8",
-    lineHeight: 22,
-    maxWidth: 280,
-    fontWeight: "300",
+    lineHeight: 20,
+    maxWidth: 300,
+    fontWeight: "400",
+    letterSpacing: 0.2,
   },
   glassCard: {
     width: "100%",
     maxWidth: 380,
     borderRadius: 32,
     padding: 16,
-    backgroundColor: "rgba(255, 255, 255, 0.6)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.4)",
     ...Platform.select({
       ios: {
+        backgroundColor: "rgba(255, 255, 255, 0.6)",
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.04,
         shadowRadius: 8,
       },
       android: {
+        backgroundColor: "#ffffff",
         elevation: 2,
       },
       web: {
+        backgroundColor: "rgba(255, 255, 255, 0.6)",
         backdropFilter: "blur(12px)",
         boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
       } as any,
     }),
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.4)",
   },
   inputContainer: {
     marginBottom: 12,
   },
   input: {
     width: "100%",
-    backgroundColor: "rgba(255, 255, 255, 0.4)",
+    ...Platform.select({
+      ios: {
+        backgroundColor: "rgba(255, 255, 255, 0.4)",
+      },
+      android: {
+        backgroundColor: "#f8fafc",
+      },
+      web: {
+        backgroundColor: "rgba(255, 255, 255, 0.4)",
+      },
+    }),
     borderRadius: 16,
     paddingVertical: 20,
     paddingHorizontal: 24,
@@ -422,24 +612,79 @@ const styles = StyleSheet.create({
   bannerAd: {
     marginBottom: 8,
   },
-  trustContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
+  suggestionsContainer: {
+    width: "100%",
+    maxWidth: 380,
     alignItems: "center",
-    gap: 24,
-    paddingVertical: 32,
-    opacity: 0.4,
+    marginTop: 16,
+    gap: 10,
   },
-  trustItem: {
+  suggestionsTitle: {
+    fontSize: 12,
+    color: "#94a3b8",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    fontWeight: "600",
+  },
+  suggestionHighlight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(16, 185, 129, 0.08)",
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.18)",
+  },
+  suggestionHighlightPressed: {
+    transform: [{ scale: 0.97 }],
+    backgroundColor: "rgba(16, 185, 129, 0.15)",
+  },
+  suggestionHighlightText: {
+    fontSize: 14,
+    color: "#0f172a",
+    fontWeight: "500",
+  },
+  suggestionChipsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 10,
+    marginTop: 4,
+  },
+  suggestionChip: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+    backgroundColor: "#ffffff",
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.2)",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#10b981",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 6,
+      },
+      android: {
+        elevation: 2,
+      },
+      web: {
+        boxShadow: "0 2px 8px rgba(16, 185, 129, 0.1)",
+      },
+    }),
   },
-  trustText: {
-    fontSize: 10,
+  suggestionChipPressed: {
+    transform: [{ scale: 0.96 }],
+    backgroundColor: "rgba(16, 185, 129, 0.05)",
+  },
+  suggestionChipText: {
+    fontSize: 13,
+    color: "#1e293b",
     fontWeight: "500",
-    color: "#475569",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
   },
 });

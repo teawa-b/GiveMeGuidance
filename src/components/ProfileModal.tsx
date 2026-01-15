@@ -19,7 +19,7 @@ import { useAuth } from "../lib/AuthContext";
 import { usePremium } from "../lib/PremiumContext";
 import { PremiumPopup } from "./PremiumPopup";
 import { supabase } from "../lib/supabase";
-import { getSpiritualPresence, type SpiritualPresence } from "../services/dailyGuidance";
+import { getSpiritualPresenceFromChats, type SpiritualPresence } from "../services/streak";
 import { lightHaptic, mediumHaptic, warningHaptic, successHaptic } from "../lib/haptics";
 
 interface ProfileModalProps {
@@ -27,11 +27,12 @@ interface ProfileModalProps {
   onClose: () => void;
   onSignOut: () => void;
   onViewHistory?: () => void;
+  onViewBookmarks?: () => void;
 }
 
 type ModalView = "main" | "changeEmail" | "changePassword" | "deleteAccount";
 
-export function ProfileModal({ visible, onClose, onSignOut, onViewHistory }: ProfileModalProps) {
+export function ProfileModal({ visible, onClose, onSignOut, onViewHistory, onViewBookmarks }: ProfileModalProps) {
   const { user } = useAuth();
   const { isPremium, restorePurchases, presentCustomerCenter } = usePremium();
   const slideAnim = useRef(new Animated.Value(300)).current;
@@ -58,7 +59,7 @@ export function ProfileModal({ visible, onClose, onSignOut, onViewHistory }: Pro
 
   const fetchSpiritualPresence = useCallback(async () => {
     try {
-      const presence = await getSpiritualPresence();
+      const presence = await getSpiritualPresenceFromChats();
       setSpiritualPresence(presence);
     } catch (error) {
       console.error("Error fetching spiritual presence:", error);
@@ -276,6 +277,22 @@ export function ProfileModal({ visible, onClose, onSignOut, onViewHistory }: Pro
           <View style={styles.menuItemLeft}>
             <Ionicons name="time-outline" size={22} color="#10b981" />
             <Text style={[styles.menuItemText, styles.menuItemHighlight]}>View Your Path</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#10b981" />
+        </Pressable>
+
+        <View style={styles.menuDivider} />
+
+        <Pressable
+          style={styles.menuItem}
+          onPress={() => {
+            lightHaptic();
+            onViewBookmarks?.();
+          }}
+        >
+          <View style={styles.menuItemLeft}>
+            <Ionicons name="bookmark-outline" size={22} color="#10b981" />
+            <Text style={[styles.menuItemText, styles.menuItemHighlight]}>Saved Bookmarks</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#10b981" />
         </Pressable>
@@ -657,7 +674,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: "#f0fdf4",
+    backgroundColor: "#fafaf6",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 12,
@@ -819,7 +836,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fef2f2",
   },
   successBox: {
-    backgroundColor: "#f0fdf4",
+    backgroundColor: "#fafaf6",
   },
   messageText: {
     fontSize: 14,

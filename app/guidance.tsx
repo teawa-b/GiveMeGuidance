@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -8,10 +8,14 @@ import {
   Pressable,
   Platform,
   Share,
+  Modal,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import ViewShot from "react-native-view-shot";
+import * as Sharing from "expo-sharing";
+import { ShareableVerseCard } from "../src/components/ShareableVerseCard";
 import { getGuidance, getExplanation, type VerseData, type ExplanationData } from "../src/services/guidance";
 import { isBookmarked as checkIsBookmarked, addBookmark } from "../src/services/bookmarks";
 import { 
@@ -23,6 +27,8 @@ import {
 import { NativeAdLoading } from "../src/components/NativeAdLoading";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { successHaptic, mediumHaptic, lightHaptic } from "../src/lib/haptics";
+import { playGuidanceLoadedSound } from "../src/lib/sounds";
+import { EtherealBackground } from "../src/components/EtherealBackground";
 
 export default function GuidanceScreen() {
   const params = useLocalSearchParams<{
@@ -31,6 +37,7 @@ export default function GuidanceScreen() {
     verseReference?: string;
     verseTheme?: string;
     explanationData?: string;
+    existingChatId?: string; // Chat ID from history to prevent duplicates
   }>();
   const { q: query } = params;
   const router = useRouter();
@@ -61,6 +68,25 @@ export default function GuidanceScreen() {
   const [error, setError] = useState<string | null>(null);
   const [bookmarked, setBookmarked] = useState(false);
   const [isBookmarking, setIsBookmarking] = useState(false);
+  const [showSharePreview, setShowSharePreview] = useState(false);
+  const [isCapturingImage, setIsCapturingImage] = useState(false);
+  const viewShotRef = useRef<ViewShot>(null);
+
+  const normalizeSecondPerson = (text: string) => {
+    return text
+      .replace(/\bmy\b/gi, "your")
+      .replace(/\bmyself\b/gi, "yourself")
+      .replace(/\bme\b/gi, "you")
+      .replace(/\bI\b/g, "You")
+      .replace(/\bI'm\b/gi, "You're")
+      .replace(/\bI've\b/gi, "You've")
+      .replace(/\bI\'m\b/gi, "You're")
+      .replace(/\bI\'ve\b/gi, "You've")
+      .replace(/\bI\'ll\b/gi, "You'll")
+      .replace(/\bI\’m\b/gi, "You're")
+      .replace(/\bI\’ve\b/gi, "You've")
+      .replace(/\bI\’ll\b/gi, "You'll");
+  };
 
   // Check if verse is already bookmarked
   useEffect(() => {
@@ -103,6 +129,35 @@ export default function GuidanceScreen() {
       });
     } catch (error) {
       console.error("Error sharing:", error);
+    }
+  };
+
+  const handleSaveImagePress = () => {
+    if (!verseData) return;
+    lightHaptic();
+    setShowSharePreview(true);
+  };
+
+  const handleCaptureAndShare = async () => {
+    if (!viewShotRef.current?.capture) return;
+    
+    setIsCapturingImage(true);
+    try {
+      const uri = await viewShotRef.current.capture();
+      const isAvailable = await Sharing.isAvailableAsync();
+      
+      if (isAvailable) {
+        await Sharing.shareAsync(uri, {
+          mimeType: "image/png",
+          dialogTitle: "Share this verse",
+        });
+        successHaptic();
+      }
+    } catch (error) {
+      console.error("Error sharing image:", error);
+    } finally {
+      setIsCapturingImage(false);
+      setShowSharePreview(false);
     }
   };
 
@@ -204,6 +259,9 @@ export default function GuidanceScreen() {
       try {
         const data = await getGuidance(searchQuery);
         setVerseData(data);
+        
+        // Play sound when guidance loads
+        playGuidanceLoadedSound();
 
         fetchExplanation(searchQuery, data);
       } catch (err) {
@@ -237,6 +295,15 @@ export default function GuidanceScreen() {
   const handleChatMore = () => {
     if (!explanationData || !verseData) return;
     
+    // If we have an existing chat ID from history, use it instead of creating a new chat
+    if (params.existingChatId) {
+      router.push({
+        pathname: "/chat",
+        params: { chatId: params.existingChatId },
+      });
+      return;
+    }
+    
     router.push({
       pathname: "/chat",
       params: {
@@ -256,6 +323,17 @@ export default function GuidanceScreen() {
 
   const handleReflectionPrompt = (prompt: string) => {
     if (!verseData) return;
+
+    const normalizedPrompt = normalizeSecondPerson(prompt);
+    
+    // If we have an existing chat ID from history, use it instead of creating a new chat
+    if (params.existingChatId) {
+      router.push({
+        pathname: "/chat",
+        params: { chatId: params.existingChatId },
+      });
+      return;
+    }
     
     router.push({
       pathname: "/chat",
@@ -263,7 +341,7 @@ export default function GuidanceScreen() {
         verseReference: verseData.reference.passage,
         verseText: verseData.text,
         userQuestion: query, // Original user question for the chat title
-        reflectionPrompt: prompt, // The "Reflect Deeper" question
+        reflectionPrompt: normalizedPrompt, // The "Reflect Deeper" question
         explanation: explanationData ? JSON.stringify(explanationData) : undefined,
       },
     });
@@ -305,12 +383,8 @@ export default function GuidanceScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Organic gradient background */}
-      <LinearGradient
-        colors={["rgba(16, 185, 129, 0.03)", "transparent", "rgba(16, 185, 129, 0.05)"]}
-        locations={[0, 0.5, 1]}
-        style={StyleSheet.absoluteFill}
-      />
+      {/* Ethereal background with floating leaves */}
+      <EtherealBackground />
       
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -411,10 +485,12 @@ export default function GuidanceScreen() {
                   styles.reflectButtonHighlight,
                   pressed && styles.reflectButtonPressed,
                 ]}
-                onPress={() => handleReflectionPrompt(explanationData.reflection_prompt)}
+                onPress={() => handleReflectionPrompt(normalizeSecondPerson(explanationData.reflection_prompt))}
               >
                 <Ionicons name="sparkles" size={18} color="#10b981" style={styles.reflectIcon} />
-                <Text style={styles.reflectButtonTextHighlight}>{explanationData.reflection_prompt}</Text>
+                <Text style={styles.reflectButtonTextHighlight}>
+                  {normalizeSecondPerson(explanationData.reflection_prompt)}
+                </Text>
                 <Ionicons name="chevron-forward" size={20} color="#10b981" />
               </Pressable>
             )}
@@ -424,7 +500,7 @@ export default function GuidanceScreen() {
                 styles.reflectButton,
                 pressed && styles.reflectButtonPressed,
               ]}
-              onPress={() => handleReflectionPrompt("What is weighing heaviest on my heart right now?")}
+              onPress={() => handleReflectionPrompt("What is weighing heaviest on your heart right now?")}
             >
               <Text style={styles.reflectButtonText}>What is weighing heaviest on your heart?</Text>
               <Ionicons name="chevron-forward" size={20} color="#d1d5db" />
@@ -435,7 +511,7 @@ export default function GuidanceScreen() {
                 styles.reflectButton,
                 pressed && styles.reflectButtonPressed,
               ]}
-              onPress={() => handleReflectionPrompt("Who can I share this peace with today?")}
+              onPress={() => handleReflectionPrompt("Who can you share this peace with today?")}
             >
               <Text style={styles.reflectButtonText}>Who can you share this peace with today?</Text>
               <Ionicons name="chevron-forward" size={20} color="#d1d5db" />
@@ -492,8 +568,18 @@ export default function GuidanceScreen() {
           
           <Pressable
             style={({ pressed }) => [
-              styles.shareButton,
-              pressed && styles.shareButtonPressed,
+              styles.iconButton,
+              pressed && styles.iconButtonPressed,
+            ]}
+            onPress={handleSaveImagePress}
+          >
+            <Ionicons name="image-outline" size={22} color="#64748b" />
+          </Pressable>
+          
+          <Pressable
+            style={({ pressed }) => [
+              styles.iconButton,
+              pressed && styles.iconButtonPressed,
             ]}
             onPress={handleShare}
           >
@@ -504,6 +590,59 @@ export default function GuidanceScreen() {
         {/* Home indicator */}
         <View style={styles.homeIndicator} />
       </View>
+
+      {/* Share Image Preview Modal */}
+      <Modal
+        visible={showSharePreview}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSharePreview(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowSharePreview(false)}
+        >
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Share Verse</Text>
+            <Text style={styles.modalSubtitle}>Preview your shareable image</Text>
+            
+            <ViewShot
+              ref={viewShotRef}
+              options={{ format: "png", quality: 1 }}
+              style={styles.viewShotContainer}
+            >
+              <ShareableVerseCard
+                verseText={verseData?.text || ""}
+                verseReference={verseData?.reference.passage || ""}
+              />
+            </ViewShot>
+            
+            <View style={styles.modalActions}>
+              <Pressable
+                style={({ pressed }) => [styles.modalButton, styles.cancelButton, pressed && { opacity: 0.7 }]}
+                onPress={() => setShowSharePreview(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </Pressable>
+              
+              <Pressable
+                style={({ pressed }) => [styles.modalButton, styles.shareImageButton, pressed && { opacity: 0.7 }]}
+                onPress={handleCaptureAndShare}
+                disabled={isCapturingImage}
+              >
+                {isCapturingImage ? (
+                  <Text style={styles.shareImageButtonText}>Sharing...</Text>
+                ) : (
+                  <>
+                    <Ionicons name="share-outline" size={18} color="#ffffff" />
+                    <Text style={styles.shareImageButtonText}>Share Image</Text>
+                  </>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -511,7 +650,7 @@ export default function GuidanceScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f0fdf4",
+    backgroundColor: "#fafaf6",
   },
   scrollContent: {
     padding: 24,
@@ -522,7 +661,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 24,
-    backgroundColor: "#f0fdf4",
+    backgroundColor: "#fafaf6",
     gap: 12,
   },
   loadingAnimation: {
@@ -873,7 +1012,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#ffffff",
   },
-  shareButton: {
+  iconButton: {
     width: 56,
     height: 56,
     borderRadius: 16,
@@ -881,7 +1020,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  shareButtonPressed: {
+  iconButtonPressed: {
     backgroundColor: "#e2e8f0",
   },
   homeIndicator: {
@@ -891,5 +1030,90 @@ const styles = StyleSheet.create({
     backgroundColor: "#e2e8f0",
     borderRadius: 2,
     marginTop: 16,
+  },
+  
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  modalContent: {
+    backgroundColor: "#ffffff",
+    borderRadius: 24,
+    padding: 24,
+    width: "100%",
+    maxWidth: 400,
+    alignItems: "center",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.25,
+        shadowRadius: 16,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1e293b",
+    marginBottom: 4,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: "#64748b",
+    marginBottom: 20,
+  },
+  viewShotContainer: {
+    borderRadius: 20,
+    overflow: "hidden",
+    marginBottom: 20,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  modalActions: {
+    flexDirection: "row",
+    gap: 12,
+    width: "100%",
+  },
+  modalButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 14,
+  },
+  cancelButton: {
+    backgroundColor: "#f1f5f9",
+  },
+  cancelButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#64748b",
+  },
+  shareImageButton: {
+    backgroundColor: "#10b981",
+  },
+  shareImageButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#ffffff",
   },
 });

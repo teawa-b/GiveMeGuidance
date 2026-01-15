@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabase";
+import type { GuidanceHistoryEntry } from "./dailyGuidance";
 import { updateStreak } from "./streak";
 
 export interface Chat {
@@ -23,6 +24,40 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   created_at: string;
+}
+
+// Build guidance path entries from chats (server-backed)
+export async function getGuidancePathEntries(): Promise<GuidanceHistoryEntry[]> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("chats")
+    .select("created_at, verse_reference, verse_text")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching guidance path entries:", error);
+    return [];
+  }
+
+  const entryByDate = new Map<string, GuidanceHistoryEntry>();
+  data?.forEach((chat) => {
+    const date = new Date(chat.created_at).toISOString().split("T")[0];
+    if (!entryByDate.has(date)) {
+      entryByDate.set(date, {
+        date,
+        theme: "Guidance",
+        passage: chat.verse_reference,
+        verseSnippet: chat.verse_text.substring(0, 60) + (chat.verse_text.length > 60 ? "..." : ""),
+      });
+    }
+  });
+
+  return Array.from(entryByDate.values());
 }
 
 // Get all chats for the authenticated user

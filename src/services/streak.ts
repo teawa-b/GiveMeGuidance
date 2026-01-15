@@ -10,6 +10,12 @@ export interface UserStreak {
   updated_at: string;
 }
 
+export interface SpiritualPresence {
+  daysOfGuidance: number;
+  currentPath: number;
+  isActiveToday: boolean;
+}
+
 // Get the user's streak data
 export async function getUserStreak(): Promise<UserStreak | null> {
   const { data: { user } } = await supabase.auth.getUser();
@@ -54,6 +60,46 @@ function isYesterday(dateString: string): boolean {
 function getTodayDateString(): string {
   const today = new Date();
   return today.toISOString().split("T")[0];
+}
+
+// Get spiritual presence based on chat activity dates (server-backed)
+export async function getSpiritualPresenceFromChats(): Promise<SpiritualPresence> {
+  try {
+    const activityDates = await getActivityDates();
+    const today = getTodayDateString();
+
+    const isActiveToday = activityDates.includes(today);
+    const daysOfGuidance = activityDates.length;
+
+    // Calculate current consecutive days (path)
+    let currentPath = 0;
+    const sorted = [...activityDates].sort((a, b) => b.localeCompare(a));
+
+    for (let i = 0; i < sorted.length; i++) {
+      const expectedDate = new Date();
+      expectedDate.setDate(expectedDate.getDate() - i);
+      const expectedDateString = expectedDate.toISOString().split("T")[0];
+
+      if (sorted[i] === expectedDateString) {
+        currentPath++;
+      } else {
+        break;
+      }
+    }
+
+    return {
+      daysOfGuidance,
+      currentPath,
+      isActiveToday,
+    };
+  } catch (error) {
+    console.error("Error getting spiritual presence from chats:", error);
+    return {
+      daysOfGuidance: 0,
+      currentPath: 0,
+      isActiveToday: false,
+    };
+  }
 }
 
 // Update streak when user asks for guidance

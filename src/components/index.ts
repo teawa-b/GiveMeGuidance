@@ -13,3 +13,4 @@ export { GuidanceHistoryModal } from "./GuidanceHistoryModal";
 export { BannerAdComponent } from "./BannerAdComponent";
 export { NativeAdLoading } from "./NativeAdLoading";
 export { PremiumPopup } from "./PremiumPopup";
+export { ShareableVerseCard } from "./ShareableVerseCard";

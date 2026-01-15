@@ -12,7 +12,8 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { getGuidanceHistory, type GuidanceHistoryEntry } from "../services/dailyGuidance";
+import { type GuidanceHistoryEntry } from "../services/dailyGuidance";
+import { getGuidancePathEntries } from "../services/chats";
 import { lightHaptic, selectionHaptic } from "../lib/haptics";
 
 interface GuidanceHistoryModalProps {
@@ -61,7 +62,7 @@ export function GuidanceHistoryModal({ visible, onClose }: GuidanceHistoryModalP
   const fetchHistory = async () => {
     setLoading(true);
     try {
-      const data = await getGuidanceHistory();
+      const data = await getGuidancePathEntries();
       setHistory(data);
     } catch (error) {
       console.error("Error fetching history:", error);

@@ -2,6 +2,7 @@ import { Tabs, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { View, Pressable, StyleSheet, Platform } from "react-native";
 import { mediumHaptic } from "../../src/lib/haptics";
+import { playClickSound } from "../../src/lib/sounds";
 
 function CenterButton() {
   const router = useRouter();
@@ -10,6 +11,7 @@ function CenterButton() {
     <Pressable
       style={styles.centerButton}
       onPress={() => {
+        playClickSound();
         mediumHaptic();
         router.push("/");
       }}
@@ -33,8 +35,8 @@ export default function TabLayout() {
           borderTopWidth: 1,
           borderTopColor: "rgba(226, 232, 240, 0.2)",
           paddingTop: 12,
-          paddingBottom: Platform.OS === "ios" ? 28 : 16,
-          height: Platform.OS === "ios" ? 85 : 70,
+          paddingBottom: Platform.OS === "ios" ? 28 : 28,
+          height: Platform.OS === "ios" ? 85 : 80,
           ...Platform.select({
             ios: {
               shadowColor: "#000",
@@ -73,16 +75,9 @@ export default function TabLayout() {
             />
           ),
         }}
-      />
-      <Tabs.Screen
-        name="new"
-        options={{
-          title: "New",
-          tabBarButton: () => <CenterButton />,
-        }}
         listeners={{
-          tabPress: (e) => {
-            e.preventDefault();
+          tabPress: () => {
+            playClickSound();
           },
         }}
       />
@@ -98,11 +93,59 @@ export default function TabLayout() {
             />
           ),
         }}
+        listeners={{
+          tabPress: () => {
+            playClickSound();
+          },
+        }}
+      />
+      <Tabs.Screen
+        name="new"
+        options={{
+          title: "New",
+          tabBarButton: () => <CenterButton />,
+        }}
+        listeners={{
+          tabPress: (e) => {
+            playClickSound();
+            e.preventDefault();
+          },
+        }}
       />
       <Tabs.Screen
         name="bookmarks"
         options={{
-          href: null, // Hide from tab bar but keep accessible
+          title: "Saved",
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "bookmark" : "bookmark-outline"}
+              size={24}
+              color={color}
+            />
+          ),
+        }}
+        listeners={{
+          tabPress: () => {
+            playClickSound();
+          },
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: "Profile",
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "person-circle" : "person-circle-outline"}
+              size={24}
+              color={color}
+            />
+          ),
+        }}
+        listeners={{
+          tabPress: () => {
+            playClickSound();
+          },
         }}
       />
     </Tabs>

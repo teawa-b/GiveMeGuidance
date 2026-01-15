@@ -357,7 +357,7 @@ const styles = StyleSheet.create({
   navButton: {
     padding: 8,
     borderRadius: 12,
-    backgroundColor: "#f0fdf4",
+    backgroundColor: "#fafaf6",
   },
   monthText: {
     fontSize: 18,
@@ -392,11 +392,11 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   todayCell: {
-    backgroundColor: "#f0fdf4",
+    backgroundColor: "#fafaf6",
     borderRadius: 12,
   },
   activityCell: {
-    backgroundColor: "#ecfdf5",
+    backgroundColor: "#f5f5f0",
     borderRadius: 12,
   },
   dayText: {
@@ -444,7 +444,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#10b981",
   },
   legendDotToday: {
-    backgroundColor: "#f0fdf4",
+    backgroundColor: "#fafaf6",
     borderWidth: 2,
     borderColor: "#10b981",
   },

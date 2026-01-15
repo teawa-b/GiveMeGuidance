@@ -232,24 +232,6 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
             </Text>
           </View>
 
-          {/* Features */}
-          <View style={styles.features}>
-            {[
-              { icon: "heart-outline", text: "Personalized biblical guidance" },
-              { icon: "bookmark-outline", text: "Save verses for later" },
-              { icon: "shield-checkmark-outline", text: "Private & secure" },
-            ].map((feature, index) => (
-              <View key={index} style={styles.featureItem}>
-                <Ionicons
-                  name={feature.icon as any}
-                  size={20}
-                  color="#10b981"
-                />
-                <Text style={styles.featureText}>{feature.text}</Text>
-              </View>
-            ))}
-          </View>
-
           {/* Auth Buttons */}
           <View style={styles.authButtons}>
             {/* Apple - Show on all platforms */}

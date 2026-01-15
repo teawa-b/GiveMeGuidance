@@ -77,7 +77,7 @@ function RootLayoutNav() {
             headerTitle: "",
             headerBackTitle: "Back",
             headerTintColor: "#10b981",
-            headerStyle: { backgroundColor: "#f0fdf4" },
+            headerStyle: { backgroundColor: "#fafaf6" },
             headerShadowVisible: false,
             headerTransparent: false,
           }}
@@ -89,7 +89,7 @@ function RootLayoutNav() {
             headerTitle: "Chat",
             headerBackTitle: "Back",
             headerTintColor: "#10b981",
-            headerStyle: { backgroundColor: "#fafafa" },
+            headerStyle: { backgroundColor: "#fafaf6" },
           }}
         />
       </Stack>

@@ -11,6 +11,7 @@ import {
   Modal,
   TextInput,
   Animated,
+  StatusBar,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
@@ -21,6 +22,7 @@ import { getSpiritualPresence, getGuidanceHistory } from "../../src/services/dai
 import { getCurrentStreakDisplay, getActivityDates } from "../../src/services/streak";
 import { CalendarModal } from "../../src/components/CalendarModal";
 import { lightHaptic, selectionHaptic, errorHaptic, mediumHaptic } from "../../src/lib/haptics";
+import { EtherealBackground } from "../../src/components/EtherealBackground";
 
 // Group chats by date
 interface ChatSection {
@@ -82,6 +84,8 @@ export default function ChatsScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      // Reset search query when screen comes into focus
+      setSearchQuery("");
       fetchChats();
       fetchPresenceData();
     }, [fetchChats, fetchPresenceData])
@@ -169,6 +173,7 @@ export default function ChatsScreen() {
         verseText: selectedChat.verse_text,
         verseReference: selectedChat.verse_reference,
         explanationData: JSON.stringify(selectedChat.explanation_data),
+        existingChatId: selectedChat.id, // Pass the existing chat ID to prevent duplicates
       },
     });
   };
@@ -294,26 +299,19 @@ export default function ChatsScreen() {
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    
-    const time = date.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
 
     if (diffDays === 0) {
-      return time;
+      return "Today";
     } else if (diffDays === 1) {
-      return `Yesterday, ${time}`;
+      return "Yesterday";
     } else if (diffDays < 7) {
-      const dayName = date.toLocaleDateString("en-US", { weekday: "short" });
-      return `${dayName}, ${time}`;
+      return date.toLocaleDateString("en-US", { weekday: "long" });
     } else {
-      const dateStr = date.toLocaleDateString("en-US", { 
+      return date.toLocaleDateString("en-US", { 
         month: "short", 
-        day: "numeric" 
+        day: "numeric",
+        year: now.getFullYear() !== date.getFullYear() ? "numeric" : undefined
       });
-      return `${dateStr}, ${time}`;
     }
   };
 
@@ -411,42 +409,11 @@ export default function ChatsScreen() {
     </View>
   );
 
-  // Background orbs component
-  const BackgroundOrbs = () => (
-    <View style={styles.orbsContainer}>
-      {/* Large orb top-left */}
-      <View style={[styles.orb, styles.orbTopLeft]}>
-        <LinearGradient
-          colors={["rgba(167, 243, 208, 0.5)", "rgba(167, 243, 208, 0.1)"]}
-          style={styles.orbGradient}
-        />
-      </View>
-      {/* Medium orb right */}
-      <View style={[styles.orb, styles.orbRight]}>
-        <LinearGradient
-          colors={["rgba(209, 250, 229, 0.4)", "rgba(209, 250, 229, 0.05)"]}
-          style={styles.orbGradient}
-        />
-      </View>
-      {/* Small orb bottom-left */}
-      <View style={[styles.orb, styles.orbBottomLeft]}>
-        <LinearGradient
-          colors={["rgba(153, 246, 228, 0.3)", "rgba(153, 246, 228, 0.05)"]}
-          style={styles.orbGradient}
-        />
-      </View>
-      {/* Decorative leaf shapes */}
-      <View style={[styles.leafShape, styles.leafTop]} />
-      <View style={[styles.leafShape, styles.leafMiddle]} />
-      <View style={[styles.leafShape, styles.leafBottom]} />
-    </View>
-  );
-
   // Loading state
   if (loading || chats === null) {
     return (
       <View style={styles.container}>
-        <BackgroundOrbs />
+        <EtherealBackground />
         <View style={styles.centerContent}>
           <ActivityIndicator size="large" color="#10b981" />
         </View>
@@ -458,11 +425,11 @@ export default function ChatsScreen() {
   if (chats.length === 0) {
     return (
       <View style={styles.container}>
-        <BackgroundOrbs />
+        <EtherealBackground />
         <View style={styles.header}>
           <View style={styles.headerTop}>
             <View>
-              <Text style={styles.headerTitle}>History</Text>
+              <Text style={styles.headerTitle}>Conversations</Text>
               <Text style={styles.headerSubtitle}>Past Reflections</Text>
             </View>
             <Pressable style={styles.calendarButton} onPress={handleOpenCalendar}>
@@ -493,7 +460,7 @@ export default function ChatsScreen() {
 
   return (
     <View style={styles.container}>
-      <BackgroundOrbs />
+      <EtherealBackground />
       
       {/* Header */}
       <View style={styles.header}>
@@ -521,7 +488,7 @@ export default function ChatsScreen() {
             // Normal header
             <>
               <View>
-                <Text style={styles.headerTitle}>History</Text>
+                <Text style={styles.headerTitle}>Conversations</Text>
                 <Text style={styles.headerSubtitle}>Past Reflections</Text>
               </View>
               <View style={styles.headerButtons}>
@@ -692,7 +659,7 @@ export default function ChatsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f0fdf4",
+    backgroundColor: "#fafaf6",
   },
   centerContent: {
     flex: 1,
@@ -700,74 +667,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   
-  // Background orbs
-  orbsContainer: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    overflow: "hidden",
-  },
-  orb: {
-    position: "absolute",
-    borderRadius: 999,
-    overflow: "hidden",
-  },
-  orbGradient: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 999,
-  },
-  orbTopLeft: {
-    top: -80,
-    left: -60,
-    width: 240,
-    height: 240,
-  },
-  orbRight: {
-    top: "30%",
-    right: -80,
-    width: 280,
-    height: 280,
-  },
-  orbBottomLeft: {
-    bottom: "25%",
-    left: -40,
-    width: 180,
-    height: 180,
-  },
-  leafShape: {
-    position: "absolute",
-    backgroundColor: "rgba(167, 243, 208, 0.15)",
-    borderRadius: 100,
-  },
-  leafTop: {
-    top: 40,
-    left: 30,
-    width: 50,
-    height: 80,
-    transform: [{ rotate: "45deg" }],
-  },
-  leafMiddle: {
-    top: "45%",
-    right: 40,
-    width: 40,
-    height: 70,
-    transform: [{ rotate: "-15deg" }],
-  },
-  leafBottom: {
-    bottom: "35%",
-    left: 25,
-    width: 45,
-    height: 75,
-    transform: [{ rotate: "110deg" }],
-  },
-  
   // Header
   header: {
     paddingHorizontal: 24,
-    paddingTop: Platform.OS === "ios" ? 60 : 24,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 20 : 60,
     paddingBottom: 16,
   },
   headerTop: {
@@ -777,7 +680,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   headerTitle: {
-    fontSize: 32,
+    fontSize: 26,
     fontWeight: "700",
     color: "#1e293b",
     letterSpacing: -0.5,
@@ -818,22 +721,24 @@ const styles = StyleSheet.create({
     color: "#d97706",
   },
   calendarButton: {
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
     padding: 12,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: "rgba(167, 243, 208, 0.3)",
     ...Platform.select({
       ios: {
+        backgroundColor: "rgba(255, 255, 255, 0.9)",
         shadowColor: "#10b981",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.08,
         shadowRadius: 8,
       },
       android: {
+        backgroundColor: "#ffffff",
         elevation: 2,
       },
       web: {
+        backgroundColor: "rgba(255, 255, 255, 0.9)",
         boxShadow: "0 2px 8px rgba(16, 185, 129, 0.08)",
       },
     }),
@@ -843,21 +748,23 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.85)",
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: Platform.OS === "ios" ? 14 : 10,
     ...Platform.select({
       ios: {
+        backgroundColor: "rgba(255, 255, 255, 0.85)",
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.04,
         shadowRadius: 8,
       },
       android: {
+        backgroundColor: "#ffffff",
         elevation: 1,
       },
       web: {
+        backgroundColor: "rgba(255, 255, 255, 0.85)",
         boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
       },
     }),
@@ -890,7 +797,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   chatCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
     borderRadius: 20,
     padding: 18,
     marginBottom: 12,
@@ -898,15 +804,18 @@ const styles = StyleSheet.create({
     borderColor: "rgba(236, 253, 245, 0.8)",
     ...Platform.select({
       ios: {
+        backgroundColor: "rgba(255, 255, 255, 0.9)",
         shadowColor: "#10b981",
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.06,
         shadowRadius: 12,
       },
       android: {
+        backgroundColor: "#ffffff",
         elevation: 2,
       },
       web: {
+        backgroundColor: "rgba(255, 255, 255, 0.9)",
         boxShadow: "0 4px 12px rgba(16, 185, 129, 0.06)",
       },
     }),
@@ -938,7 +847,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#e2e8f0",
   },
   chatTime: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: "500",
     color: "#94a3b8",
   },
@@ -970,21 +879,23 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: "rgba(255, 255, 255, 0.8)",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 20,
     ...Platform.select({
       ios: {
+        backgroundColor: "rgba(255, 255, 255, 0.8)",
         shadowColor: "#10b981",
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.1,
         shadowRadius: 12,
       },
       android: {
+        backgroundColor: "#ffffff",
         elevation: 3,
       },
       web: {
+        backgroundColor: "rgba(255, 255, 255, 0.8)",
         boxShadow: "0 4px 12px rgba(16, 185, 129, 0.1)",
       },
     }),
@@ -1106,22 +1017,24 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   selectButton: {
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
     padding: 12,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: "rgba(167, 243, 208, 0.3)",
     ...Platform.select({
       ios: {
+        backgroundColor: "rgba(255, 255, 255, 0.9)",
         shadowColor: "#10b981",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.08,
         shadowRadius: 8,
       },
       android: {
+        backgroundColor: "#ffffff",
         elevation: 2,
       },
       web: {
+        backgroundColor: "rgba(255, 255, 255, 0.9)",
         boxShadow: "0 2px 8px rgba(16, 185, 129, 0.08)",
       } as any,
     }),
