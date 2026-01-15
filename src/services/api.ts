@@ -6,6 +6,9 @@ const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_BASE_URL ||
   "https://givemeguidancebackend-production.up.railway.app";
 
+// Log immediately on module load
+console.log("🔌 [API] Module loaded - API_BASE_URL:", API_BASE_URL);
+
 export { API_BASE_URL };
 
 interface VerseResponse {
