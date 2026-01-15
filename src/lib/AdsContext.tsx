@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { Platform } from "react-native";
 import Constants from "expo-constants";
+import { requestTrackingPermissionsAsync, getTrackingPermissionsAsync } from "expo-tracking-transparency";
 
 // Check if running in Expo Go (where native modules aren't available)
 const isExpoGo = Constants.appOwnership === "expo";
@@ -107,10 +108,30 @@ export function AdsProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      // Add a small delay to ensure the app is fully initialized
+      // This helps prevent crashes during rapid startup
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
       try {
+        // Request App Tracking Transparency permission on iOS
+        if (Platform.OS === "ios") {
+          console.log("[Ads] Requesting tracking permission...");
+          const { status } = await requestTrackingPermissionsAsync();
+          console.log("[Ads] Tracking permission status:", status);
+        }
+
         // Try to import and initialize the ads SDK
         const adsModuleImport = require("react-native-google-mobile-ads");
         const mobileAds = adsModuleImport.default;
+        
+        // Configure request settings before initialization
+        await mobileAds().setRequestConfiguration({
+          // Set to true for apps directed at children
+          tagForChildDirectedTreatment: false,
+          // Set to true to indicate that you want to treat ads as under age
+          tagForUnderAgeOfConsent: false,
+        });
+        
         await mobileAds().initialize();
         console.log("[Ads] Google Mobile Ads initialized successfully");
         setAdsModule(adsModuleImport);
