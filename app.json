@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yourname.givemeguidance",
+      "bundleIdentifier": "com.shroozy.givemeguidance",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSUserTrackingUsageDescription": "This identifier will be used to deliver personalized ads to you.",
@@ -175,7 +175,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#10b981"
       },
-      "package": "com.yourname.givemeguidance"
+      "package": "shroozy.givemeguidance"
     },
     "web": {
       "bundler": "metro",
