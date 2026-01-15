@@ -1,5 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { Platform } from "react-native";
+import Constants from "expo-constants";
+
+// Check if running in Expo Go (where native modules aren't available)
+const isExpoGo = Constants.appOwnership === "expo";
 
 // Ad Unit IDs - Replace with your actual ad unit IDs from AdMob
 const TEST_BANNER_AD_UNIT_ID = Platform.select({
@@ -20,22 +24,34 @@ const TEST_REWARDED_AD_UNIT_ID = Platform.select({
   default: "",
 });
 
-// Production Ad Unit IDs - Replace with your actual IDs
+const TEST_NATIVE_AD_UNIT_ID = Platform.select({
+  ios: "ca-app-pub-3940256099942544/3986624511",
+  android: "ca-app-pub-3940256099942544/2247696110",
+  default: "",
+});
+
+// Production Ad Unit IDs
 const PRODUCTION_BANNER_AD_UNIT_ID = Platform.select({
-  ios: "ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX", // Replace with your iOS banner ad unit ID
-  android: "ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX", // Replace with your Android banner ad unit ID
+  ios: "ca-app-pub-7517928309502563/9718522937", // Home Banner iOS
+  android: "ca-app-pub-7517928309502563/2825811525", // Home Banner Android
+  default: "",
+});
+
+const PRODUCTION_NATIVE_AD_UNIT_ID = Platform.select({
+  ios: "ca-app-pub-7517928309502563/2039343464", // Loading Native Ad iOS
+  android: "ca-app-pub-7517928309502563/1010182889", // Loading Native Ad Android
   default: "",
 });
 
 const PRODUCTION_INTERSTITIAL_AD_UNIT_ID = Platform.select({
-  ios: "ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX",
-  android: "ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX",
+  ios: "ca-app-pub-7517928309502563/9718522937", // Using banner as placeholder - create interstitial ad unit if needed
+  android: "ca-app-pub-7517928309502563/2825811525", // Using banner as placeholder - create interstitial ad unit if needed
   default: "",
 });
 
 const PRODUCTION_REWARDED_AD_UNIT_ID = Platform.select({
-  ios: "ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX",
-  android: "ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX",
+  ios: "ca-app-pub-7517928309502563/9718522937", // Using banner as placeholder - create rewarded ad unit if needed
+  android: "ca-app-pub-7517928309502563/2825811525", // Using banner as placeholder - create rewarded ad unit if needed
   default: "",
 });
 
@@ -51,6 +67,11 @@ interface AdsContextType {
   bannerAdUnitId: string;
   interstitialAdUnitId: string;
   rewardedAdUnitId: string;
+  nativeAdUnitId: string;
+  
+  // Ad Components (loaded dynamically)
+  BannerAd: any;
+  BannerAdSize: any;
   
   // Actions
   showInterstitialAd: () => Promise<boolean>;
@@ -61,16 +82,25 @@ const AdsContext = createContext<AdsContextType | undefined>(undefined);
 
 export function AdsProvider({ children }: { children: ReactNode }) {
   const [isAdsInitialized, setIsAdsInitialized] = useState(false);
-  const [shouldShowAds, setShouldShowAds] = useState(true);
+  const [shouldShowAds, setShouldShowAds] = useState(!isExpoGo && Platform.OS !== "web");
+  const [adsModule, setAdsModule] = useState<any>(null);
 
   // Get the appropriate ad unit IDs
   const bannerAdUnitId = USE_TEST_ADS ? TEST_BANNER_AD_UNIT_ID : PRODUCTION_BANNER_AD_UNIT_ID;
   const interstitialAdUnitId = USE_TEST_ADS ? TEST_INTERSTITIAL_AD_UNIT_ID : PRODUCTION_INTERSTITIAL_AD_UNIT_ID;
   const rewardedAdUnitId = USE_TEST_ADS ? TEST_REWARDED_AD_UNIT_ID : PRODUCTION_REWARDED_AD_UNIT_ID;
+  const nativeAdUnitId = USE_TEST_ADS ? TEST_NATIVE_AD_UNIT_ID : PRODUCTION_NATIVE_AD_UNIT_ID;
 
   // Initialize Google Mobile Ads
   useEffect(() => {
     const initializeAds = async () => {
+      // Skip ads in Expo Go or on web
+      if (isExpoGo) {
+        console.log("[Ads] Running in Expo Go - ads disabled");
+        setShouldShowAds(false);
+        return;
+      }
+
       if (Platform.OS === "web") {
         console.log("[Ads] Not supported on web");
         setShouldShowAds(false);
@@ -79,9 +109,11 @@ export function AdsProvider({ children }: { children: ReactNode }) {
 
       try {
         // Try to import and initialize the ads SDK
-        const mobileAds = require("react-native-google-mobile-ads").default;
+        const adsModuleImport = require("react-native-google-mobile-ads");
+        const mobileAds = adsModuleImport.default;
         await mobileAds().initialize();
         console.log("[Ads] Google Mobile Ads initialized successfully");
+        setAdsModule(adsModuleImport);
         setIsAdsInitialized(true);
       } catch (error) {
         console.log("[Ads] Failed to initialize Google Mobile Ads:", error);
@@ -95,7 +127,7 @@ export function AdsProvider({ children }: { children: ReactNode }) {
 
   // Show interstitial ad
   const showInterstitialAd = async (): Promise<boolean> => {
-    if (!isAdsInitialized || Platform.OS === "web") {
+    if (!isAdsInitialized || Platform.OS === "web" || isExpoGo) {
       return false;
     }
 
@@ -132,7 +164,7 @@ export function AdsProvider({ children }: { children: ReactNode }) {
 
   // Show rewarded ad
   const showRewardedAd = async (): Promise<boolean> => {
-    if (!isAdsInitialized || Platform.OS === "web") {
+    if (!isAdsInitialized || Platform.OS === "web" || isExpoGo) {
       return false;
     }
 
@@ -173,6 +205,9 @@ export function AdsProvider({ children }: { children: ReactNode }) {
     bannerAdUnitId: bannerAdUnitId || "",
     interstitialAdUnitId: interstitialAdUnitId || "",
     rewardedAdUnitId: rewardedAdUnitId || "",
+    nativeAdUnitId: nativeAdUnitId || "",
+    BannerAd: adsModule?.BannerAd || null,
+    BannerAdSize: adsModule?.BannerAdSize || null,
     showInterstitialAd,
     showRewardedAd,
   };

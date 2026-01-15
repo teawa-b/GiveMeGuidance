@@ -1,32 +1,24 @@
 import React, { useState } from "react";
 import { View, StyleSheet, Platform, Text } from "react-native";
+import Constants from "expo-constants";
 import { useAds } from "../lib/AdsContext";
 import { usePremium } from "../lib/PremiumContext";
 
-// Conditionally import to avoid crashes in Expo Go
-let BannerAd: any = null;
-let BannerAdSize: any = null;
-
-try {
-  const adsModule = require("react-native-google-mobile-ads");
-  BannerAd = adsModule.BannerAd;
-  BannerAdSize = adsModule.BannerAdSize;
-} catch (e) {
-  console.log("[BannerAd] react-native-google-mobile-ads not available");
-}
+// Check if running in Expo Go (where native modules aren't available)
+const isExpoGo = Constants.appOwnership === "expo";
 
 interface BannerAdComponentProps {
   style?: object;
 }
 
 export function BannerAdComponent({ style }: BannerAdComponentProps) {
-  const { shouldShowAds, bannerAdUnitId, isAdsInitialized } = useAds();
+  const { shouldShowAds, bannerAdUnitId, isAdsInitialized, BannerAd, BannerAdSize } = useAds();
   const { isPremium } = usePremium();
   const [adLoaded, setAdLoaded] = useState(false);
   const [adError, setAdError] = useState(false);
 
-  // Don't render anything if premium or on web
-  if (isPremium || Platform.OS === "web") {
+  // Don't render anything if premium, on web, or in Expo Go
+  if (isPremium || Platform.OS === "web" || isExpoGo) {
     return null;
   }
 
@@ -35,7 +27,7 @@ export function BannerAdComponent({ style }: BannerAdComponentProps) {
     return null;
   }
 
-  // Native ads module not available (Expo Go) - show placeholder
+  // Native ads module not available - show placeholder
   if (!BannerAd || !isAdsInitialized) {
     return (
       <View style={[styles.container, style]}>

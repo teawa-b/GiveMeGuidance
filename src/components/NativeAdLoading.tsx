@@ -1,20 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
 import { View, StyleSheet, Platform, Text, Animated } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import Constants from "expo-constants";
 import { useAds } from "../lib/AdsContext";
 import { usePremium } from "../lib/PremiumContext";
 
-// Conditionally import to avoid crashes in Expo Go
-let BannerAd: any = null;
-let BannerAdSize: any = null;
-
-try {
-  const adsModule = require("react-native-google-mobile-ads");
-  BannerAd = adsModule.BannerAd;
-  BannerAdSize = adsModule.BannerAdSize;
-} catch (e) {
-  console.log("[NativeAdLoading] react-native-google-mobile-ads not available");
-}
+// Check if running in Expo Go (where native modules aren't available)
+const isExpoGo = Constants.appOwnership === "expo";
 
 interface NativeAdLoadingProps {
   isVisible: boolean;
@@ -22,7 +14,7 @@ interface NativeAdLoadingProps {
 }
 
 export function NativeAdLoading({ isVisible, loadingMessage = "Finding guidance..." }: NativeAdLoadingProps) {
-  const { shouldShowAds, nativeAdUnitId, isAdsInitialized } = useAds();
+  const { shouldShowAds, nativeAdUnitId, isAdsInitialized, BannerAd, BannerAdSize } = useAds();
   const { isPremium } = usePremium();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -66,8 +58,8 @@ export function NativeAdLoading({ isVisible, loadingMessage = "Finding guidance.
     return null;
   }
 
-  // Premium users or web - show loading without ad
-  if (isPremium || Platform.OS === "web") {
+  // Premium users, web, or Expo Go - show loading without ad
+  if (isPremium || Platform.OS === "web" || isExpoGo) {
     return (
       <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
         <View style={styles.loadingSection}>
@@ -81,7 +73,7 @@ export function NativeAdLoading({ isVisible, loadingMessage = "Finding guidance.
   }
 
   // Check if we can show ads
-  const canShowAds = shouldShowAds && isAdsInitialized && BannerAd && !adError;
+  const canShowAds = shouldShowAds && isAdsInitialized && BannerAd && BannerAdSize && !adError;
 
   return (
     <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
@@ -114,15 +106,6 @@ export function NativeAdLoading({ isVisible, loadingMessage = "Finding guidance.
           />
         </View>
       )}
-
-      {/* Show placeholder in Expo Go */}
-      {shouldShowAds && !BannerAd && (
-        <View style={styles.adContainer}>
-          <View style={styles.placeholder}>
-            <Text style={styles.placeholderText}>Ads require development build</Text>
-          </View>
-        </View>
-      )}
     </Animated.View>
   );
 }
@@ -153,17 +136,5 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.5,
     marginBottom: 8,
-  },
-  placeholder: {
-    width: 300,
-    height: 250,
-    backgroundColor: "rgba(0, 0, 0, 0.02)",
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  placeholderText: {
-    fontSize: 11,
-    color: "#d1d5db",
   },
 });
