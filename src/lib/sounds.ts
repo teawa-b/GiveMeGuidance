@@ -1,46 +1,56 @@
-import { Audio } from "expo-av";
+import { useAudioPlayer, AudioPlayer } from "expo-audio";
 
 // Sound instances for reuse
-let appOpenedSound: Audio.Sound | null = null;
-let guidanceLoadedSound: Audio.Sound | null = null;
+let appOpenedPlayer: AudioPlayer | null = null;
+let guidanceLoadedPlayer: AudioPlayer | null = null;
+let clickPlayer: AudioPlayer | null = null;
 
-// Configure audio mode for playback
-const configureAudio = async () => {
+// Play click sound for tab navigation
+export const playClickSound = async () => {
   try {
-    await Audio.setAudioModeAsync({
-      playsInSilentModeIOS: false,
-      staysActiveInBackground: false,
-      shouldDuckAndroid: true,
-    });
+    const { createAudioPlayer } = await import("expo-audio");
+    
+    // Clean up previous player if exists
+    if (clickPlayer) {
+      clickPlayer.release();
+      clickPlayer = null;
+    }
+    
+    // Use haptics instead if no click sound file exists
+    // You can add a click.mp3 file to assets/HomeScreenAssets/ if desired
+    try {
+      clickPlayer = createAudioPlayer(
+        require("../../assets/HomeScreenAssets/Click.mp3")
+      );
+      clickPlayer.volume = 0.3;
+      clickPlayer.play();
+    } catch {
+      // No click sound file - silently ignore
+      console.log("[Sounds] No click sound file found");
+    }
   } catch (error) {
-    console.error("Error configuring audio:", error);
+    console.error("Error playing click sound:", error);
   }
 };
 
 // Play app opened sound
 export const playAppOpenedSound = async () => {
   try {
-    await configureAudio();
+    // Create a new audio player for the sound
+    const { createAudioPlayer } = await import("expo-audio");
     
-    // Unload previous sound if exists
-    if (appOpenedSound) {
-      await appOpenedSound.unloadAsync();
+    // Clean up previous player if exists
+    if (appOpenedPlayer) {
+      appOpenedPlayer.release();
+      appOpenedPlayer = null;
     }
     
-    const { sound } = await Audio.Sound.createAsync(
-      require("../../assets/HomeScreenAssets/AppOpened.mp3"),
-      { shouldPlay: true, volume: 0.5 }
+    appOpenedPlayer = createAudioPlayer(
+      require("../../assets/HomeScreenAssets/AppOpened.mp3")
     );
     
-    appOpenedSound = sound;
-    
-    // Clean up when done playing
-    sound.setOnPlaybackStatusUpdate((status) => {
-      if (status.isLoaded && status.didJustFinish) {
-        sound.unloadAsync();
-        appOpenedSound = null;
-      }
-    });
+    appOpenedPlayer.volume = 0.5;
+    appOpenedPlayer.play();
   } catch (error) {
     console.error("Error playing app opened sound:", error);
   }
@@ -49,42 +59,39 @@ export const playAppOpenedSound = async () => {
 // Play guidance loaded sound
 export const playGuidanceLoadedSound = async () => {
   try {
-    await configureAudio();
+    const { createAudioPlayer } = await import("expo-audio");
     
-    // Unload previous sound if exists
-    if (guidanceLoadedSound) {
-      await guidanceLoadedSound.unloadAsync();
+    // Clean up previous player if exists
+    if (guidanceLoadedPlayer) {
+      guidanceLoadedPlayer.release();
+      guidanceLoadedPlayer = null;
     }
     
-    const { sound } = await Audio.Sound.createAsync(
-      require("../../assets/HomeScreenAssets/AskedForGuidance.mp3"),
-      { shouldPlay: true, volume: 0.5 }
+    guidanceLoadedPlayer = createAudioPlayer(
+      require("../../assets/HomeScreenAssets/AskedForGuidance.mp3")
     );
     
-    guidanceLoadedSound = sound;
-    
-    // Clean up when done playing
-    sound.setOnPlaybackStatusUpdate((status) => {
-      if (status.isLoaded && status.didJustFinish) {
-        sound.unloadAsync();
-        guidanceLoadedSound = null;
-      }
-    });
+    guidanceLoadedPlayer.volume = 0.5;
+    guidanceLoadedPlayer.play();
   } catch (error) {
     console.error("Error playing guidance loaded sound:", error);
   }
 };
 
-// Cleanup function to unload all sounds
+// Cleanup function to release all audio players
 export const unloadAllSounds = async () => {
   try {
-    if (appOpenedSound) {
-      await appOpenedSound.unloadAsync();
-      appOpenedSound = null;
+    if (appOpenedPlayer) {
+      appOpenedPlayer.release();
+      appOpenedPlayer = null;
     }
-    if (guidanceLoadedSound) {
-      await guidanceLoadedSound.unloadAsync();
-      guidanceLoadedSound = null;
+    if (guidanceLoadedPlayer) {
+      guidanceLoadedPlayer.release();
+      guidanceLoadedPlayer = null;
+    }
+    if (clickPlayer) {
+      clickPlayer.release();
+      clickPlayer = null;
     }
   } catch (error) {
     console.error("Error unloading sounds:", error);

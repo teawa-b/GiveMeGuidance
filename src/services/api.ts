@@ -4,7 +4,7 @@ import Constants from "expo-constants";
 const API_BASE_URL =
   Constants.expoConfig?.extra?.apiBaseUrl ||
   process.env.EXPO_PUBLIC_API_BASE_URL ||
-  "http://localhost:3000"; // Replace with your API server URL after deployment
+  "https://givemeguidancebackend-production.up.railway.app";
 
 export { API_BASE_URL };
 
@@ -56,20 +56,33 @@ interface ChatMessage {
  * Fetch guidance verse based on user's query
  */
 export async function guidanceApi(query: string): Promise<VerseResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/guidance`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ query }),
-  });
+  console.log("[API] guidanceApi called with query:", query);
+  console.log("[API] Using base URL:", API_BASE_URL);
+  
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/guidance`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ query }),
+    });
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || "Failed to get guidance");
+    console.log("[API] Response status:", response.status);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error("[API] Error response:", errorData);
+      throw new Error(errorData.error || "Failed to get guidance");
+    }
+
+    const data = await response.json();
+    console.log("[API] Success response:", data);
+    return data;
+  } catch (error) {
+    console.error("[API] Fetch error:", error);
+    throw error;
   }
-
-  return response.json();
 }
 
 /**
