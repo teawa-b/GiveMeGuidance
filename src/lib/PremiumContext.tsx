@@ -11,8 +11,12 @@ import Purchases, {
 import RevenueCatUI, { PAYWALL_RESULT } from "react-native-purchases-ui";
 import { useAuth } from "./AuthContext";
 
-// RevenueCat API Key - Use production key for iOS (starts with appl_)
+// ⚠️ REVENUECAT TEMPORARILY DISABLED
+// Set to true once you have the production iOS API key (starts with appl_)
 // Get from RevenueCat Dashboard > Your App > API Keys > Public iOS API key
+const REVENUECAT_ENABLED = false;
+
+// RevenueCat API Key - Replace with your production key when ready
 const REVENUECAT_API_KEY = "appl_YOUR_PRODUCTION_KEY_HERE"; // TODO: Replace with your actual production key
 
 // Entitlement identifier - must match what's configured in RevenueCat dashboard
@@ -84,6 +88,13 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Skip RevenueCat initialization if disabled
+    if (!REVENUECAT_ENABLED) {
+      console.log("[RevenueCat] Disabled - skipping initialization. Enable once you have the production API key.");
+      setIsLoading(false);
+      return;
+    }
+
     try {
       // Wait for interactions to complete to ensure React Native is fully initialized
       // This prevents crashes during early app startup
@@ -125,7 +136,7 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
 
   // Log in user when they authenticate
   const loginUser = useCallback(async (userId: string) => {
-    if (Platform.OS === "web" || !isInitialized) return;
+    if (Platform.OS === "web" || !isInitialized || !REVENUECAT_ENABLED) return;
 
     try {
       const { customerInfo: info } = await Purchases.logIn(userId);
@@ -139,7 +150,7 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
 
   // Log out user
   const logoutUser = useCallback(async () => {
-    if (Platform.OS === "web" || !isInitialized) return;
+    if (Platform.OS === "web" || !isInitialized || !REVENUECAT_ENABLED) return;
 
     try {
       const info = await Purchases.logOut();
@@ -154,6 +165,12 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
   // Check premium status
   const checkPremiumStatus = useCallback(async () => {
     if (Platform.OS === "web") {
+      setIsLoading(false);
+      return;
+    }
+
+    // Skip if RevenueCat is disabled
+    if (!REVENUECAT_ENABLED) {
       setIsLoading(false);
       return;
     }
@@ -175,6 +192,12 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
   // Fetch available offerings and packages
   const fetchOfferings = useCallback(async () => {
     if (Platform.OS === "web") return;
+
+    // Skip if RevenueCat is disabled
+    if (!REVENUECAT_ENABLED) {
+      console.log("[RevenueCat] Disabled - packages not available");
+      return;
+    }
 
     try {
       const offerings = await Purchases.getOfferings();
@@ -223,6 +246,16 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
       Alert.alert(
         "Not Available",
         "In-app purchases are only available on iOS and Android.",
+        [{ text: "OK" }]
+      );
+      return false;
+    }
+
+    // Show message if RevenueCat is disabled
+    if (!REVENUECAT_ENABLED) {
+      Alert.alert(
+        "Coming Soon",
+        "Premium subscriptions will be available in an upcoming update. Thank you for your patience!",
         [{ text: "OK" }]
       );
       return false;
@@ -278,6 +311,16 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
       return false;
     }
 
+    // Show message if RevenueCat is disabled
+    if (!REVENUECAT_ENABLED) {
+      Alert.alert(
+        "Coming Soon",
+        "Restore purchases will be available in an upcoming update. Thank you for your patience!",
+        [{ text: "OK" }]
+      );
+      return false;
+    }
+
     try {
       const info = await Purchases.restorePurchases();
       setCustomerInfo(info);
@@ -318,6 +361,16 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
       return false;
     }
 
+    // Show message if RevenueCat is disabled
+    if (!REVENUECAT_ENABLED) {
+      Alert.alert(
+        "Coming Soon",
+        "Premium subscriptions will be available in an upcoming update. Thank you for your patience!",
+        [{ text: "OK" }]
+      );
+      return false;
+    }
+
     try {
       const paywallResult = await RevenueCatUI.presentPaywall();
       
@@ -349,6 +402,11 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
   const presentPaywallIfNeeded = useCallback(async (): Promise<boolean> => {
     if (Platform.OS === "web") return false;
 
+    // Skip if RevenueCat is disabled
+    if (!REVENUECAT_ENABLED) {
+      return false;
+    }
+
     try {
       const paywallResult = await RevenueCatUI.presentPaywallIfNeeded({
         requiredEntitlementIdentifier: ENTITLEMENT_ID,
@@ -372,6 +430,16 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
       Alert.alert(
         "Not Available",
         "Subscription management is only available on iOS and Android.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+
+    // Show message if RevenueCat is disabled
+    if (!REVENUECAT_ENABLED) {
+      Alert.alert(
+        "Coming Soon",
+        "Subscription management will be available in an upcoming update.",
         [{ text: "OK" }]
       );
       return;
