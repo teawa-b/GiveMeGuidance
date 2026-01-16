@@ -16,6 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.shroozy.givemeguidance",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSUserTrackingUsageDescription": "This identifier will be used to deliver personalized ads to you.",
@@ -175,7 +176,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#10b981"
       },
-      "package": "shroozy.givemeguidance"
+      "package": "com.shroozy.givemeguidance"
     },
     "web": {
       "bundler": "metro",
@@ -199,7 +200,8 @@
           "iosAppId": "ca-app-pub-7517928309502563~6866156559",
           "delayAppMeasurementInit": true
         }
-      ]
+      ],
+      "./plugins/withFirebaseIOS"
     ],
     "experiments": {
       "typedRoutes": true

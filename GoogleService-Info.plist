@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>API_KEY</key>
+	<string>AIzaSyAB7WbqfbI7ob1CK8X7dsSuwqWj4IWf0Vs</string>
+	<key>GCM_SENDER_ID</key>
+	<string>460991165051</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.shroozy.givemeguidance</string>
+	<key>PROJECT_ID</key>
+	<string>givemeguidance-f8204</string>
+	<key>STORAGE_BUCKET</key>
+	<string>givemeguidance-f8204.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:460991165051:ios:ced5072a3815bdf8d128de</string>
+</dict>
+</plist>
