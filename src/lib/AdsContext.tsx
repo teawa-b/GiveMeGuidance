@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { Platform } from "react-native";
+import { Platform, InteractionManager } from "react-native";
 import Constants from "expo-constants";
 import { requestTrackingPermissionsAsync, getTrackingPermissionsAsync } from "expo-tracking-transparency";
 
@@ -108,9 +108,17 @@ export function AdsProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Add a small delay to ensure the app is fully initialized
+      // Wait for React Native interactions to complete before initializing native modules
+      // This prevents crashes during early app startup when native modules aren't ready
+      await new Promise<void>((resolve) => {
+        InteractionManager.runAfterInteractions(() => {
+          resolve();
+        });
+      });
+
+      // Add a delay to ensure the app is fully initialized
       // This helps prevent crashes during rapid startup
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
       try {
         // Request App Tracking Transparency permission on iOS

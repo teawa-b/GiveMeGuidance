@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
-import { Platform, Alert, AppState, AppStateStatus } from "react-native";
+import { Platform, Alert, AppState, AppStateStatus, InteractionManager } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Purchases, { 
   PurchasesPackage, 
@@ -11,8 +11,9 @@ import Purchases, {
 import RevenueCatUI, { PAYWALL_RESULT } from "react-native-purchases-ui";
 import { useAuth } from "./AuthContext";
 
-// RevenueCat API Key (same key works for both platforms in this case)
-const REVENUECAT_API_KEY = "test_IkvYcxsKGVeFabGframTpyrJOXL";
+// RevenueCat API Key - Use production key for iOS (starts with appl_)
+// Get from RevenueCat Dashboard > Your App > API Keys > Public iOS API key
+const REVENUECAT_API_KEY = "appl_YOUR_PRODUCTION_KEY_HERE"; // TODO: Replace with your actual production key
 
 // Entitlement identifier - must match what's configured in RevenueCat dashboard
 const ENTITLEMENT_ID = "Support Guidance";
@@ -84,6 +85,17 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
     }
 
     try {
+      // Wait for interactions to complete to ensure React Native is fully initialized
+      // This prevents crashes during early app startup
+      await new Promise<void>((resolve) => {
+        InteractionManager.runAfterInteractions(() => {
+          resolve();
+        });
+      });
+      
+      // Additional safety delay for native modules to be ready
+      await new Promise(resolve => setTimeout(resolve, 500));
+
       // Enable debug logs in development
       if (__DEV__) {
         Purchases.setLogLevel(LOG_LEVEL.DEBUG);

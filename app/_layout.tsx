@@ -1,14 +1,14 @@
 // Must be first import - polyfills for React Native
 import "../src/lib/polyfills";
 
-import { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { View, ActivityIndicator, StyleSheet } from "react-native";
+import { View, ActivityIndicator, StyleSheet, InteractionManager } from "react-native";
 import { AuthProvider, useAuth } from "../src/lib/AuthContext";
 import { PremiumProvider } from "../src/lib/PremiumContext";
 import { AdsProvider } from "../src/lib/AdsContext";
-import "react-native-get-random-values";
+// Note: react-native-get-random-values is already imported in polyfills.ts
 
 function RootLayoutNav() {
   const { isLoading, isAuthenticated } = useAuth();
@@ -106,14 +106,40 @@ const styles = StyleSheet.create({
   },
 });
 
+// Wrapper component that defers heavy SDK initialization
+function DeferredProviders({ children }: { children: React.ReactNode }) {
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    // Wait for the JS thread to be idle before mounting heavy providers
+    // This prevents native module crashes during early startup
+    const handle = InteractionManager.runAfterInteractions(() => {
+      setIsReady(true);
+    });
+
+    return () => handle.cancel();
+  }, []);
+
+  if (!isReady) {
+    // Render children without the heavy providers during initial mount
+    return <>{children}</>;
+  }
+
+  return (
+    <PremiumProvider>
+      <AdsProvider>
+        {children}
+      </AdsProvider>
+    </PremiumProvider>
+  );
+}
+
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <PremiumProvider>
-        <AdsProvider>
-          <RootLayoutNav />
-        </AdsProvider>
-      </PremiumProvider>
+      <DeferredProviders>
+        <RootLayoutNav />
+      </DeferredProviders>
     </AuthProvider>
   );
 }

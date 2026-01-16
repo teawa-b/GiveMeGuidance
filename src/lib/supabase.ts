@@ -1,15 +1,14 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as SecureStore from "expo-secure-store";
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
 
 // Custom storage adapter for React Native
-// Web: use localStorage
-// Native: use SecureStore for tokens, AsyncStorage for other data
-const ExpoSecureStoreAdapter = {
+// Uses AsyncStorage for all platforms to avoid SecureStore initialization issues
+// SecureStore can fail during early app startup before native modules are ready
+const SafeStorageAdapter = {
   getItem: async (key: string): Promise<string | null> => {
     if (Platform.OS === "web") {
       try {
@@ -18,12 +17,11 @@ const ExpoSecureStoreAdapter = {
         return null;
       }
     }
-    // Use SecureStore for auth tokens on native
     try {
-      return await SecureStore.getItemAsync(key);
-    } catch {
-      // Fall back to AsyncStorage if SecureStore fails
       return await AsyncStorage.getItem(key);
+    } catch (error) {
+      console.warn("[Supabase] Storage getItem error:", error);
+      return null;
     }
   },
   setItem: async (key: string, value: string): Promise<void> => {
@@ -35,12 +33,10 @@ const ExpoSecureStoreAdapter = {
       }
       return;
     }
-    // Use SecureStore for auth tokens on native
     try {
-      await SecureStore.setItemAsync(key, value);
-    } catch {
-      // Fall back to AsyncStorage if SecureStore fails
       await AsyncStorage.setItem(key, value);
+    } catch (error) {
+      console.warn("[Supabase] Storage setItem error:", error);
     }
   },
   removeItem: async (key: string): Promise<void> => {
@@ -53,19 +49,39 @@ const ExpoSecureStoreAdapter = {
       return;
     }
     try {
-      await SecureStore.deleteItemAsync(key);
-    } catch {
       await AsyncStorage.removeItem(key);
+    } catch (error) {
+      console.warn("[Supabase] Storage removeItem error:", error);
     }
   },
 };
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    storage: ExpoSecureStoreAdapter,
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: Platform.OS === "web",
+// Lazy initialization of Supabase client to avoid crashes during early app startup
+let _supabaseClient: SupabaseClient | null = null;
+
+function getSupabaseClient(): SupabaseClient {
+  if (!_supabaseClient) {
+    _supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        storage: SafeStorageAdapter,
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: Platform.OS === "web",
+      },
+    });
+  }
+  return _supabaseClient;
+}
+
+// Export a proxy that lazily initializes the client
+export const supabase = new Proxy({} as SupabaseClient, {
+  get(_, prop) {
+    const client = getSupabaseClient();
+    const value = (client as any)[prop];
+    if (typeof value === "function") {
+      return value.bind(client);
+    }
+    return value;
   },
 });
 

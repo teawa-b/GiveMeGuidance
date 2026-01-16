@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { InteractionManager } from "react-native";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 
@@ -22,25 +23,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setIsLoading(false);
-    });
+    let isMounted = true;
+    let subscription: { unsubscribe: () => void } | null = null;
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log("[Auth] State changed:", event, session?.user?.email);
-        setSession(session);
-        setUser(session?.user ?? null);
-        setIsLoading(false);
+    const initAuth = async () => {
+      try {
+        // Wait for interactions to complete to ensure React Native is ready
+        await new Promise<void>((resolve) => {
+          InteractionManager.runAfterInteractions(() => {
+            resolve();
+          });
+        });
+
+        // Small delay to ensure native modules are fully initialized
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        if (!isMounted) return;
+
+        // Get initial session
+        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        
+        if (isMounted) {
+          setSession(initialSession);
+          setUser(initialSession?.user ?? null);
+          setIsLoading(false);
+        }
+
+        // Listen for auth changes
+        const { data } = supabase.auth.onAuthStateChange(
+          async (event, newSession) => {
+            if (!isMounted) return;
+            console.log("[Auth] State changed:", event, newSession?.user?.email);
+            setSession(newSession);
+            setUser(newSession?.user ?? null);
+            setIsLoading(false);
+          }
+        );
+        subscription = data.subscription;
+      } catch (error) {
+        console.error("[Auth] Initialization error:", error);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
-    );
+    };
+
+    initAuth();
 
     return () => {
-      subscription.unsubscribe();
+      isMounted = false;
+      subscription?.unsubscribe();
     };
   }, []);
 
