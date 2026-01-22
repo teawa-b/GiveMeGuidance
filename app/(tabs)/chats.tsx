@@ -305,7 +305,12 @@ export default function ChatsScreen() {
     } else if (diffDays === 1) {
       return "Yesterday";
     } else if (diffDays < 7) {
-      return date.toLocaleDateString("en-US", { weekday: "long" });
+      // Show weekday with date, e.g., "Friday, Jan 17"
+      return date.toLocaleDateString("en-US", { 
+        weekday: "long", 
+        month: "short", 
+        day: "numeric" 
+      });
     } else {
       return date.toLocaleDateString("en-US", { 
         month: "short", 

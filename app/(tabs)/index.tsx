@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -10,11 +10,12 @@ import {
   Alert,
   TextInput,
   Image,
-  Animated,
   StatusBar,
+  ScrollView,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAuth } from "../../src/lib/AuthContext";
 import { EtherealBackground } from "../../src/components/EtherealBackground";
 import { ProfileModal } from "../../src/components/ProfileModal";
@@ -22,154 +23,45 @@ import { GuidanceHistoryModal } from "../../src/components/GuidanceHistoryModal"
 import { BannerAdComponent } from "../../src/components/BannerAdComponent";
 import { PremiumPopup } from "../../src/components/PremiumPopup";
 import { usePremium } from "../../src/lib/PremiumContext";
+import { useAds } from "../../src/lib/AdsContext";
 import { mediumHaptic, lightHaptic } from "../../src/lib/haptics";
-import { playAppOpenedSound } from "../../src/lib/sounds";
 
-const suggestionPrompts = [
-  // Anxiety & Worry
-  "I feel anxious about the future",
-  "I'm worried about tomorrow",
-  "My mind won't stop racing",
-  "I can't stop overthinking",
-  "I feel overwhelmed by life",
-  
-  // Strength & Courage
-  "I need strength for today",
-  "I feel weak and tired",
-  "I need courage to face this",
-  "I'm running out of energy",
-  "I need to be brave today",
-  
-  // Peace & Calm
-  "Help me find peace in chaos",
-  "I want inner peace",
-  "My heart feels restless",
-  "I need calm in the storm",
-  "I want to feel still inside",
-  
-  // Discouragement & Hope
-  "I feel weak and discouraged",
-  "I've lost my motivation",
-  "I need hope right now",
-  "I feel like giving up",
-  "I need encouragement today",
-  
-  // Direction & Purpose
-  "I want clarity on my path",
-  "I feel lost in life",
-  "I don't know what to do",
-  "I need direction for my future",
-  "I'm searching for purpose",
-  
-  // Loneliness & Connection
-  "I feel so alone",
-  "I need to feel loved",
-  "I'm struggling with loneliness",
-  "I feel disconnected",
-  "I need comfort today",
-  
-  // Forgiveness & Guilt
-  "I need to forgive someone",
-  "I'm carrying guilt",
-  "I need to let go of the past",
-  "I feel ashamed of myself",
-  "I need a fresh start",
-  
-  // Faith & Doubt
-  "My faith feels weak",
-  "I'm struggling to trust God",
-  "I have so many doubts",
-  "I want to believe again",
-  "I need to grow spiritually",
-  
-  // Relationships
-  "I'm struggling in my relationship",
-  "I need patience with others",
-  "I want to be a better friend",
-  "I need wisdom for my family",
-  "I'm dealing with conflict",
-  
-  // Grief & Loss
-  "I'm grieving a loss",
-  "My heart is broken",
-  "I miss someone deeply",
-  "I need healing from pain",
-  "I'm processing a big change",
-  
-  // Gratitude & Joy
-  "I want to be more grateful",
-  "I've lost my joy",
-  "I want to appreciate life more",
-  "I need to count my blessings",
-  "I want to find happiness",
-  
-  // Work & Stress
-  "I'm stressed about work",
-  "I feel burnt out",
-  "I need balance in life",
-  "I'm facing a big decision",
-  "I need wisdom for my career",
-  
-  // Self-Worth
-  "I don't feel good enough",
-  "I'm struggling with self-doubt",
-  "I need to love myself more",
-  "I feel like a failure",
-  "I want to see my worth",
-  
-  // Fear
-  "I'm afraid of what's ahead",
-  "Fear is holding me back",
-  "I need to overcome my fears",
-  "I'm scared to take a step",
-  "I want freedom from fear",
-  
-  // Patience & Waiting
-  "I'm tired of waiting",
-  "I need patience right now",
-  "I'm struggling with timing",
-  "I want to trust the process",
-  "I need to slow down",
+// Topic categories for quick selection
+const topicCategories = [
+  { id: "anxiety", label: "Anxiety", icon: "head-question-outline" as const },
+  { id: "relationships", label: "Relationships", icon: "heart-outline" as const },
+  { id: "career", label: "Career", icon: "briefcase-outline" as const },
+  { id: "faith", label: "Faith", icon: "star-four-points-outline" as const },
+  { id: "peace", label: "Peace", icon: "scale-balance" as const },
+  { id: "purpose", label: "Purpose", icon: "meditation" as const },
 ];
 
-// Shuffle array helper function
-function shuffleArray<T>(array: T[]): T[] {
-  const shuffled = [...array];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled;
-}
-
-const suggestionChips = [
-  { text: "I feel lost", icon: "compass-outline" as const },
-  { text: "I need hope", icon: "sunny-outline" as const },
-  { text: "I'm anxious", icon: "leaf-outline" as const },
-  { text: "I want peace", icon: "water-outline" as const },
-];
+const topicPrompts: Record<string, string> = {
+  anxiety: "I'm feeling anxious and need peace",
+  relationships: "I need guidance for my relationships",
+  career: "I need direction for my career",
+  faith: "I want to strengthen my faith",
+  peace: "I'm searching for inner peace",
+  purpose: "I'm looking for my purpose in life",
+};
 
 export default function HomeScreen() {
   const router = useRouter();
   const { signOut } = useAuth();
-  const { shouldShowPopup, markPopupShown } = usePremium();
+  const { shouldShowPopup, markPopupShown, isPremium } = usePremium();
+  const { maybeShowInterstitialAd } = useAds();
   const [signingOut, setSigningOut] = useState(false);
   const [query, setQuery] = useState("");
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [historyModalVisible, setHistoryModalVisible] = useState(false);
   const [premiumPopupVisible, setPremiumPopupVisible] = useState(false);
 
-  // Shuffle prompts on mount for variety each time app opens
-  const [shuffledPrompts] = useState(() => shuffleArray(suggestionPrompts));
-  const [suggestionIndex, setSuggestionIndex] = useState(() => 
-    Math.floor(Math.random() * suggestionPrompts.length)
+  // Clear search query when screen comes into focus (e.g., when navigating back)
+  useFocusEffect(
+    useCallback(() => {
+      setQuery("");
+    }, [])
   );
-  const suggestionFade = useRef(new Animated.Value(1)).current;
-
-  // Play app opened sound on mount
-  useEffect(() => {
-    playAppOpenedSound();
-  }, []);
 
   // Check if we should show premium popup
   useEffect(() => {
@@ -185,29 +77,22 @@ export default function HomeScreen() {
     checkPopup();
   }, [shouldShowPopup]);
 
-  useEffect(() => {
-    const cycleSuggestion = () => {
-      Animated.timing(suggestionFade, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }).start(() => {
-        setSuggestionIndex((prev) => (prev + 1) % shuffledPrompts.length);
-        Animated.timing(suggestionFade, {
-          toValue: 1,
-          duration: 250,
-          useNativeDriver: true,
-        }).start();
-      });
-    };
+  const handleTopicPress = (topicId: string) => {
+    lightHaptic();
+    const prompt = topicPrompts[topicId];
+    setQuery(prompt);
+  };
 
-    const interval = setInterval(cycleSuggestion, 3200);
-    return () => clearInterval(interval);
-  }, [suggestionFade, shuffledPrompts.length]);
-
-  const handleSearch = () => {
+  const handleSearch = async () => {
     if (query.trim()) {
       mediumHaptic();
+      
+      // Show interstitial ad 1 in 4 times for non-premium users
+      // The ad must be dismissed before continuing to guidance
+      if (!isPremium) {
+        await maybeShowInterstitialAd(0.25); // 25% chance = 1 in 4 times
+      }
+      
       router.push({
         pathname: "/guidance",
         params: { q: query.trim() },
@@ -290,22 +175,47 @@ export default function HomeScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={styles.keyboardView}
         >
-          <View style={styles.content}>
+          <ScrollView 
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
             {/* Heading */}
             <View style={styles.headingContainer}>
               <Text style={styles.heading}>
-                What do you need{"\n"}
-                <Text style={styles.headingGradient}>guidance</Text>
-                {" "}on today?
+                Explore Paths to{"\n"}
+                <Text style={styles.headingGradient}>Clarity</Text>
               </Text>
               <Text style={styles.subheading}>
-                Share what's on your heart, and receive personalized wisdom from Scripture.
+                Select a topic that resonates with your spirit, or freely express your feelings below.
               </Text>
             </View>
 
+            {/* Topic Grid */}
+            <View style={styles.topicGrid}>
+              {topicCategories.map((topic) => (
+                <Pressable
+                  key={topic.id}
+                  style={({ pressed }) => [
+                    styles.topicCard,
+                    pressed && styles.topicCardPressed,
+                  ]}
+                  onPress={() => handleTopicPress(topic.id)}
+                >
+                  <MaterialCommunityIcons name={topic.icon} size={24} color="#10b981" />
+                  <Text style={styles.topicLabel}>{topic.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            {/* Banner Ad - placed between topics and input */}
+            <BannerAdComponent style={styles.bannerAd} />
+
             {/* Glass card with input */}
             <View style={styles.glassCard}>
+              <Text style={styles.cantFindLabel}>Can't find your topic?</Text>
               <View style={styles.inputContainer}>
+                <Ionicons name="search" size={20} color="#9ca3af" style={styles.searchIcon} />
                 <TextInput
                   style={styles.input}
                   value={query}
@@ -326,47 +236,8 @@ export default function HomeScreen() {
               </Pressable>
             </View>
 
-            {/* Suggestions */}
-            <View style={styles.suggestionsContainer}>
-              <Text style={styles.suggestionsTitle}>Need a starting point?</Text>
-              <Pressable
-                onPress={() => {
-                  lightHaptic();
-                  setQuery(shuffledPrompts[suggestionIndex]);
-                }}
-              >
-                <Animated.View style={[styles.suggestionHighlight, { opacity: suggestionFade }]}>
-                  <Ionicons name="sparkles" size={16} color="#10b981" />
-                  <Text style={styles.suggestionHighlightText}>
-                    {shuffledPrompts[suggestionIndex]}
-                  </Text>
-                </Animated.View>
-              </Pressable>
-
-              <View style={styles.suggestionChipsRow}>
-                {suggestionChips.map((chip) => (
-                  <Pressable
-                    key={chip.text}
-                    style={({ pressed }) => [
-                      styles.suggestionChip,
-                      pressed && styles.suggestionChipPressed,
-                    ]}
-                    onPress={() => {
-                      lightHaptic();
-                      setQuery(chip.text);
-                    }}
-                  >
-                    <Ionicons name={chip.icon} size={14} color="#10b981" />
-                    <Text style={styles.suggestionChipText}>{chip.text}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-          </View>
+          </ScrollView>
         </KeyboardAvoidingView>
-
-        {/* Banner Ad */}
-        <BannerAdComponent style={styles.bannerAd} />
       </SafeAreaView>
 
       {/* Profile Modal */}
@@ -495,24 +366,26 @@ const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
   },
-  content: {
+  scrollView: {
     flex: 1,
-    justifyContent: "center",
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 12,
     alignItems: "center",
-    paddingHorizontal: 24,
-    marginTop: -64,
   },
   headingContainer: {
     alignItems: "center",
-    gap: 16,
-    marginBottom: 24,
+    gap: 8,
+    marginBottom: 16,
   },
   heading: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: "700",
     textAlign: "center",
     color: "#0f172a",
-    lineHeight: 34,
+    lineHeight: 30,
     letterSpacing: -0.5,
   },
   headingGradient: {
@@ -521,22 +394,33 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   subheading: {
-    fontSize: 14,
+    fontSize: 13,
     textAlign: "center",
     color: "#94a3b8",
-    lineHeight: 20,
-    maxWidth: 300,
+    lineHeight: 18,
+    maxWidth: 320,
     fontWeight: "400",
     letterSpacing: 0.2,
   },
-  glassCard: {
+  topicGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     width: "100%",
     maxWidth: 380,
-    borderRadius: 32,
-    padding: 16,
+    gap: 8,
+    marginBottom: 16,
+  },
+  topicCard: {
+    width: "48%",
+    flexGrow: 1,
+    flexBasis: "45%",
+    borderRadius: 14,
+    padding: 12,
+    alignItems: "flex-start",
+    gap: 6,
     ...Platform.select({
       ios: {
-        backgroundColor: "rgba(255, 255, 255, 0.6)",
+        backgroundColor: "rgba(255, 255, 255, 0.85)",
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.04,
@@ -547,36 +431,86 @@ const styles = StyleSheet.create({
         elevation: 2,
       },
       web: {
-        backgroundColor: "rgba(255, 255, 255, 0.6)",
+        backgroundColor: "rgba(255, 255, 255, 0.85)",
         backdropFilter: "blur(12px)",
         boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
       } as any,
     }),
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.4)",
+    borderColor: "rgba(255, 255, 255, 0.5)",
   },
-  inputContainer: {
-    marginBottom: 12,
+  topicCardPressed: {
+    transform: [{ scale: 0.97 }],
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
   },
-  input: {
+  topicLabel: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#0f172a",
+  },
+  glassCard: {
     width: "100%",
+    maxWidth: 380,
+    borderRadius: 20,
+    padding: 16,
     ...Platform.select({
       ios: {
-        backgroundColor: "rgba(255, 255, 255, 0.4)",
+        backgroundColor: "rgba(255, 255, 255, 0.85)",
+        shadowColor: "#10b981",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 16,
+      },
+      android: {
+        backgroundColor: "#ffffff",
+        elevation: 4,
+      },
+      web: {
+        backgroundColor: "rgba(255, 255, 255, 0.85)",
+        backdropFilter: "blur(12px)",
+        boxShadow: "0 4px 24px rgba(16, 185, 129, 0.08)",
+      } as any,
+    }),
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.5)",
+    marginBottom: 16,
+  },
+  cantFindLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#94a3b8",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+    ...Platform.select({
+      ios: {
+        backgroundColor: "rgba(248, 250, 252, 0.8)",
       },
       android: {
         backgroundColor: "#f8fafc",
       },
       web: {
-        backgroundColor: "rgba(255, 255, 255, 0.4)",
+        backgroundColor: "rgba(248, 250, 252, 0.8)",
       },
     }),
     borderRadius: 16,
-    paddingVertical: 20,
-    paddingHorizontal: 24,
-    fontSize: 18,
+    paddingHorizontal: 16,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  input: {
+    flex: 1,
+    paddingVertical: 12,
+    fontSize: 15,
     color: "#0f172a",
-    fontWeight: "300",
+    fontWeight: "400",
   },
   submitButton: {
     flexDirection: "row",
@@ -584,20 +518,20 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
     backgroundColor: "#10b981",
-    paddingVertical: 16,
-    borderRadius: 16,
+    paddingVertical: 12,
+    borderRadius: 14,
     ...Platform.select({
       ios: {
         shadowColor: "#10b981",
         shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.2,
+        shadowOpacity: 0.25,
         shadowRadius: 12,
       },
       android: {
         elevation: 4,
       },
       web: {
-        boxShadow: "0 6px 20px rgba(16, 185, 129, 0.2)",
+        boxShadow: "0 6px 20px rgba(16, 185, 129, 0.25)",
       } as any,
     }),
   },
@@ -605,86 +539,15 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   submitButtonText: {
-    fontSize: 16,
-    fontWeight: "500",
+    fontSize: 15,
+    fontWeight: "600",
     color: "#ffffff",
   },
   bannerAd: {
-    marginBottom: 8,
-  },
-  suggestionsContainer: {
     width: "100%",
     maxWidth: 380,
-    alignItems: "center",
-    marginTop: 16,
-    gap: 10,
-  },
-  suggestionsTitle: {
-    fontSize: 12,
-    color: "#94a3b8",
-    textTransform: "uppercase",
-    letterSpacing: 1,
-    fontWeight: "600",
-  },
-  suggestionHighlight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "rgba(16, 185, 129, 0.08)",
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: "rgba(16, 185, 129, 0.18)",
-  },
-  suggestionHighlightPressed: {
-    transform: [{ scale: 0.97 }],
-    backgroundColor: "rgba(16, 185, 129, 0.15)",
-  },
-  suggestionHighlightText: {
-    fontSize: 14,
-    color: "#0f172a",
-    fontWeight: "500",
-  },
-  suggestionChipsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    gap: 10,
-    marginTop: 4,
-  },
-  suggestionChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "#ffffff",
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: "rgba(16, 185, 129, 0.2)",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#10b981",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 6,
-      },
-      android: {
-        elevation: 2,
-      },
-      web: {
-        boxShadow: "0 2px 8px rgba(16, 185, 129, 0.1)",
-      },
-    }),
-  },
-  suggestionChipPressed: {
-    transform: [{ scale: 0.96 }],
-    backgroundColor: "rgba(16, 185, 129, 0.05)",
-  },
-  suggestionChipText: {
-    fontSize: 13,
-    color: "#1e293b",
-    fontWeight: "500",
+    marginBottom: 16,
+    borderRadius: 12,
+    overflow: "hidden",
   },
 });

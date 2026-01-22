@@ -1,7 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { Platform, InteractionManager } from "react-native";
 import Constants from "expo-constants";
-import { requestTrackingPermissionsAsync, getTrackingPermissionsAsync } from "expo-tracking-transparency";
+
+// Only import tracking transparency on native platforms
+const requestTrackingPermissionsAsync = Platform.OS !== "web" 
+  ? require("expo-tracking-transparency").requestTrackingPermissionsAsync 
+  : async () => ({ status: "denied" });
 
 // Check if running in Expo Go (where native modules aren't available)
 const isExpoGo = Constants.appOwnership === "expo";
@@ -45,8 +49,8 @@ const PRODUCTION_NATIVE_AD_UNIT_ID = Platform.select({
 });
 
 const PRODUCTION_INTERSTITIAL_AD_UNIT_ID = Platform.select({
-  ios: "ca-app-pub-7517928309502563/9718522937", // Using banner as placeholder - create interstitial ad unit if needed
-  android: "ca-app-pub-7517928309502563/2825811525", // Using banner as placeholder - create interstitial ad unit if needed
+  ios: "ca-app-pub-7517928309502563/1832325875", // Interstitial iOS
+  android: "ca-app-pub-7517928309502563/5627907139", // Interstitial Android
   default: "",
 });
 
@@ -77,6 +81,8 @@ interface AdsContextType {
   // Actions
   showInterstitialAd: () => Promise<boolean>;
   showRewardedAd: () => Promise<boolean>;
+  // Shows an interstitial ad with a probability (e.g., 1 in 4 times = 0.25)
+  maybeShowInterstitialAd: (probability?: number) => Promise<boolean>;
 }
 
 const AdsContext = createContext<AdsContextType | undefined>(undefined);
@@ -228,6 +234,18 @@ export function AdsProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Show interstitial ad with a probability (default: 1 in 4 times = 0.25)
+  // Returns true if the ad was shown and closed, false otherwise
+  const maybeShowInterstitialAd = async (probability: number = 0.25): Promise<boolean> => {
+    // Random check - only show ad with the given probability
+    if (Math.random() > probability) {
+      console.log("[Ads] Skipping interstitial (random chance)");
+      return false;
+    }
+    
+    return showInterstitialAd();
+  };
+
   const value: AdsContextType = {
     isAdsInitialized,
     shouldShowAds,
@@ -239,6 +257,7 @@ export function AdsProvider({ children }: { children: ReactNode }) {
     BannerAdSize: adsModule?.BannerAdSize || null,
     showInterstitialAd,
     showRewardedAd,
+    maybeShowInterstitialAd,
   };
 
   return <AdsContext.Provider value={value}>{children}</AdsContext.Provider>;

@@ -237,31 +237,44 @@ export function ProfileModal({ visible, onClose, onSignOut, onViewHistory, onVie
 
       {/* Spiritual Presence Card (non-gamified) */}
       <View style={styles.streakCard}>
-        <View style={styles.streakIconContainer}>
-          <LottieView
-            source={{ uri: "https://lottie.host/dacfa944-e642-4d58-8d18-47b33afeb93c/zsrHvbF6v3.lottie" }}
-            autoPlay
-            loop
-            style={styles.streakLottie}
-          />
+        <View style={styles.streakHeader}>
+          <View style={styles.streakIconContainer}>
+            <LottieView
+              source={{ uri: "https://lottie.host/dacfa944-e642-4d58-8d18-47b33afeb93c/zsrHvbF6v3.lottie" }}
+              autoPlay
+              loop
+              style={styles.streakLottie}
+            />
+          </View>
         </View>
-        <View style={styles.streakInfo}>
-          <Text style={styles.streakNumber}>{spiritualPresence.daysOfGuidance}</Text>
-          <Text style={styles.streakLabel}>Days of Guidance</Text>
+        <Text style={styles.streakTitle}>Your Journey</Text>
+        
+        <View style={styles.streakStats}>
+          <View style={styles.streakStatItem}>
+            <Text style={styles.streakNumber}>{spiritualPresence.daysOfGuidance}</Text>
+            <Text style={styles.streakLabel}>Days of Guidance</Text>
+          </View>
+          <View style={styles.streakDivider} />
+          <View style={styles.streakStatItem}>
+            <Text style={styles.streakNumber}>{spiritualPresence.currentPath}</Text>
+            <Text style={styles.streakLabel}>Day Streak</Text>
+          </View>
         </View>
-        {spiritualPresence.currentPath > 1 && (
-          <Text style={styles.streakMotivation}>
-            {spiritualPresence.currentPath} days of presence ✨
-          </Text>
-        )}
-        {spiritualPresence.currentPath <= 1 && spiritualPresence.isActiveToday && (
-          <Text style={styles.streakMotivation}>You're here today 🌿</Text>
+        
+        {spiritualPresence.isActiveToday && (
+          <View style={styles.streakMotivationContainer}>
+            <Text style={styles.streakMotivation}>🌿 Active today</Text>
+          </View>
         )}
         {!spiritualPresence.isActiveToday && spiritualPresence.daysOfGuidance > 0 && (
-          <Text style={styles.streakMotivation}>Ready when you are</Text>
+          <View style={styles.streakMotivationContainer}>
+            <Text style={styles.streakMotivation}>Ready when you are</Text>
+          </View>
         )}
         {spiritualPresence.daysOfGuidance === 0 && (
-          <Text style={styles.streakMotivation}>Begin your journey</Text>
+          <View style={styles.streakMotivationContainer}>
+            <Text style={styles.streakMotivation}>Begin your journey</Text>
+          </View>
         )}
       </View>
 
@@ -688,10 +701,20 @@ const styles = StyleSheet.create({
     backgroundColor: "#fffbeb",
     borderRadius: 16,
     padding: 20,
-    alignItems: "center",
     marginBottom: 24,
     borderWidth: 1,
     borderColor: "#fef3c7",
+  },
+  streakHeader: {
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  streakTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#92400e",
+    textAlign: "center",
+    marginBottom: 16,
   },
   streakIconContainer: {
     width: 56,
@@ -700,17 +723,26 @@ const styles = StyleSheet.create({
     backgroundColor: "#fef3c7",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 12,
   },
   streakLottie: {
-    width: 48,
-    height: 48,
+    width: 44,
+    height: 44,
   },
-  streakInfo: {
+  streakStats: {
     flexDirection: "row",
-    alignItems: "baseline",
-    gap: 6,
-    marginBottom: 4,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  streakStatItem: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 8,
+  },
+  streakDivider: {
+    width: 1,
+    height: 50,
+    backgroundColor: "#fde68a",
+    marginHorizontal: 8,
   },
   streakNumber: {
     fontSize: 32,
@@ -718,14 +750,25 @@ const styles = StyleSheet.create({
     color: "#f59e0b",
   },
   streakLabel: {
-    fontSize: 16,
-    fontWeight: "500",
+    fontSize: 11,
+    fontWeight: "600",
     color: "#92400e",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginTop: 4,
+    textAlign: "center",
+  },
+  streakMotivationContainer: {
+    alignItems: "center",
+    marginTop: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#fde68a",
   },
   streakMotivation: {
-    fontSize: 13,
+    fontSize: 14,
+    fontWeight: "600",
     color: "#b45309",
-    fontWeight: "400",
   },
   menuSection: {
     backgroundColor: "#f8fafc",

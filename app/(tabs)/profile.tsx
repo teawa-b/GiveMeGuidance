@@ -192,8 +192,8 @@ export default function ProfileScreen() {
                 style={styles.presenceLottie}
               />
             </View>
-            <Text style={styles.presenceTitle}>Your Spiritual Journey</Text>
           </View>
+          <Text style={styles.presenceTitle}>Your Spiritual Journey</Text>
           
           <View style={styles.presenceStats}>
             <View style={styles.presenceStatItem}>
@@ -467,23 +467,27 @@ const styles = StyleSheet.create({
     }),
   },
   presenceHeader: {
-    flexDirection: "row",
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 8,
   },
   presenceTitle: {
     fontSize: 16,
     fontWeight: "600",
     color: "#1e293b",
+    textAlign: "center",
+    marginBottom: 16,
   },
   presenceIconContainer: {
-    width: 40,
-    height: 40,
-    marginRight: 10,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#ecfdf5",
+    alignItems: "center",
+    justifyContent: "center",
   },
   presenceLottie: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
   },
   presenceStats: {
     flexDirection: "row",
