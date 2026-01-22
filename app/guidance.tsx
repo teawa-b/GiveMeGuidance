@@ -18,6 +18,8 @@ import * as Sharing from "expo-sharing";
 import { ShareableVerseCard } from "../src/components/ShareableVerseCard";
 import { getGuidance, getExplanation, type VerseData, type ExplanationData } from "../src/services/guidance";
 import { isBookmarked as checkIsBookmarked, addBookmark } from "../src/services/bookmarks";
+import { updateStreak } from "../src/services/streak";
+import { useDataCache } from "../src/lib/DataCache";
 import { 
   getTodaysGuidance, 
   type DailyGuidance,
@@ -41,6 +43,9 @@ export default function GuidanceScreen() {
   }>();
   const { q: query } = params;
   const router = useRouter();
+  
+  // Get cache invalidation function
+  const { invalidateBookmarks } = useDataCache();
 
   // Check if we have restored data from a saved chat
   const restoredVerseData: VerseData | null = params.verseText && params.verseReference
@@ -110,6 +115,8 @@ export default function GuidanceScreen() {
     try {
       await addBookmark(verseData.text, verseData.reference.passage);
       setBookmarked(true);
+      // Invalidate bookmarks cache so the bookmarks list refreshes
+      invalidateBookmarks();
       successHaptic();
     } catch (error) {
       console.error("Error bookmarking verse:", error);
@@ -200,12 +207,20 @@ export default function GuidanceScreen() {
       const GUIDANCE_HISTORY_KEY = "guidance_history";
       const DAYS_OF_GUIDANCE_KEY = "days_of_guidance";
 
-      // Check if we already saved today
+      // ALWAYS update streak when guidance is received (the streak service handles deduplication)
+      try {
+        await updateStreak();
+      } catch (activityError) {
+        console.error("Error updating streak:", activityError);
+        // Don't fail the whole save if streak update fails
+      }
+
+      // Check if we already saved today's guidance to local cache
       const existingData = await AsyncStorage.getItem(DAILY_GUIDANCE_KEY);
       if (existingData) {
         const existing = JSON.parse(existingData);
         if (existing.date === today) {
-          return; // Already saved today
+          return; // Already saved today's local cache
         }
       }
 

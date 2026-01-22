@@ -8,11 +8,15 @@ import {
   Animated,
   Platform,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { usePremium, PremiumPackage } from "../lib/PremiumContext";
 import { lightHaptic, successHaptic } from "../lib/haptics";
+
+// App logo
+const appLogo = require("../../assets/NewLogo.png");
 
 interface PremiumPopupProps {
   visible: boolean;
@@ -179,7 +183,7 @@ export function PremiumPopup({
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.iconContainer}>
-              <Ionicons name="heart" size={32} color="#10b981" />
+              <Image source={appLogo} style={styles.logoImage} resizeMode="contain" />
             </View>
             <Text style={styles.title}>Support Give Me Guidance</Text>
             <Text style={styles.subtitle}>
@@ -372,6 +376,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 16,
+    overflow: "hidden",
+  },
+  logoImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
   },
   title: {
     fontSize: 22,

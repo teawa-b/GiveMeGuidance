@@ -17,9 +17,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import LottieView from "lottie-react-native";
-import { getChats, deleteChat, deleteMultipleChats, type Chat } from "../../src/services/chats";
+import { deleteChat, deleteMultipleChats, type Chat } from "../../src/services/chats";
 import { getSpiritualPresence, getGuidanceHistory } from "../../src/services/dailyGuidance";
-import { getCurrentStreakDisplay, getActivityDates } from "../../src/services/streak";
+import { useChats, useStreak, useActivityDates } from "../../src/lib/DataCache";
 import { CalendarModal } from "../../src/components/CalendarModal";
 import { lightHaptic, selectionHaptic, errorHaptic, mediumHaptic } from "../../src/lib/haptics";
 import { EtherealBackground } from "../../src/components/EtherealBackground";
@@ -32,63 +32,50 @@ interface ChatSection {
 
 export default function ChatsScreen() {
   const router = useRouter();
-  const [chats, setChats] = useState<Chat[] | null>(null);
-  const [loading, setLoading] = useState(true);
+  
+  // Use cached data
+  const { 
+    chats, 
+    isLoading: loading, 
+    isInitialLoad,
+    refresh: fetchChats,
+    removeOptimistic: removeChatOptimistic,
+    removeMultipleOptimistic: removeMultipleChatsOptimistic,
+  } = useChats();
+  
+  const { 
+    streak, 
+    refresh: fetchStreak,
+  } = useStreak();
+  
+  const { 
+    activityDates, 
+    isLoading: loadingCalendar,
+    refresh: fetchActivityDates,
+  } = useActivityDates();
+  
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
   const [showActionModal, setShowActionModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showCalendar, setShowCalendar] = useState(false);
-  const [currentStreak, setCurrentStreak] = useState(0);
-  const [longestStreak, setLongestStreak] = useState(0);
-  const [activityDates, setActivityDates] = useState<string[]>([]);
-  const [loadingCalendar, setLoadingCalendar] = useState(false);
+  
+  // Derived streak values
+  const currentStreak = streak?.current_streak ?? 0;
+  const longestStreak = streak?.longest_streak ?? 0;
   
   // Multi-select mode
   const [selectMode, setSelectMode] = useState(false);
   const [selectedChatIds, setSelectedChatIds] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const fetchChats = useCallback(async () => {
-    try {
-      const data = await getChats();
-      setChats(data);
-    } catch (error) {
-      console.error("Error fetching chats:", error);
-      setChats([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const fetchPresenceData = useCallback(async () => {
-    try {
-      const streakData = await getCurrentStreakDisplay();
-      setCurrentStreak(streakData.currentStreak);
-      setLongestStreak(streakData.longestStreak);
-    } catch (error) {
-      console.error("Error fetching streak:", error);
-    }
-  }, []);
-
-  const fetchActivityDates = useCallback(async () => {
-    setLoadingCalendar(true);
-    try {
-      const dates = await getActivityDates();
-      setActivityDates(dates);
-    } catch (error) {
-      console.error("Error fetching activity dates:", error);
-    } finally {
-      setLoadingCalendar(false);
-    }
-  }, []);
-
   useFocusEffect(
     useCallback(() => {
       // Reset search query when screen comes into focus
       setSearchQuery("");
+      // Fetch data - uses cache, refreshes in background if stale
       fetchChats();
-      fetchPresenceData();
-    }, [fetchChats, fetchPresenceData])
+      fetchStreak();
+    }, [fetchChats, fetchStreak])
   );
 
   const handleOpenCalendar = () => {
@@ -192,11 +179,15 @@ export default function ChatsScreen() {
     const doDelete = async () => {
       try {
         errorHaptic();
-        await deleteChat(chatId);
+        // Optimistic update - remove from UI immediately
+        removeChatOptimistic(chatId);
         setShowActionModal(false);
-        fetchChats();
+        // Then delete from server
+        await deleteChat(chatId);
       } catch (error) {
         console.error("Error deleting chat:", error);
+        // Refresh to restore correct state on error
+        fetchChats(true);
       }
     };
 
@@ -255,14 +246,22 @@ export default function ChatsScreen() {
     const doDeleteSelected = async () => {
       setIsDeleting(true);
       errorHaptic();
+      
+      const idsToDelete = Array.from(selectedChatIds);
+      
       try {
-        await deleteMultipleChats(Array.from(selectedChatIds));
+        // Optimistic update - remove from UI immediately
+        removeMultipleChatsOptimistic(idsToDelete);
         setSelectedChatIds(new Set());
         setSelectMode(false);
-        fetchChats();
+        
+        // Then delete from server
+        await deleteMultipleChats(idsToDelete);
       } catch (error) {
         console.error("Error deleting chats:", error);
         Alert.alert("Error", "Failed to delete some conversations. Please try again.");
+        // Refresh to restore correct state on error
+        fetchChats(true);
       } finally {
         setIsDeleting(false);
       }
@@ -414,8 +413,8 @@ export default function ChatsScreen() {
     </View>
   );
 
-  // Loading state
-  if (loading || chats === null) {
+  // Loading state - only show loading spinner on initial load
+  if (isInitialLoad && chats === null) {
     return (
       <View style={styles.container}>
         <EtherealBackground />
@@ -427,7 +426,7 @@ export default function ChatsScreen() {
   }
 
   // Empty state
-  if (chats.length === 0) {
+  if (!chats || chats.length === 0) {
     return (
       <View style={styles.container}>
         <EtherealBackground />
@@ -454,7 +453,7 @@ export default function ChatsScreen() {
         <CalendarModal
           visible={showCalendar}
           onClose={() => setShowCalendar(false)}
-          activityDates={activityDates}
+          activityDates={activityDates || []}
           currentStreak={currentStreak}
           longestStreak={longestStreak}
           isLoading={loadingCalendar}
@@ -652,7 +651,7 @@ export default function ChatsScreen() {
       <CalendarModal
         visible={showCalendar}
         onClose={() => setShowCalendar(false)}
-        activityDates={activityDates}
+        activityDates={activityDates || []}
         currentStreak={currentStreak}
         longestStreak={longestStreak}
         isLoading={loadingCalendar}

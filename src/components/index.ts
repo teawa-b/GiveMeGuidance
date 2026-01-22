@@ -14,3 +14,4 @@ export { BannerAdComponent } from "./BannerAdComponent";
 export { NativeAdLoading } from "./NativeAdLoading";
 export { PremiumPopup } from "./PremiumPopup";
 export { ShareableVerseCard } from "./ShareableVerseCard";
+export { NewGuidanceModal } from "./NewGuidanceModal";

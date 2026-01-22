@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -12,34 +12,31 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
-import { getBookmarks, removeBookmark, removeMultipleBookmarks, type Bookmark } from "../../src/services/bookmarks";
+import { removeBookmark, removeMultipleBookmarks, type Bookmark } from "../../src/services/bookmarks";
+import { useBookmarks } from "../../src/lib/DataCache";
 import { BookmarkCard } from "../../src/components/BookmarkCard";
 import { EtherealBackground } from "../../src/components/EtherealBackground";
 import { lightHaptic, selectionHaptic, errorHaptic, mediumHaptic } from "../../src/lib/haptics";
 
 export default function BookmarksScreen() {
   const router = useRouter();
-  const [bookmarks, setBookmarks] = useState<Bookmark[] | null>(null);
-  const [loading, setLoading] = useState(true);
+  
+  // Use cached bookmarks data
+  const { 
+    bookmarks, 
+    isLoading, 
+    isInitialLoad,
+    refresh: fetchBookmarks,
+    removeOptimistic: removeBookmarkOptimistic,
+    removeMultipleOptimistic: removeMultipleBookmarksOptimistic,
+  } = useBookmarks();
   
   // Multi-select mode
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const fetchBookmarks = useCallback(async () => {
-    try {
-      const data = await getBookmarks();
-      setBookmarks(data);
-    } catch (error) {
-      console.error("Error fetching bookmarks:", error);
-      setBookmarks([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Refresh bookmarks when screen comes into focus
+  // Fetch bookmarks when screen comes into focus (uses cache, refreshes in background if stale)
   useFocusEffect(
     useCallback(() => {
       fetchBookmarks();
@@ -53,10 +50,14 @@ export default function BookmarksScreen() {
 
   const handleRemoveBookmark = async (bookmarkId: string) => {
     try {
+      // Optimistic update - remove from UI immediately
+      removeBookmarkOptimistic(bookmarkId);
+      // Then delete from server
       await removeBookmark(bookmarkId);
-      fetchBookmarks();
     } catch (error) {
       console.error("Error removing bookmark:", error);
+      // Refresh to restore correct state on error
+      fetchBookmarks(true);
     }
   };
 
@@ -120,14 +121,22 @@ export default function BookmarksScreen() {
     const doDeleteSelected = async () => {
       setIsDeleting(true);
       errorHaptic();
+      
+      const idsToDelete = Array.from(selectedIds);
+      
       try {
-        await removeMultipleBookmarks(Array.from(selectedIds));
+        // Optimistic update - remove from UI immediately
+        removeMultipleBookmarksOptimistic(idsToDelete);
         setSelectedIds(new Set());
         setSelectMode(false);
-        fetchBookmarks();
+        
+        // Then delete from server
+        await removeMultipleBookmarks(idsToDelete);
       } catch (error) {
         console.error("Error deleting bookmarks:", error);
         Alert.alert("Error", "Failed to delete some bookmarks. Please try again.");
+        // Refresh to restore correct state on error
+        fetchBookmarks(true);
       } finally {
         setIsDeleting(false);
       }
@@ -150,8 +159,8 @@ export default function BookmarksScreen() {
     }
   };
 
-  // Loading state
-  if (loading || bookmarks === null) {
+  // Loading state - only show loading spinner on initial load
+  if (isInitialLoad && bookmarks === null) {
     return (
       <View style={styles.container}>
         <EtherealBackground />
@@ -163,7 +172,7 @@ export default function BookmarksScreen() {
   }
 
   // Empty state
-  if (bookmarks.length === 0) {
+  if (!bookmarks || bookmarks.length === 0) {
     return (
       <View style={styles.container}>
         <EtherealBackground />

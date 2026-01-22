@@ -10,15 +10,20 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Image,
 } from "react-native";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { getChat, getChatMessages, addChatMessage, createChat, resetChatMessages, type Chat, type ChatMessage } from "../src/services/chats";
 import { sendChatMessage, type ChatContext } from "../src/services/chatAI";
+import { useDataCache } from "../src/lib/DataCache";
 import { ChatLoadingBubble } from "../src/components/ChatLoadingBubble";
 import { lightHaptic, mediumHaptic } from "../src/lib/haptics";
 import { EtherealBackground } from "../src/components/EtherealBackground";
+
+// App logo for chat avatar
+const appLogo = require("../assets/NewLogo.png");
 
 interface Message {
   id: string;
@@ -37,6 +42,9 @@ export default function ChatScreen() {
   }>();
   const router = useRouter();
   const flatListRef = useRef<FlatList>(null);
+  
+  // Get cache invalidation functions
+  const { invalidateChats, invalidateStreak } = useDataCache();
 
   const [chat, setChat] = useState<Chat | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -111,6 +119,10 @@ export default function ChatScreen() {
             newContext.explanationData
           );
           setChatId(newChatId);
+          
+          // Invalidate cache so chats list refreshes when user goes back
+          invalidateChats();
+          invalidateStreak();
 
           // Add initial assistant message with verse and explanation
           const initialMessage = formatInitialMessage(
@@ -180,6 +192,10 @@ export default function ChatScreen() {
             minimalExplanation
           );
           setChatId(newChatId);
+          
+          // Invalidate cache so chats list refreshes when user goes back
+          invalidateChats();
+          invalidateStreak();
 
           // Add initial assistant message for bookmarked verse
           const initialMessage = formatBookmarkChatMessage(
@@ -208,7 +224,7 @@ export default function ChatScreen() {
     };
 
     initializeChat();
-  }, [params.chatId, params.verseText, params.explanation]);
+  }, [params.chatId, params.verseText, params.explanation, invalidateChats, invalidateStreak]);
 
   const formatInitialMessage = (explanationData: ChatContext["explanationData"], verseText?: string, verseRef?: string): string => {
     let message = "";
@@ -440,7 +456,7 @@ export default function ChatScreen() {
       <View style={[styles.messageBubble, isUser ? styles.userBubble : styles.assistantBubble]}>
         {!isUser && (
           <View style={styles.avatarContainer}>
-            <Ionicons name="leaf" size={16} color="#10b981" />
+            <Image source={appLogo} style={styles.avatarImage} resizeMode="contain" />
           </View>
         )}
         <View style={[styles.messageContent, isUser ? styles.userContent : styles.assistantContent]}>
@@ -635,6 +651,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
     borderWidth: 1,
     borderColor: "rgba(167, 243, 208, 0.4)",
+    overflow: "hidden",
     ...Platform.select({
       ios: {
         backgroundColor: "rgba(255, 255, 255, 0.9)",
@@ -652,6 +669,11 @@ const styles = StyleSheet.create({
         boxShadow: "0 2px 6px rgba(16, 185, 129, 0.08)",
       },
     }),
+  },
+  avatarImage: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
   },
   messageContent: {
     maxWidth: "78%",

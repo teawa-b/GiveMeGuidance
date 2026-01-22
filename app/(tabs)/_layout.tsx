@@ -1,68 +1,71 @@
+import React, { useState } from "react";
 import { Tabs, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { View, Pressable, StyleSheet, Platform } from "react-native";
 import { mediumHaptic } from "../../src/lib/haptics";
 import { playClickSound } from "../../src/lib/sounds";
-
-function CenterButton() {
-  const router = useRouter();
-  
-  return (
-    <Pressable
-      style={styles.centerButton}
-      onPress={() => {
-        playClickSound();
-        mediumHaptic();
-        router.push("/");
-      }}
-    >
-      <View style={styles.centerButtonInner}>
-        <Ionicons name="add" size={26} color="#ffffff" />
-      </View>
-    </Pressable>
-  );
-}
+import { NewGuidanceModal } from "../../src/components/NewGuidanceModal";
 
 export default function TabLayout() {
+  const [newGuidanceModalVisible, setNewGuidanceModalVisible] = useState(false);
+
+  const CenterButton = () => {
+    return (
+      <Pressable
+        style={styles.centerButton}
+        onPress={() => {
+          playClickSound();
+          mediumHaptic();
+          setNewGuidanceModalVisible(true);
+        }}
+      >
+        <View style={styles.centerButtonInner}>
+          <Ionicons name="add" size={26} color="#ffffff" />
+        </View>
+      </Pressable>
+    );
+  };
+
   // Auth is handled by root layout, so we can just render tabs
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: "#10b981",
-        tabBarInactiveTintColor: "#94a3b8",
-        tabBarStyle: {
-          backgroundColor: "rgba(255, 255, 255, 0.3)",
-          borderTopWidth: 1,
-          borderTopColor: "rgba(226, 232, 240, 0.2)",
-          paddingTop: 12,
-          paddingBottom: Platform.OS === "ios" ? 28 : 28,
-          height: Platform.OS === "ios" ? 85 : 80,
-          ...Platform.select({
-            ios: {
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: -2 },
-              shadowOpacity: 0.03,
-              shadowRadius: 8,
-            },
-            android: {
-              elevation: 0,
-            },
-            web: {
-              backdropFilter: "blur(24px)",
-            } as any,
-          }),
-        },
-        tabBarLabelStyle: {
-          fontSize: 9,
-          fontWeight: "700",
-          textTransform: "uppercase",
-          letterSpacing: 1,
-          marginTop: 4,
-        },
-        tabBarShowLabel: true,
-        headerShown: false,
-      }}
-    >
+    <>
+      <Tabs
+        screenOptions={{
+          tabBarActiveTintColor: "#10b981",
+          tabBarInactiveTintColor: "#94a3b8",
+          tabBarStyle: {
+            backgroundColor: "rgba(255, 255, 255, 0.3)",
+            borderTopWidth: 1,
+            borderTopColor: "rgba(226, 232, 240, 0.2)",
+            paddingTop: 12,
+            paddingBottom: Platform.OS === "ios" ? 28 : 28,
+            height: Platform.OS === "ios" ? 85 : 80,
+            ...Platform.select({
+              ios: {
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: -2 },
+                shadowOpacity: 0.03,
+                shadowRadius: 8,
+              },
+              android: {
+                elevation: 0,
+              },
+              web: {
+                backdropFilter: "blur(24px)",
+              } as any,
+            }),
+          },
+          tabBarLabelStyle: {
+            fontSize: 9,
+            fontWeight: "700",
+            textTransform: "uppercase",
+            letterSpacing: 1,
+            marginTop: 4,
+          },
+          tabBarShowLabel: true,
+          headerShown: false,
+        }}
+      >
       <Tabs.Screen
         name="index"
         options={{
@@ -149,6 +152,13 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+
+    {/* New Guidance Modal */}
+    <NewGuidanceModal
+      visible={newGuidanceModalVisible}
+      onClose={() => setNewGuidanceModalVisible(false)}
+    />
+  </>
   );
 }
 

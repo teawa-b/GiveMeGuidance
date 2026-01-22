@@ -10,11 +10,15 @@ import {
   FlatList,
   Platform,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { type GuidanceHistoryEntry } from "../services/dailyGuidance";
 import { getGuidancePathEntries } from "../services/chats";
 import { lightHaptic, selectionHaptic } from "../lib/haptics";
+
+// App logo
+const appLogo = require("../../assets/NewLogo.png");
 
 interface GuidanceHistoryModalProps {
   visible: boolean;
@@ -128,7 +132,7 @@ export function GuidanceHistoryModal({ visible, onClose }: GuidanceHistoryModalP
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <Ionicons name="leaf-outline" size={48} color="#d1d5db" />
+      <Image source={appLogo} style={styles.emptyLogo} resizeMode="contain" />
       <Text style={styles.emptyTitle}>Your Journey Begins</Text>
       <Text style={styles.emptySubtitle}>
         Each day you receive guidance, it will appear here as part of your path.
@@ -340,6 +344,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 40,
+  },
+  emptyLogo: {
+    width: 64,
+    height: 64,
+    borderRadius: 16,
+    opacity: 0.6,
   },
   emptyTitle: {
     fontSize: 18,

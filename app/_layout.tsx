@@ -4,11 +4,16 @@ import "../src/lib/polyfills";
 import React, { useEffect, useState } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { View, ActivityIndicator, StyleSheet, InteractionManager } from "react-native";
+import { View, ActivityIndicator, StyleSheet, InteractionManager, Image } from "react-native";
 import { AuthProvider, useAuth } from "../src/lib/AuthContext";
 import { PremiumProvider } from "../src/lib/PremiumContext";
 import { AdsProvider } from "../src/lib/AdsContext";
+import { DataCacheProvider } from "../src/lib/DataCache";
+import { OnboardingProvider } from "../src/lib/OnboardingContext";
 // Note: react-native-get-random-values is already imported in polyfills.ts
+
+// App logo for loading screen
+const appLogo = require("../assets/NewLogo.png");
 
 function RootLayoutNav() {
   const { isLoading, isAuthenticated } = useAuth();
@@ -29,15 +34,19 @@ function RootLayoutNav() {
     const inTabsGroup = firstSegment === "(tabs)";
     const inGuidance = firstSegment === "guidance";
     const inChat = firstSegment === "chat";
+    
+    // Check if we're in the onboarding flow
+    const inOnboarding = inAuthGroup && segments[1] === "onboarding";
 
     // Allow authenticated users to be in tabs, guidance, or chat screen
     const inProtectedRoute = inTabsGroup || inGuidance || inChat;
 
-    console.log("[Auth] Checking redirect - firstSegment:", firstSegment, "isAuthenticated:", isAuthenticated, "inAuthGroup:", inAuthGroup, "inProtectedRoute:", inProtectedRoute);
+    console.log("[Auth] Checking redirect - firstSegment:", firstSegment, "isAuthenticated:", isAuthenticated, "inAuthGroup:", inAuthGroup, "inProtectedRoute:", inProtectedRoute, "inOnboarding:", inOnboarding);
 
     if (isAuthenticated) {
-      // User is authenticated - make sure they're in a protected route (tabs or guidance)
-      if (!inProtectedRoute && !inAuthGroup) {
+      // User is authenticated - make sure they're in a protected route
+      // But allow them to stay in onboarding if they're in the middle of it
+      if (!inProtectedRoute && !inOnboarding) {
         console.log("[Auth] User authenticated, redirecting to /(tabs)");
         router.replace("/(tabs)");
       }
@@ -53,7 +62,8 @@ function RootLayoutNav() {
   if (isLoading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#10b981" />
+        <Image source={appLogo} style={styles.loadingLogo} resizeMode="contain" />
+        <ActivityIndicator size="large" color="#10b981" style={styles.loadingSpinner} />
       </View>
     );
   }
@@ -102,7 +112,16 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#fafafa",
+    backgroundColor: "#f0fdf4",
+  },
+  loadingLogo: {
+    width: 120,
+    height: 120,
+    borderRadius: 28,
+    marginBottom: 24,
+  },
+  loadingSpinner: {
+    marginTop: 8,
   },
 });
 
@@ -126,11 +145,15 @@ function DeferredProviders({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <PremiumProvider>
-      <AdsProvider>
-        {children}
-      </AdsProvider>
-    </PremiumProvider>
+    <DataCacheProvider>
+      <PremiumProvider>
+        <AdsProvider>
+          <OnboardingProvider>
+            {children}
+          </OnboardingProvider>
+        </AdsProvider>
+      </PremiumProvider>
+    </DataCacheProvider>
   );
 }
 

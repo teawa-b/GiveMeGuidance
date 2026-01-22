@@ -4,11 +4,9 @@ import {
   Text,
   StyleSheet,
   SafeAreaView,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   Alert,
-  TextInput,
   Image,
   StatusBar,
   ScrollView,
@@ -23,52 +21,92 @@ import { GuidanceHistoryModal } from "../../src/components/GuidanceHistoryModal"
 import { BannerAdComponent } from "../../src/components/BannerAdComponent";
 import { PremiumPopup } from "../../src/components/PremiumPopup";
 import { usePremium } from "../../src/lib/PremiumContext";
-import { useAds } from "../../src/lib/AdsContext";
 import { mediumHaptic, lightHaptic } from "../../src/lib/haptics";
+import { getCurrentStreakDisplay } from "../../src/services/streak";
+import { getBookmarks } from "../../src/services/bookmarks";
 
-// Topic categories for quick selection
-const topicCategories = [
-  { id: "anxiety", label: "Anxiety", icon: "head-question-outline" as const },
-  { id: "relationships", label: "Relationships", icon: "heart-outline" as const },
-  { id: "career", label: "Career", icon: "briefcase-outline" as const },
-  { id: "faith", label: "Faith", icon: "star-four-points-outline" as const },
-  { id: "peace", label: "Peace", icon: "scale-balance" as const },
-  { id: "purpose", label: "Purpose", icon: "meditation" as const },
-];
+// Daily guidance status types
+type DailyGuidanceStatus = "not_started" | "in_progress" | "completed";
 
-const topicPrompts: Record<string, string> = {
-  anxiety: "I'm feeling anxious and need peace",
-  relationships: "I need guidance for my relationships",
-  career: "I need direction for my career",
-  faith: "I want to strengthen my faith",
-  peace: "I'm searching for inner peace",
-  purpose: "I'm looking for my purpose in life",
+// Dummy data for demonstration - will be replaced with real data
+const DUMMY_DAILY_GUIDANCE = {
+  verse: "\"Be still, and know that I am God.\"",
+  reference: "Psalm 46:10",
+  reflectionPreview: "In the chaos of life, God invites us to pause and trust His presence...",
+  status: "not_started" as DailyGuidanceStatus,
+};
+
+const DUMMY_USER_PATH = {
+  name: "Path of Peace",
+  goal: "peace",
+  description: "Daily guidance focused on peace and trust in God.",
 };
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { signOut } = useAuth();
-  const { shouldShowPopup, markPopupShown, isPremium } = usePremium();
-  const { maybeShowInterstitialAd } = useAds();
-  const [signingOut, setSigningOut] = useState(false);
-  const [query, setQuery] = useState("");
+  const { signOut, user } = useAuth();
+  const { shouldShowPopup, markPopupShown } = usePremium();
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [historyModalVisible, setHistoryModalVisible] = useState(false);
   const [premiumPopupVisible, setPremiumPopupVisible] = useState(false);
+  const [greeting, setGreeting] = useState("Good morning");
+  const [streakData, setStreakData] = useState({
+    currentStreak: 0,
+    longestStreak: 0,
+    isActiveToday: false,
+  });
+  const [savedCount, setSavedCount] = useState(0);
 
-  // Clear search query when screen comes into focus (e.g., when navigating back)
+  // Calculate week progress based on streak
+  const getWeekProgress = (currentStreak: number): boolean[] => {
+    const daysToShow = Math.min(currentStreak, 7);
+    const progress: boolean[] = [];
+    for (let i = 0; i < daysToShow; i++) {
+      progress.push(true);
+    }
+    // Fill remaining with false
+    while (progress.length < 7) {
+      progress.push(false);
+    }
+    return progress;
+  };
+
+  // Fetch streak and saved data
   useFocusEffect(
     useCallback(() => {
-      setQuery("");
+      const fetchData = async () => {
+        try {
+          const [streak, bookmarks] = await Promise.all([
+            getCurrentStreakDisplay(),
+            getBookmarks(),
+          ]);
+          setStreakData(streak);
+          setSavedCount(bookmarks?.length || 0);
+        } catch (error) {
+          console.error("Error fetching data:", error);
+        }
+      };
+      fetchData();
     }, [])
   );
 
-  // Check if we should show premium popup
+  useFocusEffect(
+    useCallback(() => {
+      const hour = new Date().getHours();
+      if (hour < 12) {
+        setGreeting("Good morning");
+      } else if (hour < 17) {
+        setGreeting("Good afternoon");
+      } else {
+        setGreeting("Good evening");
+      }
+    }, [])
+  );
+
   useEffect(() => {
     const checkPopup = async () => {
       const shouldShow = await shouldShowPopup();
       if (shouldShow) {
-        // Delay popup slightly for better UX
         setTimeout(() => {
           setPremiumPopupVisible(true);
         }, 2000);
@@ -77,174 +115,216 @@ export default function HomeScreen() {
     checkPopup();
   }, [shouldShowPopup]);
 
-  const handleTopicPress = (topicId: string) => {
+  const handleStartDailyGuidance = () => {
+    mediumHaptic();
+    router.push({
+      pathname: "/guidance",
+      params: { q: "daily guidance", daily: "true" },
+    });
+  };
+
+  const handleViewPath = () => {
     lightHaptic();
-    const prompt = topicPrompts[topicId];
-    setQuery(prompt);
+    setHistoryModalVisible(true);
   };
 
-  const handleSearch = async () => {
-    if (query.trim()) {
-      mediumHaptic();
-      
-      // Show interstitial ad 1 in 4 times for non-premium users
-      // The ad must be dismissed before continuing to guidance
-      if (!isPremium) {
-        await maybeShowInterstitialAd(0.25); // 25% chance = 1 in 4 times
-      }
-      
-      router.push({
-        pathname: "/guidance",
-        params: { q: query.trim() },
-      });
+  const handleViewSaved = () => {
+    lightHaptic();
+    router.push("/(tabs)/bookmarks");
+  };
+
+  const getStatusLabel = (status: DailyGuidanceStatus) => {
+    switch (status) {
+      case "not_started":
+        return "NOT STARTED";
+      case "in_progress":
+        return "IN PROGRESS";
+      case "completed":
+        return "COMPLETED";
     }
   };
 
-  const doSignOut = async () => {
-    try {
-      setSigningOut(true);
-      console.log("[SignOut] Starting sign out...");
-      
-      await signOut();
-      console.log("[SignOut] signOut complete");
-      
-      // Force page reload on web to clear React state
-      if (Platform.OS === "web") {
-        window.location.href = "/";
-        return;
-      }
-      
-      router.replace("/(auth)");
-    } catch (e) {
-      console.error("[SignOut] Error:", e);
-      // Force reload on web even on error
-      if (Platform.OS === "web") {
-        window.location.href = "/";
-      } else {
-        router.replace("/(auth)");
-      }
-    } finally {
-      setSigningOut(false);
+  const getStatusColor = (status: DailyGuidanceStatus) => {
+    switch (status) {
+      case "not_started":
+        return "#9ca3af";
+      case "in_progress":
+        return "#f59e0b";
+      case "completed":
+        return "#10b981";
     }
   };
 
-  const handleSignOut = async () => {
-    // On web, use confirm dialog; on native use Alert
-    if (Platform.OS === "web") {
-      if (window.confirm("Are you sure you want to sign out?")) {
-        await doSignOut();
-      }
-    } else {
-      Alert.alert(
-        "Sign Out",
-        "Are you sure you want to sign out?",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Sign Out",
-            style: "destructive",
-            onPress: doSignOut,
-          },
-        ]
-      );
+  const getCTAText = (status: DailyGuidanceStatus) => {
+    switch (status) {
+      case "not_started":
+        return "Start today's guidance";
+      case "in_progress":
+        return "Continue";
+      case "completed":
+        return "Revisit today's guidance";
     }
+  };
+
+  const getUserInitials = () => {
+    if (user?.email) {
+      return user.email.charAt(0).toUpperCase();
+    }
+    return "U";
   };
 
   return (
     <View style={styles.wrapper}>
-      {/* Ethereal background with leaves */}
       <EtherealBackground />
 
       <SafeAreaView style={styles.container}>
-        {/* Header */}
         <View style={styles.header}>
-          <View style={styles.logoContainer}>
-            <Image
-              source={require("../../assets/NewLogo.png")}
-              style={styles.logoImage}
-              resizeMode="contain"
-            />
-            <Text style={styles.logoText}>
-              <Text style={styles.logoTextBold}>Guidance</Text>
-              <Text style={styles.logoTextLight}> from Scripture</Text>
-            </Text>
+          <View style={styles.headerLeft}>
+            <View style={styles.avatarContainer}>
+              {user?.user_metadata?.avatar_url ? (
+                <Image
+                  source={{ uri: user.user_metadata.avatar_url }}
+                  style={styles.avatar}
+                />
+              ) : (
+                <View style={styles.avatarFallback}>
+                  <Text style={styles.avatarText}>{getUserInitials()}</Text>
+                </View>
+              )}
+            </View>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.greeting}>{greeting}</Text>
+              <Text style={styles.headerTitle}>Your Daily Walk</Text>
+            </View>
           </View>
         </View>
 
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.keyboardView}
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
         >
-          <ScrollView 
-            style={styles.scrollView}
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
+          <Pressable
+            style={({ pressed }) => [
+              styles.dailyGuidanceCard,
+              pressed && styles.cardPressed,
+            ]}
+            onPress={handleStartDailyGuidance}
           >
-            {/* Heading */}
-            <View style={styles.headingContainer}>
-              <Text style={styles.heading}>
-                Explore Paths to{"\n"}
-                <Text style={styles.headingGradient}>Clarity</Text>
-              </Text>
-              <Text style={styles.subheading}>
-                Select a topic that resonates with your spirit, or freely express your feelings below.
-              </Text>
-            </View>
-
-            {/* Topic Grid */}
-            <View style={styles.topicGrid}>
-              {topicCategories.map((topic) => (
-                <Pressable
-                  key={topic.id}
-                  style={({ pressed }) => [
-                    styles.topicCard,
-                    pressed && styles.topicCardPressed,
-                  ]}
-                  onPress={() => handleTopicPress(topic.id)}
-                >
-                  <MaterialCommunityIcons name={topic.icon} size={24} color="#10b981" />
-                  <Text style={styles.topicLabel}>{topic.label}</Text>
-                </Pressable>
-              ))}
-            </View>
-
-            {/* Banner Ad - placed between topics and input */}
-            <BannerAdComponent style={styles.bannerAd} />
-
-            {/* Glass card with input */}
-            <View style={styles.glassCard}>
-              <Text style={styles.cantFindLabel}>Can't find your topic?</Text>
-              <View style={styles.inputContainer}>
-                <Ionicons name="search" size={20} color="#9ca3af" style={styles.searchIcon} />
-                <TextInput
-                  style={styles.input}
-                  value={query}
-                  onChangeText={setQuery}
-                  placeholder="I feel..."
-                  placeholderTextColor="#9ca3af"
-                  onSubmitEditing={handleSearch}
-                  returnKeyType="search"
-                />
+            <View style={styles.dailyGuidanceHeader}>
+              <View style={styles.dailyGuidanceTitleRow}>
+                <MaterialCommunityIcons name="white-balance-sunny" size={18} color="#66b083" />
+                <Text style={styles.dailyGuidanceLabel}>TODAY'S GUIDANCE</Text>
               </View>
-              <Pressable
-                style={[styles.submitButton, !query.trim() && styles.submitButtonDisabled]}
-                onPress={handleSearch}
-                disabled={!query.trim()}
-              >
-                <Text style={styles.submitButtonText}>Get Guidance</Text>
-                <Ionicons name="arrow-forward" size={20} color="#ffffff" />
-              </Pressable>
+              <View style={styles.statusBadge}>
+                <View style={[styles.statusDot, { backgroundColor: getStatusColor(DUMMY_DAILY_GUIDANCE.status) }]} />
+                <Text style={styles.statusText}>
+                  {getStatusLabel(DUMMY_DAILY_GUIDANCE.status)}
+                </Text>
+              </View>
             </View>
 
-          </ScrollView>
-        </KeyboardAvoidingView>
+            <View style={styles.verseSection}>
+              <Text style={styles.verseText}>{DUMMY_DAILY_GUIDANCE.verse}</Text>
+              <Text style={styles.verseReference}>{DUMMY_DAILY_GUIDANCE.reference}</Text>
+              <Text style={styles.reflectionPreview}>
+                {DUMMY_DAILY_GUIDANCE.reflectionPreview}
+              </Text>
+            </View>
+
+            <View style={styles.dailyGuidanceCTA}>
+              <Text style={styles.ctaText}>{getCTAText(DUMMY_DAILY_GUIDANCE.status)}</Text>
+              <Ionicons name="arrow-forward" size={18} color="#ffffff" />
+            </View>
+          </Pressable>
+
+          <View style={styles.twoColumnGrid}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.gridCard,
+                pressed && styles.cardPressed,
+              ]}
+              onPress={handleViewPath}
+            >
+              <View style={styles.gridCardDecoration} />
+              <View style={styles.gridCardContent}>
+                <View style={styles.pathIconContainer}>
+                  <MaterialCommunityIcons name="help-circle-outline" size={22} color="#66b083" />
+                </View>
+                <Text style={styles.gridCardLabel}>YOUR PATH</Text>
+                <Text style={styles.pathName}>{DUMMY_USER_PATH.name}</Text>
+              </View>
+              <View style={styles.viewPathButton}>
+                <Text style={styles.viewPathButtonText}>View Path</Text>
+              </View>
+            </Pressable>
+
+            <View style={styles.gridCard}>
+              <View style={styles.streakHeader}>
+                <MaterialCommunityIcons name="leaf" size={20} color="#66b083" />
+                <Text style={styles.streakLabel}>STREAK</Text>
+              </View>
+              <View style={styles.streakContent}>
+                <Text style={styles.streakNumber}>
+                  {streakData.currentStreak} <Text style={styles.streakDaysText}>days</Text>
+                </Text>
+                <Text style={styles.streakSubtext}>showing up</Text>
+              </View>
+              <View style={styles.streakProgressContainer}>
+                {getWeekProgress(streakData.currentStreak).map((active, i) => (
+                  <View
+                    key={i}
+                    style={[
+                      styles.streakBar,
+                      active ? styles.streakBarActive : styles.streakBarInactive,
+                    ]}
+                  />
+                ))}
+              </View>
+            </View>
+          </View>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.savedCard,
+              pressed && styles.cardPressed,
+            ]}
+            onPress={handleViewSaved}
+          >
+            <View style={styles.savedContent}>
+              <View style={styles.savedIconContainer}>
+                <Ionicons name="bookmark" size={22} color="#9333ea" />
+              </View>
+              <View style={styles.savedTextContainer}>
+                <Text style={styles.savedTitle}>Saved & Reflections</Text>
+                <Text style={styles.savedSubtitle}>
+                  You've saved {savedCount} pieces of guidance
+                </Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={22} color="#9ca3af" />
+          </Pressable>
+
+          <BannerAdComponent style={styles.bannerAd} />
+        </ScrollView>
       </SafeAreaView>
 
-      {/* Profile Modal */}
       <ProfileModal
         visible={profileModalVisible}
         onClose={() => setProfileModalVisible(false)}
-        onSignOut={handleSignOut}
+        onSignOut={() => {
+          if (Platform.OS === "web") {
+            if (window.confirm("Are you sure you want to sign out?")) {
+              signOut();
+              window.location.href = "/";
+            }
+          } else {
+            Alert.alert("Sign Out", "Are you sure you want to sign out?", [
+              { text: "Cancel", style: "cancel" },
+              { text: "Sign Out", style: "destructive", onPress: () => signOut() },
+            ]);
+          }
+        }}
         onViewHistory={() => {
           setProfileModalVisible(false);
           setHistoryModalVisible(true);
@@ -255,13 +335,11 @@ export default function HomeScreen() {
         }}
       />
 
-      {/* Guidance History Modal */}
       <GuidanceHistoryModal
         visible={historyModalVisible}
         onClose={() => setHistoryModalVisible(false)}
       />
 
-      {/* Premium Subscription Popup */}
       <PremiumPopup
         visible={premiumPopupVisible}
         onClose={() => {
@@ -289,264 +367,351 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     zIndex: 10,
   },
-  logoContainer: {
+  headerLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 12,
   },
-  logoImage: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-  },
-  logoText: {
-    fontSize: 14,
-  },
-  logoTextBold: {
-    fontWeight: "600",
-    color: "#0f172a",
-  },
-  logoTextLight: {
-    fontWeight: "400",
-    color: "#64748b",
-  },
-  headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  streakBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fef3c7",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    gap: 4,
-    borderWidth: 1,
-    borderColor: "#fde68a",
-  },
-  streakLottieContainer: {
-    width: 20,
-    height: 20,
-  },
-  streakLottie: {
-    width: 20,
-    height: 20,
-  },
-  streakCount: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#d97706",
-  },
-  profileButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
+  avatarContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    overflow: "hidden",
+    backgroundColor: "#dcfce7",
+    borderWidth: 2,
+    borderColor: "#ffffff",
     ...Platform.select({
       ios: {
-        backgroundColor: "rgba(255, 255, 255, 0.6)",
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
         shadowRadius: 4,
       },
       android: {
-        backgroundColor: "#ffffff",
-        elevation: 1,
+        elevation: 2,
       },
-      web: {
-        backgroundColor: "rgba(255, 255, 255, 0.6)",
-        boxShadow: "0 1px 4px rgba(0, 0, 0, 0.05)",
-      } as any,
     }),
   },
-  keyboardView: {
-    flex: 1,
+  avatar: {
+    width: "100%",
+    height: "100%",
+  },
+  avatarFallback: {
+    width: "100%",
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#dcfce7",
+  },
+  avatarText: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#66b083",
+  },
+  headerTextContainer: {
+    flexDirection: "column",
+  },
+  greeting: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#6b7280",
+    marginBottom: 2,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1f2937",
+    letterSpacing: -0.3,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 12,
-    alignItems: "center",
+    paddingTop: 8,
+    paddingBottom: 24,
+    gap: 16,
   },
-  headingContainer: {
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 16,
-  },
-  heading: {
-    fontSize: 24,
-    fontWeight: "700",
-    textAlign: "center",
-    color: "#0f172a",
-    lineHeight: 30,
-    letterSpacing: -0.5,
-  },
-  headingGradient: {
-    color: "#10b981",
-    fontStyle: "italic",
-    fontWeight: "500",
-  },
-  subheading: {
-    fontSize: 13,
-    textAlign: "center",
-    color: "#94a3b8",
-    lineHeight: 18,
-    maxWidth: 320,
-    fontWeight: "400",
-    letterSpacing: 0.2,
-  },
-  topicGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    width: "100%",
-    maxWidth: 380,
-    gap: 8,
-    marginBottom: 16,
-  },
-  topicCard: {
-    width: "48%",
-    flexGrow: 1,
-    flexBasis: "45%",
-    borderRadius: 14,
-    padding: 12,
-    alignItems: "flex-start",
-    gap: 6,
+  dailyGuidanceCard: {
+    borderRadius: 24,
+    padding: 24,
+    backgroundColor: "#ffffff",
     ...Platform.select({
       ios: {
-        backgroundColor: "rgba(255, 255, 255, 0.85)",
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.04,
-        shadowRadius: 8,
-      },
-      android: {
-        backgroundColor: "#ffffff",
-        elevation: 2,
-      },
-      web: {
-        backgroundColor: "rgba(255, 255, 255, 0.85)",
-        backdropFilter: "blur(12px)",
-        boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
-      } as any,
-    }),
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.5)",
-  },
-  topicCardPressed: {
-    transform: [{ scale: 0.97 }],
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
-  },
-  topicLabel: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#0f172a",
-  },
-  glassCard: {
-    width: "100%",
-    maxWidth: 380,
-    borderRadius: 20,
-    padding: 16,
-    ...Platform.select({
-      ios: {
-        backgroundColor: "rgba(255, 255, 255, 0.85)",
-        shadowColor: "#10b981",
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.08,
-        shadowRadius: 16,
+        shadowRadius: 20,
       },
       android: {
-        backgroundColor: "#ffffff",
         elevation: 4,
       },
       web: {
-        backgroundColor: "rgba(255, 255, 255, 0.85)",
-        backdropFilter: "blur(12px)",
-        boxShadow: "0 4px 24px rgba(16, 185, 129, 0.08)",
-      } as any,
+        boxShadow: "0 4px 20px -2px rgba(0, 0, 0, 0.05)",
+      },
     }),
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.5)",
+  },
+  cardPressed: {
+    transform: [{ scale: 0.98 }],
+    opacity: 0.95,
+  },
+  dailyGuidanceHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 16,
   },
-  cantFindLabel: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#94a3b8",
-    textTransform: "uppercase",
-    letterSpacing: 1,
-    marginBottom: 8,
-    marginLeft: 4,
-  },
-  inputContainer: {
+  dailyGuidanceTitleRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
-    ...Platform.select({
-      ios: {
-        backgroundColor: "rgba(248, 250, 252, 0.8)",
-      },
-      android: {
-        backgroundColor: "#f8fafc",
-      },
-      web: {
-        backgroundColor: "rgba(248, 250, 252, 0.8)",
-      },
-    }),
-    borderRadius: 16,
-    paddingHorizontal: 16,
+    gap: 8,
   },
-  searchIcon: {
-    marginRight: 8,
+  dailyGuidanceLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#66b083",
+    letterSpacing: 0.5,
   },
-  input: {
-    flex: 1,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: "#0f172a",
-    fontWeight: "400",
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f3f4f6",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 8,
   },
-  submitButton: {
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  statusText: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#6b7280",
+    letterSpacing: 0.3,
+  },
+  verseSection: {
+    marginBottom: 20,
+  },
+  verseText: {
+    fontSize: 24,
+    fontWeight: "600",
+    color: "#1f2937",
+    lineHeight: 32,
+    fontStyle: "italic",
+    marginBottom: 8,
+  },
+  verseReference: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#66b083",
+    marginBottom: 12,
+  },
+  reflectionPreview: {
+    fontSize: 14,
+    color: "#6b7280",
+    lineHeight: 22,
+  },
+  dailyGuidanceCTA: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: "#10b981",
-    paddingVertical: 12,
-    borderRadius: 14,
+    backgroundColor: "#66b083",
+    paddingVertical: 14,
+    borderRadius: 16,
     ...Platform.select({
       ios: {
-        shadowColor: "#10b981",
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.25,
-        shadowRadius: 12,
+        shadowColor: "#66b083",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 16,
+      },
+      android: {
+        elevation: 6,
+      },
+      web: {
+        boxShadow: "0 8px 24px rgba(102, 176, 131, 0.3)",
+      },
+    }),
+  },
+  ctaText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#ffffff",
+  },
+  twoColumnGrid: {
+    flexDirection: "row",
+    gap: 16,
+  },
+  gridCard: {
+    flex: 1,
+    height: 176,
+    borderRadius: 24,
+    padding: 20,
+    backgroundColor: "#ffffff",
+    justifyContent: "space-between",
+    overflow: "hidden",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 20,
       },
       android: {
         elevation: 4,
       },
       web: {
-        boxShadow: "0 6px 20px rgba(16, 185, 129, 0.25)",
-      } as any,
+        boxShadow: "0 4px 20px -2px rgba(0, 0, 0, 0.05)",
+      },
     }),
   },
-  submitButtonDisabled: {
-    opacity: 0.6,
+  gridCardDecoration: {
+    position: "absolute",
+    right: -16,
+    bottom: -16,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: "rgba(220, 252, 231, 0.5)",
   },
-  submitButtonText: {
-    fontSize: 15,
+  gridCardContent: {
+    zIndex: 1,
+  },
+  pathIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "#f0fdf4",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  gridCardLabel: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#6b7280",
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  pathName: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1f2937",
+    lineHeight: 22,
+  },
+  viewPathButton: {
+    backgroundColor: "#66b083",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    alignItems: "center",
+    zIndex: 1,
+  },
+  viewPathButtonText: {
+    fontSize: 12,
     fontWeight: "600",
     color: "#ffffff",
   },
+  streakHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 8,
+  },
+  streakLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#66b083",
+    letterSpacing: 0.5,
+  },
+  streakContent: {
+    flex: 1,
+  },
+  streakNumber: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#1f2937",
+  },
+  streakDaysText: {
+    fontSize: 16,
+    fontWeight: "400",
+    color: "#6b7280",
+  },
+  streakSubtext: {
+    fontSize: 12,
+    color: "#6b7280",
+    marginTop: 2,
+  },
+  streakProgressContainer: {
+    flexDirection: "row",
+    gap: 6,
+  },
+  streakBar: {
+    flex: 1,
+    height: 6,
+    borderRadius: 3,
+  },
+  streakBarActive: {
+    backgroundColor: "#66b083",
+  },
+  streakBarInactive: {
+    backgroundColor: "#e5e7eb",
+  },
+  savedCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderRadius: 16,
+    padding: 16,
+    backgroundColor: "#ffffff",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 20,
+      },
+      android: {
+        elevation: 4,
+      },
+      web: {
+        boxShadow: "0 4px 20px -2px rgba(0, 0, 0, 0.05)",
+      },
+    }),
+  },
+  savedContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    flex: 1,
+  },
+  savedIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: "#f3e8ff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  savedTextContainer: {
+    flex: 1,
+  },
+  savedTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1f2937",
+    marginBottom: 4,
+  },
+  savedSubtitle: {
+    fontSize: 12,
+    color: "#6b7280",
+  },
   bannerAd: {
     width: "100%",
-    maxWidth: 380,
-    marginBottom: 16,
     borderRadius: 12,
     overflow: "hidden",
   },

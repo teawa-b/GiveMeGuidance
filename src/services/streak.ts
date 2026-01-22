@@ -41,25 +41,41 @@ export async function getUserStreak(): Promise<UserStreak | null> {
   return data;
 }
 
-// Check if a date is today (in user's local timezone)
+// Check if a date string (YYYY-MM-DD) is today (in user's local timezone)
 function isToday(dateString: string): boolean {
-  const date = new Date(dateString);
-  const today = new Date();
-  return date.toDateString() === today.toDateString();
+  const todayString = getTodayDateString();
+  return dateString === todayString;
 }
 
-// Check if a date is yesterday (in user's local timezone)
+// Check if a date string (YYYY-MM-DD) is yesterday (in user's local timezone)
 function isYesterday(dateString: string): boolean {
-  const date = new Date(dateString);
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
-  return date.toDateString() === yesterday.toDateString();
+  const yesterdayString = getLocalDateString(yesterday);
+  return dateString === yesterdayString;
 }
 
-// Get date string for today in YYYY-MM-DD format (UTC)
+// Get date string for today in YYYY-MM-DD format (LOCAL timezone)
 function getTodayDateString(): string {
   const today = new Date();
-  return today.toISOString().split("T")[0];
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// Get date string in YYYY-MM-DD format (LOCAL timezone)
+function getLocalDateString(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// Convert a timestamp to local date string
+function timestampToLocalDateString(timestamp: string): string {
+  const date = new Date(timestamp);
+  return getLocalDateString(date);
 }
 
 // Get spiritual presence based on chat activity dates (server-backed)
@@ -71,14 +87,14 @@ export async function getSpiritualPresenceFromChats(): Promise<SpiritualPresence
     const isActiveToday = activityDates.includes(today);
     const daysOfGuidance = activityDates.length;
 
-    // Calculate current consecutive days (path)
+    // Calculate current consecutive days (path/streak)
     let currentPath = 0;
     const sorted = [...activityDates].sort((a, b) => b.localeCompare(a));
 
     for (let i = 0; i < sorted.length; i++) {
       const expectedDate = new Date();
       expectedDate.setDate(expectedDate.getDate() - i);
-      const expectedDateString = expectedDate.toISOString().split("T")[0];
+      const expectedDateString = getLocalDateString(expectedDate);
 
       if (sorted[i] === expectedDateString) {
         currentPath++;
@@ -220,11 +236,11 @@ export async function getActivityDates(): Promise<string[]> {
     return [];
   }
 
-  // Extract unique dates
+  // Extract unique dates (using LOCAL timezone)
   const uniqueDates = new Set<string>();
   data?.forEach((chat) => {
-    const date = new Date(chat.created_at).toISOString().split("T")[0];
-    uniqueDates.add(date);
+    const dateString = timestampToLocalDateString(chat.created_at);
+    uniqueDates.add(dateString);
   });
 
   return Array.from(uniqueDates);

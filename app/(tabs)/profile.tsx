@@ -16,7 +16,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import LottieView from "lottie-react-native";
 import { useAuth } from "../../src/lib/AuthContext";
 import { usePremium } from "../../src/lib/PremiumContext";
-import { getSpiritualPresenceFromChats, type SpiritualPresence } from "../../src/services/streak";
+import { getCurrentStreakDisplay } from "../../src/services/streak";
 import { PremiumPopup } from "../../src/components/PremiumPopup";
 import { GuidanceHistoryModal } from "../../src/components/GuidanceHistoryModal";
 import { lightHaptic, mediumHaptic, warningHaptic } from "../../src/lib/haptics";
@@ -28,9 +28,13 @@ export default function ProfileScreen() {
   const { isPremium, restorePurchases, presentCustomerCenter } = usePremium();
 
   const [loading, setLoading] = useState(true);
-  const [spiritualPresence, setSpiritualPresence] = useState<SpiritualPresence>({
-    daysOfGuidance: 0,
-    currentPath: 0,
+  const [streakData, setStreakData] = useState<{
+    currentStreak: number;
+    longestStreak: number;
+    isActiveToday: boolean;
+  }>({
+    currentStreak: 0,
+    longestStreak: 0,
     isActiveToday: false,
   });
   const [premiumPopupVisible, setPremiumPopupVisible] = useState(false);
@@ -39,8 +43,8 @@ export default function ProfileScreen() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const presence = await getSpiritualPresenceFromChats();
-      setSpiritualPresence(presence);
+      const data = await getCurrentStreakDisplay();
+      setStreakData(data);
     } catch (error) {
       console.error("Error fetching profile data:", error);
     } finally {
@@ -197,17 +201,17 @@ export default function ProfileScreen() {
           
           <View style={styles.presenceStats}>
             <View style={styles.presenceStatItem}>
-              <Text style={styles.presenceNumber}>{spiritualPresence.daysOfGuidance}</Text>
-              <Text style={styles.presenceLabel}>Days of Guidance</Text>
+              <Text style={styles.presenceNumber}>{streakData.currentStreak}</Text>
+              <Text style={styles.presenceLabel}>Current Streak</Text>
             </View>
             <View style={styles.presenceStatDivider} />
             <View style={styles.presenceStatItem}>
-              <Text style={styles.presenceNumber}>{spiritualPresence.currentPath}</Text>
-              <Text style={styles.presenceLabel}>Day Streak</Text>
+              <Text style={styles.presenceNumber}>{streakData.longestStreak}</Text>
+              <Text style={styles.presenceLabel}>Longest Streak</Text>
             </View>
           </View>
           
-          {spiritualPresence.isActiveToday && (
+          {streakData.isActiveToday && (
             <View style={styles.activeTodayBadge}>
               <Text style={styles.activeTodayText}>🌿 Active today</Text>
             </View>

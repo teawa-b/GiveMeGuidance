@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from "react";
-import { View, StyleSheet, Platform, Animated, Easing } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { View, StyleSheet, Platform, Animated, Easing, Image } from "react-native";
+
+// App logo for chat avatar
+const appLogo = require("../../assets/NewLogo.png");
 
 interface ChatLoadingBubbleProps {
   size?: "small" | "medium" | "large";
@@ -78,7 +80,7 @@ export function ChatLoadingBubble({ size = "medium" }: ChatLoadingBubbleProps) {
   return (
     <View style={styles.container}>
       <View style={styles.avatarContainer}>
-        <Ionicons name="leaf" size={16} color="#10b981" />
+        <Image source={appLogo} style={styles.avatarImage} resizeMode="contain" />
       </View>
       <View style={styles.bubbleContainer}>
         <View style={styles.dotsContainer}>
@@ -105,6 +107,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginRight: 8,
+    overflow: "hidden",
+  },
+  avatarImage: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
   },
   bubbleContainer: {
     backgroundColor: "#ffffff",

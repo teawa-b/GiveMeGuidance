@@ -4,6 +4,8 @@ import { LinearGradient } from "expo-linear-gradient";
 
 // Nature leaf image for decorative elements
 const natureLeafImage = require("../../assets/HomeScreenAssets/nature.png");
+// App logo for branding
+const appLogo = require("../../assets/NewLogo.png");
 
 interface ShareableVerseCardProps {
   verseText: string;
@@ -102,7 +104,7 @@ export const ShareableVerseCard = forwardRef<View, ShareableVerseCardProps>(
           style={styles.brandingGradient}
         >
           <View style={styles.brandingContent}>
-            <Text style={styles.brandingIcon}>🍃</Text>
+            <Image source={appLogo} style={styles.brandingLogo} resizeMode="contain" />
             <Text style={styles.brandingText}>Give Me Guidance</Text>
           </View>
         </LinearGradient>
@@ -228,8 +230,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 6,
   },
-  brandingIcon: {
-    fontSize: 14,
+  brandingLogo: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
   },
   brandingText: {
     fontSize: 12,

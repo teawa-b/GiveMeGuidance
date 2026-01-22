@@ -1,6 +1,9 @@
 import { Redirect } from "expo-router";
 import { useAuth } from "../src/lib/AuthContext";
-import { View, ActivityIndicator, StyleSheet } from "react-native";
+import { View, ActivityIndicator, StyleSheet, Image } from "react-native";
+
+// App logo for loading screen
+const appLogo = require("../assets/NewLogo.png");
 
 export default function Index() {
   const { isLoading, isAuthenticated } = useAuth();
@@ -8,7 +11,8 @@ export default function Index() {
   if (isLoading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#10b981" />
+        <Image source={appLogo} style={styles.loadingLogo} resizeMode="contain" />
+        <ActivityIndicator size="large" color="#10b981" style={styles.loadingSpinner} />
       </View>
     );
   }
@@ -26,6 +30,15 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#fafafa",
+    backgroundColor: "#f0fdf4",
+  },
+  loadingLogo: {
+    width: 120,
+    height: 120,
+    borderRadius: 28,
+    marginBottom: 24,
+  },
+  loadingSpinner: {
+    marginTop: 8,
   },
 });

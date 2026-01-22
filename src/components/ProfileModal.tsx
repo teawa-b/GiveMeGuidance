@@ -19,7 +19,7 @@ import { useAuth } from "../lib/AuthContext";
 import { usePremium } from "../lib/PremiumContext";
 import { PremiumPopup } from "./PremiumPopup";
 import { supabase } from "../lib/supabase";
-import { getSpiritualPresenceFromChats, type SpiritualPresence } from "../services/streak";
+import { getCurrentStreakDisplay } from "../services/streak";
 import { lightHaptic, mediumHaptic, warningHaptic, successHaptic } from "../lib/haptics";
 
 interface ProfileModalProps {
@@ -50,19 +50,23 @@ export function ProfileModal({ visible, onClose, onSignOut, onViewHistory, onVie
   const [confirmPassword, setConfirmPassword] = useState("");
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
-  // Spiritual presence data (non-gamified approach)
-  const [spiritualPresence, setSpiritualPresence] = useState<SpiritualPresence>({
-    daysOfGuidance: 0,
-    currentPath: 0,
+  // Streak data from user_streaks table
+  const [streakData, setStreakData] = useState<{
+    currentStreak: number;
+    longestStreak: number;
+    isActiveToday: boolean;
+  }>({
+    currentStreak: 0,
+    longestStreak: 0,
     isActiveToday: false,
   });
 
-  const fetchSpiritualPresence = useCallback(async () => {
+  const fetchStreakData = useCallback(async () => {
     try {
-      const presence = await getSpiritualPresenceFromChats();
-      setSpiritualPresence(presence);
+      const data = await getCurrentStreakDisplay();
+      setStreakData(data);
     } catch (error) {
-      console.error("Error fetching spiritual presence:", error);
+      console.error("Error fetching streak data:", error);
     }
   }, []);
 
@@ -70,7 +74,7 @@ export function ProfileModal({ visible, onClose, onSignOut, onViewHistory, onVie
     if (visible) {
       setCurrentView("main");
       setMessage(null);
-      fetchSpiritualPresence();
+      fetchStreakData();
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
@@ -251,27 +255,27 @@ export function ProfileModal({ visible, onClose, onSignOut, onViewHistory, onVie
         
         <View style={styles.streakStats}>
           <View style={styles.streakStatItem}>
-            <Text style={styles.streakNumber}>{spiritualPresence.daysOfGuidance}</Text>
-            <Text style={styles.streakLabel}>Days of Guidance</Text>
+            <Text style={styles.streakNumber}>{streakData.currentStreak}</Text>
+            <Text style={styles.streakLabel}>Current Streak</Text>
           </View>
           <View style={styles.streakDivider} />
           <View style={styles.streakStatItem}>
-            <Text style={styles.streakNumber}>{spiritualPresence.currentPath}</Text>
-            <Text style={styles.streakLabel}>Day Streak</Text>
+            <Text style={styles.streakNumber}>{streakData.longestStreak}</Text>
+            <Text style={styles.streakLabel}>Longest Streak</Text>
           </View>
         </View>
         
-        {spiritualPresence.isActiveToday && (
+        {streakData.isActiveToday && (
           <View style={styles.streakMotivationContainer}>
             <Text style={styles.streakMotivation}>🌿 Active today</Text>
           </View>
         )}
-        {!spiritualPresence.isActiveToday && spiritualPresence.daysOfGuidance > 0 && (
+        {!streakData.isActiveToday && streakData.longestStreak > 0 && (
           <View style={styles.streakMotivationContainer}>
             <Text style={styles.streakMotivation}>Ready when you are</Text>
           </View>
         )}
-        {spiritualPresence.daysOfGuidance === 0 && (
+        {streakData.longestStreak === 0 && (
           <View style={styles.streakMotivationContainer}>
             <Text style={styles.streakMotivation}>Begin your journey</Text>
           </View>
