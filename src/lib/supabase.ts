@@ -2,8 +2,16 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
+// Support both EXPO_PUBLIC and NEXT_PUBLIC env vars (for web builds)
+const supabaseUrl = 
+  (typeof process !== "undefined" && process.env.EXPO_PUBLIC_SUPABASE_URL) ||
+  (typeof process !== "undefined" && process.env.NEXT_PUBLIC_SUPABASE_URL) ||
+  "";
+
+const supabaseAnonKey = 
+  (typeof process !== "undefined" && process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY) ||
+  (typeof process !== "undefined" && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) ||
+  "";
 
 // Custom storage adapter for React Native
 // Uses AsyncStorage for all platforms to avoid SecureStore initialization issues
@@ -61,6 +69,16 @@ let _supabaseClient: SupabaseClient | null = null;
 
 function getSupabaseClient(): SupabaseClient {
   if (!_supabaseClient) {
+    if (!supabaseUrl || !supabaseAnonKey) {
+      const missingVars = [];
+      if (!supabaseUrl) missingVars.push("EXPO_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL");
+      if (!supabaseAnonKey) missingVars.push("EXPO_PUBLIC_SUPABASE_ANON_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY");
+      
+      const errorMsg = `Supabase is not configured. Missing: ${missingVars.join(", ")}. Check your .env file.`;
+      console.error("[Supabase]", errorMsg);
+      throw new Error(errorMsg);
+    }
+    
     _supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         storage: SafeStorageAdapter,
