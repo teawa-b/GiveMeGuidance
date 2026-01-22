@@ -8,11 +8,29 @@ import {
   StatusBar,
   Pressable,
   Switch,
+  Dimensions,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { EtherealBackground } from "../EtherealBackground";
 import { mediumHaptic, lightHaptic } from "../../lib/haptics";
-import { GuidanceStyle, styleDisplayNames } from "../../lib/OnboardingContext";
+import { GuidanceStyle } from "../../lib/OnboardingContext";
+
+const { width } = Dimensions.get("window");
+const CARD_GAP = 12;
+const CARD_WIDTH = (width - 48 - CARD_GAP) / 2;
+
+// Colors
+const COLORS = {
+  primary: "#749F82",
+  primaryDark: "#5C8268",
+  primaryLight: "rgba(116, 159, 130, 0.12)",
+  surface: "#FFFFFF",
+  textDark: "#1F2937",
+  textMuted: "#6B7280",
+  textLight: "#9CA3B8",
+  border: "#E5E7EB",
+  iconBg: "#F3F4F6",
+};
 
 interface StyleSelectionScreenProps {
   selectedStyle: GuidanceStyle;
@@ -24,20 +42,28 @@ interface StyleSelectionScreenProps {
   isLoading?: boolean;
 }
 
-const styleOptions: { value: GuidanceStyle; icon: string; description: string }[] = [
+const styleOptions: { 
+  value: GuidanceStyle; 
+  icon: string; 
+  title: string;
+  description: string;
+}[] = [
   {
     value: "gentle",
-    icon: "heart-outline",
+    icon: "heart",
+    title: "Gentle",
     description: "Warm, supportive, and encouraging tone",
   },
   {
     value: "direct",
-    icon: "flash-outline",
+    icon: "flash",
+    title: "Direct",
     description: "Clear, focused, and actionable",
   },
   {
     value: "deep",
-    icon: "book-outline",
+    icon: "book",
+    title: "Bible Deep Dive",
     description: "Rich context and scripture study",
   },
 ];
@@ -58,8 +84,11 @@ export function StyleSelectionScreen({
         <View style={styles.content}>
           {/* Header */}
           <View style={styles.header}>
-            <Pressable style={styles.backButton} onPress={onBack}>
-              <Ionicons name="arrow-back" size={24} color="#6b7280" />
+            <Pressable 
+              style={({ pressed }) => [styles.backButton, pressed && { opacity: 0.7 }]} 
+              onPress={onBack}
+            >
+              <Ionicons name="arrow-back" size={22} color={COLORS.textMuted} />
             </Pressable>
             <View style={styles.progressContainer}>
               <View style={[styles.progressDot, styles.progressDotCompleted]} />
@@ -77,55 +106,106 @@ export function StyleSelectionScreen({
             </Text>
           </View>
 
-          {/* Style Options */}
-          <View style={styles.optionsContainer}>
-            {styleOptions.map((option) => {
-              const isSelected = selectedStyle === option.value;
+          {/* Style Options - Grid Layout */}
+          <View style={styles.gridContainer}>
+            {/* First Row - Two square cards */}
+            <View style={styles.topRow}>
+              {styleOptions.slice(0, 2).map((option) => {
+                const isSelected = selectedStyle === option.value;
+                return (
+                  <Pressable
+                    key={option.value}
+                    style={({ pressed }) => [
+                      styles.squareCard,
+                      isSelected && styles.cardSelected,
+                      pressed && styles.cardPressed,
+                    ]}
+                    onPress={() => {
+                      lightHaptic();
+                      onStyleSelect(option.value);
+                    }}
+                  >
+                    {/* Selection indicator */}
+                    <View style={[styles.radioOuter, isSelected && styles.radioOuterSelected]}>
+                      {isSelected && <View style={styles.radioInner} />}
+                    </View>
+                    
+                    {/* Icon */}
+                    <View style={[styles.iconBox, isSelected && styles.iconBoxSelected]}>
+                      <Ionicons
+                        name={option.icon as any}
+                        size={24}
+                        color={isSelected ? COLORS.primary : COLORS.textLight}
+                      />
+                    </View>
+                    
+                    {/* Text */}
+                    <Text style={[styles.cardTitle, isSelected && styles.cardTitleSelected]}>
+                      {option.title}
+                    </Text>
+                    <Text style={[styles.cardDescription, isSelected && styles.cardDescriptionSelected]}>
+                      {option.description}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
 
+            {/* Second Row - Full width card */}
+            {(() => {
+              const option = styleOptions[2];
+              const isSelected = selectedStyle === option.value;
               return (
                 <Pressable
                   key={option.value}
                   style={({ pressed }) => [
-                    styles.optionCard,
-                    isSelected && styles.optionCardSelected,
-                    pressed && styles.optionCardPressed,
+                    styles.wideCard,
+                    isSelected && styles.cardSelected,
+                    pressed && styles.cardPressed,
                   ]}
                   onPress={() => {
                     lightHaptic();
                     onStyleSelect(option.value);
                   }}
                 >
-                  <View style={[styles.iconContainer, isSelected && styles.iconContainerSelected]}>
+                  {/* Icon */}
+                  <View style={[styles.wideIconBox, isSelected && styles.iconBoxSelected]}>
                     <Ionicons
                       name={option.icon as any}
                       size={24}
-                      color={isSelected ? "#66b083" : "#9ca3af"}
+                      color={isSelected ? COLORS.primary : COLORS.textLight}
                     />
                   </View>
-                  <View style={styles.optionContent}>
-                    <Text style={[styles.optionTitle, isSelected && styles.optionTitleSelected]}>
-                      {styleDisplayNames[option.value]}
+                  
+                  {/* Text */}
+                  <View style={styles.wideCardContent}>
+                    <Text style={[styles.wideCardTitle, isSelected && styles.cardTitleSelected]}>
+                      {option.title}
                     </Text>
-                    <Text style={styles.optionDescription}>{option.description}</Text>
+                    <Text style={[styles.wideCardDescription, isSelected && styles.cardDescriptionSelected]}>
+                      {option.description}
+                    </Text>
                   </View>
-                  <View style={[styles.radioOuter, isSelected && styles.radioOuterSelected]}>
+                  
+                  {/* Selection indicator */}
+                  <View style={[styles.wideRadioOuter, isSelected && styles.radioOuterSelected]}>
                     {isSelected && <View style={styles.radioInner} />}
                   </View>
                 </Pressable>
               );
-            })}
+            })()}
           </View>
 
           {/* Prayer Prompt Toggle */}
           <View style={styles.toggleCard}>
-            <View style={styles.toggleContent}>
+            <View style={styles.toggleLeft}>
               <View style={styles.toggleIcon}>
-                <MaterialCommunityIcons name="hands-pray" size={20} color="#66b083" />
+                <MaterialCommunityIcons name="hands-pray" size={20} color={COLORS.primary} />
               </View>
               <View style={styles.toggleTextContainer}>
                 <Text style={styles.toggleTitle}>Include a prayer prompt</Text>
                 <Text style={styles.toggleDescription}>
-                  A short prayer to start or end your time
+                  Start or end with a short prayer
                 </Text>
               </View>
             </View>
@@ -135,9 +215,9 @@ export function StyleSelectionScreen({
                 lightHaptic();
                 onPrayerToggle(value);
               }}
-              trackColor={{ false: "#e5e7eb", true: "#bbf7d0" }}
-              thumbColor={prayerPromptEnabled ? "#66b083" : "#f4f4f5"}
-              ios_backgroundColor="#e5e7eb"
+              trackColor={{ false: "#E5E7EB", true: "rgba(116, 159, 130, 0.4)" }}
+              thumbColor={prayerPromptEnabled ? COLORS.primary : "#FFFFFF"}
+              ios_backgroundColor="#E5E7EB"
             />
           </View>
 
@@ -185,27 +265,27 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 12 : 12,
-    paddingBottom: 32,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 16 : 16,
+    paddingBottom: 24,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 24,
+    marginBottom: 16,
   },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#ffffff",
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.surface,
     alignItems: "center",
     justifyContent: "center",
     ...Platform.select({
       ios: {
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
+        shadowOpacity: 0.06,
         shadowRadius: 4,
       },
       android: {
@@ -215,147 +295,217 @@ const styles = StyleSheet.create({
   },
   progressContainer: {
     flexDirection: "row",
-    gap: 8,
+    alignItems: "center",
+    gap: 6,
   },
   progressDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "#e5e7eb",
+    backgroundColor: "rgba(116, 159, 130, 0.3)",
   },
   progressDotActive: {
-    backgroundColor: "#66b083",
     width: 24,
+    backgroundColor: COLORS.primary,
   },
   progressDotCompleted: {
-    backgroundColor: "#66b083",
+    backgroundColor: COLORS.primary,
   },
   placeholder: {
-    width: 44,
+    width: 40,
   },
   titleSection: {
-    marginBottom: 32,
+    alignItems: "center",
+    marginBottom: 28,
   },
   title: {
     fontSize: 28,
     fontWeight: "700",
-    color: "#1f2937",
-    lineHeight: 36,
+    color: COLORS.textDark,
+    textAlign: "center",
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: "#6b7280",
+    color: COLORS.textMuted,
+    textAlign: "center",
   },
-  optionsContainer: {
-    gap: 12,
-    marginBottom: 24,
+  gridContainer: {
+    gap: CARD_GAP,
+    marginBottom: 20,
   },
-  optionCard: {
+  topRow: {
     flexDirection: "row",
+    gap: CARD_GAP,
+  },
+  squareCard: {
+    width: CARD_WIDTH,
+    backgroundColor: COLORS.surface,
+    borderRadius: 24,
+    padding: 20,
     alignItems: "center",
-    backgroundColor: "#ffffff",
-    padding: 16,
-    borderRadius: 16,
     borderWidth: 2,
-    borderColor: "#f3f4f6",
-    gap: 16,
+    borderColor: "transparent",
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
       },
       android: {
-        elevation: 1,
+        elevation: 3,
       },
     }),
   },
-  optionCardSelected: {
-    backgroundColor: "#f0fdf4",
-    borderColor: "#66b083",
-  },
-  optionCardPressed: {
-    transform: [{ scale: 0.98 }],
-  },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: "#f3f4f6",
+  wideCard: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: COLORS.surface,
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 2,
+    borderColor: "transparent",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
   },
-  iconContainerSelected: {
-    backgroundColor: "#dcfce7",
-  },
-  optionContent: {
+  wideCardContent: {
     flex: 1,
   },
-  optionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#4b5563",
-    marginBottom: 4,
+  cardSelected: {
+    backgroundColor: COLORS.primaryLight,
+    borderColor: COLORS.primary,
   },
-  optionTitleSelected: {
-    color: "#1f2937",
+  cardPressed: {
+    transform: [{ scale: 0.98 }],
+    opacity: 0.9,
   },
-  optionDescription: {
-    fontSize: 14,
-    color: "#9ca3af",
-  },
-  radioOuter: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: "#d1d5db",
+  iconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: COLORS.iconBg,
     alignItems: "center",
     justifyContent: "center",
+    marginBottom: 16,
+  },
+  wideIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: COLORS.iconBg,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 16,
+  },
+  iconBoxSelected: {
+    backgroundColor: "rgba(255, 255, 255, 0.7)",
+  },
+  cardTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: COLORS.textDark,
+    marginBottom: 6,
+    textAlign: "center",
+  },
+  wideCardTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: COLORS.textDark,
+    marginBottom: 4,
+  },
+  cardTitleSelected: {
+    color: COLORS.textDark,
+  },
+  cardDescription: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+    textAlign: "center",
+    lineHeight: 18,
+  },
+  wideCardDescription: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+    lineHeight: 18,
+  },
+  cardDescriptionSelected: {
+    color: COLORS.textMuted,
+  },
+  radioOuter: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.surface,
+  },
+  wideRadioOuter: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.surface,
+    marginLeft: 12,
   },
   radioOuterSelected: {
-    borderColor: "#66b083",
+    borderColor: COLORS.primary,
   },
   radioInner: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "#66b083",
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: COLORS.primary,
   },
   toggleCard: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#ffffff",
-    padding: 16,
-    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    backgroundColor: COLORS.surface,
+    borderRadius: 20,
     ...Platform.select({
       ios: {
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
       },
       android: {
-        elevation: 1,
+        elevation: 2,
       },
     }),
   },
-  toggleContent: {
+  toggleLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
     flex: 1,
   },
   toggleIcon: {
     width: 40,
     height: 40,
-    borderRadius: 10,
-    backgroundColor: "#f0fdf4",
+    borderRadius: 20,
+    backgroundColor: COLORS.primaryLight,
     alignItems: "center",
     justifyContent: "center",
+    marginRight: 14,
   },
   toggleTextContainer: {
     flex: 1,
@@ -363,12 +513,12 @@ const styles = StyleSheet.create({
   toggleTitle: {
     fontSize: 15,
     fontWeight: "600",
-    color: "#1f2937",
+    color: COLORS.textDark,
     marginBottom: 2,
   },
   toggleDescription: {
     fontSize: 13,
-    color: "#9ca3af",
+    color: COLORS.textMuted,
   },
   footer: {
     flex: 1,
@@ -380,12 +530,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: "#66b083",
+    backgroundColor: COLORS.primary,
     paddingVertical: 18,
     borderRadius: 16,
     ...Platform.select({
       ios: {
-        shadowColor: "#66b083",
+        shadowColor: COLORS.primary,
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.3,
         shadowRadius: 16,

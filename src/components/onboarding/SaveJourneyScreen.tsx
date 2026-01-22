@@ -7,21 +7,41 @@ import {
   Platform,
   StatusBar,
   Pressable,
-  Image,
   ActivityIndicator,
   Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { EtherealBackground } from "../EtherealBackground";
-import { mediumHaptic } from "../../lib/haptics";
+import { mediumHaptic, lightHaptic } from "../../lib/haptics";
 import { useAuth } from "../../lib/AuthContext";
+
+// Colors
+const COLORS = {
+  primary: "#749F82",
+  primaryDark: "#5C8268",
+  primaryLight: "rgba(116, 159, 130, 0.12)",
+  surface: "#FFFFFF",
+  textDark: "#1F2937",
+  textMuted: "#6B7280",
+  textLight: "#9CA3AF",
+  border: "#E5E7EB",
+  black: "#000000",
+  error: "#DC2626",
+  errorBg: "#FEF2F2",
+};
 
 interface SaveJourneyScreenProps {
   onAuthenticated: () => void;
   onSkip: () => void;
   onEmailPress: () => void;
 }
+
+const benefits = [
+  "Save your Daily Walks",
+  "Track streaks and progress",
+  "Access on any device",
+];
 
 export function SaveJourneyScreen({
   onAuthenticated,
@@ -98,36 +118,37 @@ export function SaveJourneyScreen({
       <EtherealBackground />
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.content}>
-          {/* Header Icon */}
-          <View style={styles.iconSection}>
+          {/* Top Section */}
+          <View style={styles.topSection}>
+            {/* Icon */}
             <View style={styles.iconContainer}>
-              <Ionicons name="bookmark" size={40} color="#66b083" />
+              <Ionicons name="bookmark" size={32} color={COLORS.primary} />
+            </View>
+
+            {/* Title */}
+            <View style={styles.titleSection}>
+              <Text style={styles.title}>
+                Preserve your{"\n"}
+                <Text style={styles.titleAccent}>journey.</Text>
+              </Text>
+              <Text style={styles.subtitle}>JOIN GIVEMEGUIDANCE</Text>
+            </View>
+
+            {/* Benefits List */}
+            <View style={styles.benefitsList}>
+              {benefits.map((benefit, index) => (
+                <View key={index} style={styles.benefitItem}>
+                  <View style={styles.checkCircle}>
+                    <Ionicons name="checkmark" size={12} color={COLORS.primary} />
+                  </View>
+                  <Text style={styles.benefitText}>{benefit}</Text>
+                </View>
+              ))}
             </View>
           </View>
 
-          {/* Title */}
-          <View style={styles.titleSection}>
-            <Text style={styles.title}>Want to save your streak and guidance history?</Text>
-          </View>
-
-          {/* Benefits */}
-          <View style={styles.benefitsList}>
-            <View style={styles.benefitItem}>
-              <Ionicons name="checkmark-circle" size={24} color="#66b083" />
-              <Text style={styles.benefitText}>Save your Daily Walks</Text>
-            </View>
-            <View style={styles.benefitItem}>
-              <Ionicons name="checkmark-circle" size={24} color="#66b083" />
-              <Text style={styles.benefitText}>Track streaks and progress</Text>
-            </View>
-            <View style={styles.benefitItem}>
-              <Ionicons name="checkmark-circle" size={24} color="#66b083" />
-              <Text style={styles.benefitText}>Access on any device</Text>
-            </View>
-          </View>
-
-          {/* Auth Buttons */}
-          <View style={styles.authButtons}>
+          {/* Bottom Section - Auth Buttons */}
+          <View style={styles.bottomSection}>
             {/* Apple */}
             <Pressable
               style={({ pressed }) => [
@@ -146,7 +167,7 @@ export function SaveJourneyScreen({
                 <ActivityIndicator color="#ffffff" size="small" />
               ) : (
                 <>
-                  <Ionicons name="logo-apple" size={24} color="#ffffff" style={styles.buttonIcon} />
+                  <Ionicons name="logo-apple" size={20} color="#ffffff" />
                   <Text style={styles.appleButtonText}>Continue with Apple</Text>
                 </>
               )}
@@ -170,9 +191,7 @@ export function SaveJourneyScreen({
                 <ActivityIndicator color="#333" size="small" />
               ) : (
                 <>
-                  <View style={styles.googleIconContainer}>
-                    <Text style={styles.googleIcon}>G</Text>
-                  </View>
+                  <Ionicons name="logo-google" size={18} color="#4285F4" />
                   <Text style={styles.googleButtonText}>Continue with Google</Text>
                 </>
               )}
@@ -192,31 +211,31 @@ export function SaveJourneyScreen({
               }}
               disabled={loading !== null}
             >
-              <Ionicons name="mail-outline" size={22} color="#374151" style={styles.buttonIcon} />
+              <Ionicons name="mail-outline" size={18} color={COLORS.textMuted} />
               <Text style={styles.emailButtonText}>Continue with Email</Text>
             </Pressable>
+
+            {/* Error message */}
+            {error && (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            )}
+
+            {/* Skip */}
+            <Pressable
+              style={({ pressed }) => [
+                styles.skipButton,
+                pressed && { opacity: 0.6 },
+              ]}
+              onPress={() => {
+                lightHaptic();
+                onSkip();
+              }}
+            >
+              <Text style={styles.skipButtonText}>Not now</Text>
+            </Pressable>
           </View>
-
-          {/* Error message */}
-          {error && (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          )}
-
-          {/* Skip */}
-          <Pressable
-            style={({ pressed }) => [
-              styles.skipButton,
-              pressed && styles.buttonPressed,
-            ]}
-            onPress={() => {
-              mediumHaptic();
-              onSkip();
-            }}
-          >
-            <Text style={styles.skipButtonText}>Not now</Text>
-          </Pressable>
         </View>
       </SafeAreaView>
     </View>
@@ -234,71 +253,93 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 40 : 40,
-    paddingBottom: 32,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 32 : 32,
+    paddingBottom: 24,
+    justifyContent: "space-between",
   },
-  iconSection: {
+  topSection: {
     alignItems: "center",
-    marginBottom: 32,
+    paddingTop: 24,
   },
   iconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
-    backgroundColor: "#f0fdf4",
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: COLORS.primaryLight,
     alignItems: "center",
     justifyContent: "center",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#66b083",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
+    marginBottom: 24,
   },
   titleSection: {
+    alignItems: "center",
     marginBottom: 32,
   },
   title: {
-    fontSize: 28,
+    fontSize: 36,
     fontWeight: "700",
-    color: "#1f2937",
+    color: COLORS.textDark,
     textAlign: "center",
-    lineHeight: 36,
+    lineHeight: 44,
+    letterSpacing: -0.5,
+  },
+  titleAccent: {
+    color: COLORS.primary,
+    fontStyle: "italic",
+  },
+  subtitle: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: COLORS.textLight,
+    letterSpacing: 1.5,
+    marginTop: 12,
   },
   benefitsList: {
-    gap: 16,
-    marginBottom: 32,
+    width: "100%",
+    gap: 20,
+    paddingHorizontal: 8,
   },
   benefitItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 16,
+  },
+  checkCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: "rgba(116, 159, 130, 0.5)",
+    backgroundColor: "rgba(255, 255, 255, 0.6)",
+    alignItems: "center",
+    justifyContent: "center",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 1,
+      },
+    }),
   },
   benefitText: {
-    fontSize: 16,
-    color: "#4b5563",
+    fontSize: 18,
     fontWeight: "500",
+    color: COLORS.textDark,
+    opacity: 0.9,
   },
-  authButtons: {
+  bottomSection: {
     gap: 12,
-    flex: 1,
-    justifyContent: "center",
   },
   authButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     height: 56,
-    borderRadius: 14,
-    paddingHorizontal: 20,
-  },
-  buttonIcon: {
-    marginRight: 12,
+    borderRadius: 16,
+    gap: 12,
   },
   buttonPressed: {
     opacity: 0.85,
@@ -308,37 +349,39 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   appleButton: {
-    backgroundColor: "#000000",
+    backgroundColor: COLORS.black,
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.15,
-        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
       },
       android: {
-        elevation: 3,
+        elevation: 4,
       },
     }),
   },
   appleButtonText: {
     color: "#ffffff",
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: "600",
   },
   googleButton: {
-    backgroundColor: "#ffffff",
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: "#dadce0",
-  },
-  googleIconContainer: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "#fff",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
+    borderColor: "#E5E7EB",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   googleIcon: {
     fontSize: 18,
@@ -346,39 +389,48 @@ const styles = StyleSheet.create({
     color: "#4285F4",
   },
   googleButtonText: {
-    color: "#1f1f1f",
-    fontSize: 17,
+    color: COLORS.textDark,
+    fontSize: 15,
     fontWeight: "500",
   },
   emailButton: {
-    backgroundColor: "#f3f4f6",
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: "#E5E7EB",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   emailButtonText: {
-    color: "#374151",
-    fontSize: 17,
+    color: COLORS.textDark,
+    fontSize: 15,
     fontWeight: "500",
   },
   errorContainer: {
-    backgroundColor: "#fef2f2",
+    backgroundColor: COLORS.errorBg,
     padding: 12,
-    borderRadius: 10,
-    marginTop: 12,
+    borderRadius: 12,
   },
   errorText: {
-    color: "#dc2626",
+    color: COLORS.error,
     fontSize: 14,
     textAlign: "center",
   },
   skipButton: {
     alignItems: "center",
-    paddingVertical: 16,
-    marginTop: 8,
+    paddingVertical: 12,
   },
   skipButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#9ca3af",
+    fontSize: 14,
+    fontWeight: "500",
+    color: COLORS.textLight,
   },
 });

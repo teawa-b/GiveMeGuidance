@@ -8,11 +8,29 @@ import {
   StatusBar,
   Pressable,
   ScrollView,
+  Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { EtherealBackground } from "../EtherealBackground";
 import { mediumHaptic, lightHaptic } from "../../lib/haptics";
-import { SpiritualGoal, goalDisplayNames } from "../../lib/OnboardingContext";
+import { SpiritualGoal } from "../../lib/OnboardingContext";
+
+const { width } = Dimensions.get("window");
+const CARD_GAP = 12;
+const CARD_SIZE = (width - 48 - CARD_GAP) / 2 * 0.85; // Smaller cards
+
+// Colors
+const COLORS = {
+  primary: "#7BA07B",
+  primaryLight: "rgba(123, 160, 123, 0.12)",
+  primaryBorder: "rgba(123, 160, 123, 0.5)",
+  surface: "#FFFFFF",
+  textDark: "#1F2937",
+  textMuted: "#6B7280",
+  textLight: "#9CA3AF",
+  border: "#F3F4F6",
+  disabled: "#E5E7EB",
+};
 
 interface GoalSelectionScreenProps {
   selectedGoals: SpiritualGoal[];
@@ -21,27 +39,15 @@ interface GoalSelectionScreenProps {
   onBack: () => void;
 }
 
-const goals: SpiritualGoal[] = [
-  "prayer",
-  "bible",
-  "peace",
-  "discipline",
-  "healing",
-  "purpose",
-  "relationships",
-  "gratitude",
+// Updated goals with better labels matching the design
+const goalData: { id: SpiritualGoal; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { id: "prayer", label: "Build a daily prayer habit", icon: "time-outline" },
+  { id: "bible", label: "Understand the Bible better", icon: "book-outline" },
+  { id: "peace", label: "Find peace and reduce anxiety", icon: "leaf-outline" },
+  { id: "discipline", label: "Beat temptation & grow discipline", icon: "shield-checkmark-outline" },
+  { id: "healing", label: "Healing and forgiveness", icon: "heart-outline" },
+  { id: "purpose", label: "Purpose and direction", icon: "compass-outline" },
 ];
-
-const goalIcons: Record<SpiritualGoal, string> = {
-  prayer: "hands-praying",
-  bible: "book-open-variant",
-  peace: "white-balance-sunny",
-  discipline: "shield-check",
-  healing: "heart-pulse",
-  purpose: "compass",
-  relationships: "account-group",
-  gratitude: "hand-heart",
-};
 
 export function GoalSelectionScreen({
   selectedGoals,
@@ -58,8 +64,14 @@ export function GoalSelectionScreen({
         <View style={styles.content}>
           {/* Header */}
           <View style={styles.header}>
-            <Pressable style={styles.backButton} onPress={onBack}>
-              <Ionicons name="arrow-back" size={24} color="#6b7280" />
+            <Pressable 
+              style={({ pressed }) => [
+                styles.backButton,
+                pressed && { opacity: 0.7 }
+              ]} 
+              onPress={onBack}
+            >
+              <Ionicons name="arrow-back" size={22} color={COLORS.textMuted} />
             </Pressable>
             <View style={styles.progressContainer}>
               <View style={[styles.progressDot, styles.progressDotActive]} />
@@ -81,44 +93,54 @@ export function GoalSelectionScreen({
             contentContainerStyle={styles.goalsGrid}
             showsVerticalScrollIndicator={false}
           >
-            {goals.map((goal) => {
-              const isSelected = selectedGoals.includes(goal);
-              const isDisabled = !isSelected && selectedGoals.length >= 2;
-
-              return (
-                <Pressable
-                  key={goal}
-                  style={({ pressed }) => [
-                    styles.goalChip,
-                    isSelected && styles.goalChipSelected,
-                    isDisabled && styles.goalChipDisabled,
-                    pressed && !isDisabled && styles.goalChipPressed,
-                  ]}
+            <View style={styles.gridRow}>
+              {goalData.slice(0, 2).map((goal) => (
+                <GoalCard
+                  key={goal.id}
+                  goal={goal}
+                  isSelected={selectedGoals.includes(goal.id)}
+                  isDisabled={!selectedGoals.includes(goal.id) && selectedGoals.length >= 2}
                   onPress={() => {
-                    if (!isDisabled) {
+                    if (!(selectedGoals.length >= 2 && !selectedGoals.includes(goal.id))) {
                       lightHaptic();
-                      onGoalToggle(goal);
+                      onGoalToggle(goal.id);
                     }
                   }}
-                  disabled={isDisabled}
-                >
-                  <Ionicons
-                    name={isSelected ? "checkmark-circle" : "ellipse-outline"}
-                    size={20}
-                    color={isSelected ? "#66b083" : isDisabled ? "#d1d5db" : "#9ca3af"}
-                  />
-                  <Text
-                    style={[
-                      styles.goalText,
-                      isSelected && styles.goalTextSelected,
-                      isDisabled && styles.goalTextDisabled,
-                    ]}
-                  >
-                    {goalDisplayNames[goal]}
-                  </Text>
-                </Pressable>
-              );
-            })}
+                />
+              ))}
+            </View>
+            <View style={styles.gridRow}>
+              {goalData.slice(2, 4).map((goal) => (
+                <GoalCard
+                  key={goal.id}
+                  goal={goal}
+                  isSelected={selectedGoals.includes(goal.id)}
+                  isDisabled={!selectedGoals.includes(goal.id) && selectedGoals.length >= 2}
+                  onPress={() => {
+                    if (!(selectedGoals.length >= 2 && !selectedGoals.includes(goal.id))) {
+                      lightHaptic();
+                      onGoalToggle(goal.id);
+                    }
+                  }}
+                />
+              ))}
+            </View>
+            <View style={styles.gridRow}>
+              {goalData.slice(4, 6).map((goal) => (
+                <GoalCard
+                  key={goal.id}
+                  goal={goal}
+                  isSelected={selectedGoals.includes(goal.id)}
+                  isDisabled={!selectedGoals.includes(goal.id) && selectedGoals.length >= 2}
+                  onPress={() => {
+                    if (!(selectedGoals.length >= 2 && !selectedGoals.includes(goal.id))) {
+                      lightHaptic();
+                      onGoalToggle(goal.id);
+                    }
+                  }}
+                />
+              ))}
+            </View>
           </ScrollView>
 
           {/* Continue Button */}
@@ -153,10 +175,58 @@ export function GoalSelectionScreen({
   );
 }
 
+// Goal Card Component
+function GoalCard({
+  goal,
+  isSelected,
+  isDisabled,
+  onPress,
+}: {
+  goal: { id: SpiritualGoal; label: string; icon: keyof typeof Ionicons.glyphMap };
+  isSelected: boolean;
+  isDisabled: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.goalCard,
+        isSelected && styles.goalCardSelected,
+        isDisabled && styles.goalCardDisabled,
+        pressed && !isDisabled && styles.goalCardPressed,
+      ]}
+      onPress={onPress}
+      disabled={isDisabled}
+    >
+      <View
+        style={[
+          styles.iconContainer,
+          isSelected && styles.iconContainerSelected,
+        ]}
+      >
+        <Ionicons
+          name={goal.icon}
+          size={22}
+          color={isSelected ? "#FFFFFF" : COLORS.primary}
+        />
+      </View>
+      <Text
+        style={[
+          styles.goalLabel,
+          isSelected && styles.goalLabelSelected,
+          isDisabled && styles.goalLabelDisabled,
+        ]}
+      >
+        {goal.label}
+      </Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fafafa",
+    backgroundColor: "#F2F7F4",
   },
   safeArea: {
     flex: 1,
@@ -164,27 +234,27 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 12 : 12,
-    paddingBottom: 32,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 16 : 16,
+    paddingBottom: 24,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 24,
+    marginBottom: 16,
   },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#ffffff",
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.surface,
     alignItems: "center",
     justifyContent: "center",
     ...Platform.select({
       ios: {
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
+        shadowOpacity: 0.06,
         shadowRadius: 4,
       },
       android: {
@@ -194,98 +264,120 @@ const styles = StyleSheet.create({
   },
   progressContainer: {
     flexDirection: "row",
-    gap: 8,
+    alignItems: "center",
+    gap: 6,
   },
   progressDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#e5e7eb",
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#D1D5DB",
   },
   progressDotActive: {
-    backgroundColor: "#66b083",
+    backgroundColor: COLORS.primary,
     width: 24,
+    height: 6,
+    borderRadius: 3,
   },
   placeholder: {
-    width: 44,
+    width: 40,
   },
   titleSection: {
     marginBottom: 24,
   },
   title: {
     fontSize: 28,
-    fontWeight: "700",
-    color: "#1f2937",
-    lineHeight: 36,
+    fontWeight: "800",
+    color: COLORS.textDark,
+    lineHeight: 34,
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
-    color: "#6b7280",
+    fontSize: 17,
+    color: COLORS.textMuted,
+    fontWeight: "500",
   },
   scrollView: {
     flex: 1,
   },
   goalsGrid: {
-    gap: 12,
     paddingBottom: 16,
+    gap: CARD_GAP,
   },
-  goalChip: {
+  gridRow: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    backgroundColor: "#ffffff",
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    justifyContent: "center",
+    gap: CARD_GAP,
+  },
+  goalCard: {
+    width: CARD_SIZE,
+    aspectRatio: 1,
+    backgroundColor: COLORS.surface,
     borderRadius: 16,
+    padding: 12,
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 2,
-    borderColor: "#f3f4f6",
+    borderColor: "transparent",
     ...Platform.select({
       ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
+        shadowColor: COLORS.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
       },
       android: {
-        elevation: 1,
+        elevation: 3,
       },
     }),
   },
-  goalChipSelected: {
-    backgroundColor: "#f0fdf4",
-    borderColor: "#66b083",
+  goalCardSelected: {
+    borderColor: COLORS.primary,
+    backgroundColor: "#F0FDF4",
   },
-  goalChipDisabled: {
+  goalCardDisabled: {
     opacity: 0.5,
   },
-  goalChipPressed: {
-    transform: [{ scale: 0.98 }],
+  goalCardPressed: {
+    transform: [{ scale: 0.97 }],
+    borderColor: COLORS.primaryBorder,
   },
-  goalText: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#4b5563",
-    flex: 1,
+  iconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.primaryLight,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
   },
-  goalTextSelected: {
-    color: "#1f2937",
+  iconContainerSelected: {
+    backgroundColor: COLORS.primary,
+  },
+  goalLabel: {
+    fontSize: 12,
     fontWeight: "600",
+    color: COLORS.textDark,
+    textAlign: "center",
+    lineHeight: 16,
   },
-  goalTextDisabled: {
-    color: "#9ca3af",
+  goalLabelSelected: {
+    color: COLORS.textDark,
+  },
+  goalLabelDisabled: {
+    color: COLORS.textLight,
   },
   footer: {
     paddingTop: 16,
   },
   continueButton: {
-    backgroundColor: "#66b083",
+    backgroundColor: COLORS.primary,
     paddingVertical: 18,
-    borderRadius: 16,
+    borderRadius: 20,
     alignItems: "center",
     ...Platform.select({
       ios: {
-        shadowColor: "#66b083",
+        shadowColor: COLORS.primary,
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.3,
         shadowRadius: 16,
@@ -296,17 +388,17 @@ const styles = StyleSheet.create({
     }),
   },
   continueButtonDisabled: {
-    backgroundColor: "#e5e7eb",
+    backgroundColor: COLORS.disabled,
     shadowOpacity: 0,
     elevation: 0,
   },
   continueButtonText: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: "#ffffff",
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
   continueButtonTextDisabled: {
-    color: "#9ca3af",
+    color: COLORS.textLight,
   },
   buttonPressed: {
     opacity: 0.9,
