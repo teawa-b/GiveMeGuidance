@@ -26,12 +26,14 @@ import {
 } from "../../src/components/onboarding";
 import { EmailAuthForm } from "../../src/components/EmailAuthForm";
 import { EtherealBackground } from "../../src/components/EtherealBackground";
+import { NativeAdLoading } from "../../src/components/NativeAdLoading";
 import { SafeAreaView } from "react-native";
 
 type OnboardingStep =
   | "goals"
   | "time"
   | "style"
+  | "loading"
   | "daily_walk"
   | "save_journey"
   | "save_journey_email"
@@ -119,6 +121,8 @@ export default function OnboardingScreen() {
 
   // Generate daily walk using real API
   const handleGenerateGuidance = async () => {
+    // Show loading screen immediately
+    setStep("loading");
     setIsGenerating(true);
 
     try {
@@ -161,6 +165,8 @@ export default function OnboardingScreen() {
       setStep("daily_walk");
     } catch (error) {
       console.error("[Onboarding] Failed to generate guidance:", error);
+      // Go back to style screen on error
+      setStep("style");
       Alert.alert(
         "Something went wrong",
         "We couldn't generate your guidance. Please try again.",
@@ -316,8 +322,19 @@ export default function OnboardingScreen() {
             onStyleSelect={handleStyleSelect}
             onContinue={handleGenerateGuidance}
             onBack={() => setStep("time")}
-            isLoading={isGenerating}
           />
+        );
+
+      case "loading":
+        return (
+          <View style={styles.loadingContainer}>
+            <EtherealBackground />
+            <NativeAdLoading
+              isVisible={true}
+              loadingMessage="Finding the perfect verse for you..."
+              hideAds={true}
+            />
+          </View>
         );
 
       case "daily_walk":
@@ -403,5 +420,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 40,
     paddingBottom: 24,
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: "#fafafa",
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

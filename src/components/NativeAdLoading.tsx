@@ -11,9 +11,10 @@ const isExpoGo = Constants.appOwnership === "expo";
 interface NativeAdLoadingProps {
   isVisible: boolean;
   loadingMessage?: string;
+  hideAds?: boolean;
 }
 
-export function NativeAdLoading({ isVisible, loadingMessage = "Finding guidance..." }: NativeAdLoadingProps) {
+export function NativeAdLoading({ isVisible, loadingMessage = "Finding guidance...", hideAds = false }: NativeAdLoadingProps) {
   const { shouldShowAds, nativeAdUnitId, isAdsInitialized, BannerAd, BannerAdSize } = useAds();
   const { isPremium } = usePremium();
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -58,8 +59,8 @@ export function NativeAdLoading({ isVisible, loadingMessage = "Finding guidance.
     return null;
   }
 
-  // Premium users, web, or Expo Go - show loading without ad
-  if (isPremium || Platform.OS === "web" || isExpoGo) {
+  // Premium users, web, Expo Go, or hideAds flag - show loading without ad
+  if (isPremium || Platform.OS === "web" || isExpoGo || hideAds) {
     return (
       <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
         <View style={styles.loadingSection}>

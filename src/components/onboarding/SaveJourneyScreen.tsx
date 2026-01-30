@@ -9,6 +9,7 @@ import {
   Pressable,
   ActivityIndicator,
   Alert,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as AppleAuthentication from "expo-apple-authentication";
@@ -77,7 +78,8 @@ export function SaveJourneyScreen({
       });
 
       if (credential.identityToken) {
-        const result = await signInWithApple(credential.identityToken);
+        // Pass fullName to signInWithApple - Apple only provides this on FIRST sign-in
+        const result = await signInWithApple(credential.identityToken, credential.fullName);
         if (result.error) {
           setError(result.error);
         } else {
@@ -121,7 +123,7 @@ export function SaveJourneyScreen({
         <View style={styles.topSection}>
             {/* Icon */}
             <View style={styles.iconContainer}>
-              <Ionicons name="bookmark" size={32} color={COLORS.primary} />
+              <Ionicons name="bookmark" size={28} color={COLORS.primary} />
             </View>
 
             {/* Title */}
@@ -190,7 +192,10 @@ export function SaveJourneyScreen({
                 <ActivityIndicator color="#333" size="small" />
               ) : (
                 <>
-                  <Ionicons name="logo-google" size={18} color="#4285F4" />
+                  <Image 
+                    source={require("../../../assets/google-icon.png")} 
+                    style={styles.googleIcon}
+                  />
                   <Text style={styles.googleButtonText}>Continue with Google</Text>
                 </>
               )}
@@ -289,9 +294,10 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   benefitsList: {
-    width: "100%",
+    alignSelf: "center",
+    alignItems: "flex-start",
     gap: 20,
-    paddingHorizontal: 8,
+    marginTop: 40,
   },
   benefitItem: {
     flexDirection: "row",
@@ -327,12 +333,13 @@ const styles = StyleSheet.create({
   },
   bottomSection: {
     gap: 12,
+    paddingHorizontal: 24,
   },
   authButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    height: 56,
+    height: 54,
     borderRadius: 16,
     gap: 12,
   },
@@ -379,9 +386,8 @@ const styles = StyleSheet.create({
     }),
   },
   googleIcon: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#4285F4",
+    width: 20,
+    height: 20,
   },
   googleButtonText: {
     color: COLORS.textDark,
@@ -421,7 +427,7 @@ const styles = StyleSheet.create({
   },
   skipButton: {
     alignItems: "center",
-    paddingVertical: 12,
+    paddingVertical: 10,
   },
   skipButtonText: {
     fontSize: 14,

@@ -1,7 +1,33 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { InteractionManager } from "react-native";
+import { InteractionManager, Platform } from "react-native";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
+import {
+  GoogleSignin,
+  isSuccessResponse,
+  isErrorWithCode,
+  statusCodes,
+} from "@react-native-google-signin/google-signin";
+
+// ⚠️ IMPORTANT: Replace these with your actual Google OAuth Client IDs from Google Cloud Console
+// Get these from: https://console.cloud.google.com/apis/credentials
+const GOOGLE_WEB_CLIENT_ID = "YOUR_WEB_CLIENT_ID.apps.googleusercontent.com";
+const GOOGLE_IOS_CLIENT_ID = "YOUR_IOS_CLIENT_ID.apps.googleusercontent.com";
+
+// Configure Google Sign In (only on native platforms)
+if (Platform.OS !== "web") {
+  GoogleSignin.configure({
+    webClientId: GOOGLE_WEB_CLIENT_ID, // Required for getting idToken
+    iosClientId: GOOGLE_IOS_CLIENT_ID, // iOS client ID
+    offlineAccess: true,
+  });
+}
+
+interface AppleFullName {
+  givenName?: string | null;
+  middleName?: string | null;
+  familyName?: string | null;
+}
 
 interface AuthContextType {
   session: Session | null;
@@ -12,7 +38,7 @@ interface AuthContextType {
   signUp: (email: string, password: string) => Promise<{ error?: string; needsConfirmation?: boolean }>;
   signOut: () => Promise<void>;
   signInWithGoogle: () => Promise<{ error?: string }>;
-  signInWithApple: (identityToken: string) => Promise<{ error?: string }>;
+  signInWithApple: (identityToken: string, fullName?: AppleFullName | null) => Promise<{ error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -112,10 +138,79 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    // Sign out from Google if signed in (native platforms only)
+    if (Platform.OS !== "web") {
+      try {
+        const isSignedIn = await GoogleSignin.hasPreviousSignIn();
+        if (isSignedIn) {
+          await GoogleSignin.signOut();
+        }
+      } catch (e) {
+        // Ignore Google sign out errors
+        console.warn("[Auth] Google sign out error:", e);
+      }
+    }
     await supabase.auth.signOut();
   }, []);
 
   const signInWithGoogle = useCallback(async () => {
+    // Use native Google Sign In on iOS
+    if (Platform.OS === "ios") {
+      try {
+        // Check if Google Play Services are available (always true on iOS)
+        await GoogleSignin.hasPlayServices();
+
+        // Sign in with Google natively
+        const response = await GoogleSignin.signIn();
+
+        if (isSuccessResponse(response)) {
+          const idToken = response.data.idToken;
+
+          if (!idToken) {
+            console.error("[Auth] No ID token received from Google");
+            return { error: "No ID token received from Google" };
+          }
+
+          console.log("[Auth] Got Google ID token, signing in with Supabase...");
+
+          // Sign in with Supabase using the Google ID token
+          const { data, error } = await supabase.auth.signInWithIdToken({
+            provider: "google",
+            token: idToken,
+          });
+
+          if (error) {
+            console.error("[Auth] Supabase Google auth error:", error);
+            return { error: error.message };
+          }
+
+          console.log("[Auth] Google sign in successful:", data.user?.email);
+          return {};
+        } else {
+          // User cancelled
+          return {};
+        }
+      } catch (e: any) {
+        if (isErrorWithCode(e)) {
+          switch (e.code) {
+            case statusCodes.IN_PROGRESS:
+              return { error: "Sign in already in progress" };
+            case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
+              return { error: "Google Play Services not available" };
+            case statusCodes.SIGN_IN_CANCELLED:
+              // User cancelled - don't show error
+              return {};
+            default:
+              console.error("[Auth] Google sign in error:", e);
+              return { error: "Google sign in failed. Please try again." };
+          }
+        }
+        console.error("[Auth] Google sign in error:", e);
+        return { error: e.message || "Google sign in failed" };
+      }
+    }
+
+    // Fallback to OAuth flow for web
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
@@ -132,15 +227,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const signInWithApple = useCallback(async (identityToken: string) => {
+  const signInWithApple = useCallback(async (identityToken: string, fullName?: AppleFullName | null) => {
     try {
-      const { error } = await supabase.auth.signInWithIdToken({
+      const { error, data } = await supabase.auth.signInWithIdToken({
         provider: "apple",
         token: identityToken,
       });
       if (error) {
         return { error: error.message };
       }
+
+      // Apple only provides the user's full name on the FIRST sign-in
+      // We must capture it from the credential and save it to user metadata
+      if (fullName && data.user) {
+        const nameParts: string[] = [];
+        if (fullName.givenName) nameParts.push(fullName.givenName);
+        if (fullName.middleName) nameParts.push(fullName.middleName);
+        if (fullName.familyName) nameParts.push(fullName.familyName);
+
+        if (nameParts.length > 0) {
+          const fullNameStr = nameParts.join(" ");
+          await supabase.auth.updateUser({
+            data: {
+              full_name: fullNameStr,
+              given_name: fullName.givenName,
+              family_name: fullName.familyName,
+            },
+          });
+          console.log("[Auth] Saved Apple user full name:", fullNameStr);
+        }
+      }
+
       return {};
     } catch (e: any) {
       return { error: e.message || "Apple sign in failed" };

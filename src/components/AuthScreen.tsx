@@ -57,7 +57,8 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
       });
 
       if (credential.identityToken) {
-        const result = await signInWithApple(credential.identityToken);
+        // Pass fullName to signInWithApple - Apple only provides this on FIRST sign-in
+        const result = await signInWithApple(credential.identityToken, credential.fullName);
         if (result.error) {
           setError(result.error);
         } else {

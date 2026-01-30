@@ -16,6 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.shroozy.givemeguidance",
+      "usesAppleSignIn": true,
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -187,6 +188,8 @@
       "expo-router",
       "expo-asset",
       "expo-font",
+      "expo-apple-authentication",
+      "@react-native-google-signin/google-signin",
       [
         "expo-tracking-transparency",
         {
@@ -201,7 +204,8 @@
           "delayAppMeasurementInit": true
         }
       ],
-      "./plugins/withFirebaseIOS"
+      "./plugins/withFirebaseIOS",
+      "@react-native-google-signin/google-signin"
     ],
     "experiments": {
       "typedRoutes": true

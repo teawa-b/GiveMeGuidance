@@ -7,7 +7,6 @@ import {
   Platform,
   StatusBar,
   Pressable,
-  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { EtherealBackground } from "../EtherealBackground";
@@ -34,7 +33,6 @@ interface StyleSelectionScreenProps {
   onStyleSelect: (style: GuidanceStyle) => void;
   onContinue: () => void;
   onBack: () => void;
-  isLoading?: boolean;
 }
 
 const styleOptions: { 
@@ -68,7 +66,6 @@ export function StyleSelectionScreen({
   onStyleSelect,
   onContinue,
   onBack,
-  isLoading,
 }: StyleSelectionScreenProps) {
   return (
     <View style={styles.container}>
@@ -194,25 +191,14 @@ export function StyleSelectionScreen({
               style={({ pressed }) => [
                 styles.continueButton,
                 pressed && styles.buttonPressed,
-                isLoading && styles.continueButtonLoading,
               ]}
               onPress={() => {
                 mediumHaptic();
                 onContinue();
               }}
-              disabled={isLoading}
             >
-              {isLoading ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="small" color="#ffffff" />
-                  <Text style={styles.continueButtonText}>Generating...</Text>
-                </View>
-              ) : (
-                <>
-                  <Text style={styles.continueButtonText}>Generate today's guidance</Text>
-                  <Ionicons name="sparkles" size={18} color="#ffffff" />
-                </>
-              )}
+              <Text style={styles.continueButtonText}>Generate today's guidance</Text>
+              <Ionicons name="sparkles" size={18} color="#ffffff" />
             </Pressable>
         </View>
       </SafeAreaView>
@@ -415,18 +401,10 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  continueButtonLoading: {
-    opacity: 0.8,
-  },
   continueButtonText: {
     fontSize: 17,
     fontWeight: "600",
     color: "#ffffff",
-  },
-  loadingContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
   },
   buttonPressed: {
     opacity: 0.9,
