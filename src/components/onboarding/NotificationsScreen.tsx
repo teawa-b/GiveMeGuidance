@@ -70,9 +70,8 @@ export function NotificationsScreen({
     <View style={styles.container}>
       <EtherealBackground />
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.content}>
-          {/* Icon */}
-          <View style={styles.iconSection}>
+        {/* Icon */}
+        <View style={styles.iconSection}>
             <View style={styles.iconContainer}>
               <Ionicons name="notifications" size={40} color="#66b083" />
             </View>
@@ -131,7 +130,6 @@ export function NotificationsScreen({
               <Text style={styles.skipButtonText}>Not now</Text>
             </Pressable>
           </View>
-        </View>
       </SafeAreaView>
     </View>
   );
@@ -144,12 +142,9 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
-  },
-  content: {
-    flex: 1,
     paddingHorizontal: 24,
-    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 40 : 40,
-    paddingBottom: 32,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 48 : 48,
+    paddingBottom: 24,
   },
   confirmationContent: {
     flex: 1,

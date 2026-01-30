@@ -7,17 +7,13 @@ import {
   Platform,
   StatusBar,
   Pressable,
-  ScrollView,
-  Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { EtherealBackground } from "../EtherealBackground";
 import { mediumHaptic, lightHaptic } from "../../lib/haptics";
 import { SpiritualGoal } from "../../lib/OnboardingContext";
 
-const { width } = Dimensions.get("window");
 const CARD_GAP = 12;
-const CARD_SIZE = (width - 48 - CARD_GAP) / 2 * 0.85; // Smaller cards
 
 // Colors
 const COLORS = {
@@ -61,114 +57,108 @@ export function GoalSelectionScreen({
     <View style={styles.container}>
       <EtherealBackground />
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.content}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Pressable 
-              style={({ pressed }) => [
-                styles.backButton,
-                pressed && { opacity: 0.7 }
-              ]} 
-              onPress={onBack}
-            >
-              <Ionicons name="arrow-back" size={22} color={COLORS.textMuted} />
-            </Pressable>
-            <View style={styles.progressContainer}>
-              <View style={[styles.progressDot, styles.progressDotActive]} />
-              <View style={styles.progressDot} />
-              <View style={styles.progressDot} />
-            </View>
-            <View style={styles.placeholder} />
-          </View>
-
-          {/* Title */}
-          <View style={styles.titleSection}>
-            <Text style={styles.title}>What do you want help with right now?</Text>
-            <Text style={styles.subtitle}>Select 1 or 2 that resonate most</Text>
-          </View>
-
-          {/* Goals Grid */}
-          <ScrollView
-            style={styles.scrollView}
-            contentContainerStyle={styles.goalsGrid}
-            showsVerticalScrollIndicator={false}
+        {/* Header */}
+        <View style={styles.header}>
+          <Pressable 
+            style={({ pressed }) => [
+              styles.backButton,
+              pressed && { opacity: 0.7 }
+            ]} 
+            onPress={onBack}
           >
-            <View style={styles.gridRow}>
-              {goalData.slice(0, 2).map((goal) => (
-                <GoalCard
-                  key={goal.id}
-                  goal={goal}
-                  isSelected={selectedGoals.includes(goal.id)}
-                  isDisabled={!selectedGoals.includes(goal.id) && selectedGoals.length >= 2}
-                  onPress={() => {
-                    if (!(selectedGoals.length >= 2 && !selectedGoals.includes(goal.id))) {
-                      lightHaptic();
-                      onGoalToggle(goal.id);
-                    }
-                  }}
-                />
-              ))}
-            </View>
-            <View style={styles.gridRow}>
-              {goalData.slice(2, 4).map((goal) => (
-                <GoalCard
-                  key={goal.id}
-                  goal={goal}
-                  isSelected={selectedGoals.includes(goal.id)}
-                  isDisabled={!selectedGoals.includes(goal.id) && selectedGoals.length >= 2}
-                  onPress={() => {
-                    if (!(selectedGoals.length >= 2 && !selectedGoals.includes(goal.id))) {
-                      lightHaptic();
-                      onGoalToggle(goal.id);
-                    }
-                  }}
-                />
-              ))}
-            </View>
-            <View style={styles.gridRow}>
-              {goalData.slice(4, 6).map((goal) => (
-                <GoalCard
-                  key={goal.id}
-                  goal={goal}
-                  isSelected={selectedGoals.includes(goal.id)}
-                  isDisabled={!selectedGoals.includes(goal.id) && selectedGoals.length >= 2}
-                  onPress={() => {
-                    if (!(selectedGoals.length >= 2 && !selectedGoals.includes(goal.id))) {
-                      lightHaptic();
-                      onGoalToggle(goal.id);
-                    }
-                  }}
-                />
-              ))}
-            </View>
-          </ScrollView>
-
-          {/* Continue Button */}
-          <View style={styles.footer}>
-            <Pressable
-              style={({ pressed }) => [
-                styles.continueButton,
-                !canContinue && styles.continueButtonDisabled,
-                pressed && canContinue && styles.buttonPressed,
-              ]}
-              onPress={() => {
-                if (canContinue) {
-                  mediumHaptic();
-                  onContinue();
-                }
-              }}
-              disabled={!canContinue}
-            >
-              <Text
-                style={[
-                  styles.continueButtonText,
-                  !canContinue && styles.continueButtonTextDisabled,
-                ]}
-              >
-                Continue
-              </Text>
-            </Pressable>
+            <Ionicons name="arrow-back" size={22} color={COLORS.textMuted} />
+          </Pressable>
+          <View style={styles.progressContainer}>
+            <View style={[styles.progressDot, styles.progressDotActive]} />
+            <View style={styles.progressDot} />
+            <View style={styles.progressDot} />
           </View>
+          <View style={styles.placeholder} />
+        </View>
+
+        {/* Title */}
+        <View style={styles.titleSection}>
+          <Text style={styles.title}>What do you want help with right now?</Text>
+          <Text style={styles.subtitle}>Select 1 or 2 that resonate most</Text>
+        </View>
+
+        {/* Goals Grid */}
+        <View style={styles.goalsGrid}>
+          <View style={styles.gridRow}>
+            {goalData.slice(0, 2).map((goal) => (
+              <GoalCard
+                key={goal.id}
+                goal={goal}
+                isSelected={selectedGoals.includes(goal.id)}
+                isDisabled={!selectedGoals.includes(goal.id) && selectedGoals.length >= 2}
+                onPress={() => {
+                  if (!(selectedGoals.length >= 2 && !selectedGoals.includes(goal.id))) {
+                    lightHaptic();
+                    onGoalToggle(goal.id);
+                  }
+                }}
+              />
+            ))}
+          </View>
+          <View style={styles.gridRow}>
+            {goalData.slice(2, 4).map((goal) => (
+              <GoalCard
+                key={goal.id}
+                goal={goal}
+                isSelected={selectedGoals.includes(goal.id)}
+                isDisabled={!selectedGoals.includes(goal.id) && selectedGoals.length >= 2}
+                onPress={() => {
+                  if (!(selectedGoals.length >= 2 && !selectedGoals.includes(goal.id))) {
+                    lightHaptic();
+                    onGoalToggle(goal.id);
+                  }
+                }}
+              />
+            ))}
+          </View>
+          <View style={styles.gridRow}>
+            {goalData.slice(4, 6).map((goal) => (
+              <GoalCard
+                key={goal.id}
+                goal={goal}
+                isSelected={selectedGoals.includes(goal.id)}
+                isDisabled={!selectedGoals.includes(goal.id) && selectedGoals.length >= 2}
+                onPress={() => {
+                  if (!(selectedGoals.length >= 2 && !selectedGoals.includes(goal.id))) {
+                    lightHaptic();
+                    onGoalToggle(goal.id);
+                  }
+                }}
+              />
+            ))}
+          </View>
+        </View>
+
+        {/* Continue Button */}
+        <View style={styles.footer}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.continueButton,
+              !canContinue && styles.continueButtonDisabled,
+              pressed && canContinue && styles.buttonPressed,
+            ]}
+            onPress={() => {
+              if (canContinue) {
+                mediumHaptic();
+                onContinue();
+              }
+            }}
+            disabled={!canContinue}
+          >
+            <Text
+              style={[
+                styles.continueButtonText,
+                !canContinue && styles.continueButtonTextDisabled,
+              ]}
+            >
+              Continue
+            </Text>
+          </Pressable>
         </View>
       </SafeAreaView>
     </View>
@@ -206,7 +196,7 @@ function GoalCard({
       >
         <Ionicons
           name={goal.icon}
-          size={22}
+          size={20}
           color={isSelected ? "#FFFFFF" : COLORS.primary}
         />
       </View>
@@ -230,9 +220,6 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
-  },
-  content: {
-    flex: 1,
     paddingHorizontal: 24,
     paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 16 : 16,
     paddingBottom: 24,
@@ -250,6 +237,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     alignItems: "center",
     justifyContent: "center",
+    marginLeft: Platform.OS === "ios" ? 12 : 4,
     ...Platform.select({
       ios: {
         shadowColor: "#000",
@@ -283,35 +271,36 @@ const styles = StyleSheet.create({
     width: 40,
   },
   titleSection: {
-    marginBottom: 24,
+    alignItems: "center",
+    marginBottom: 20,
+    paddingHorizontal: 16,
   },
   title: {
-    fontSize: 28,
-    fontWeight: "800",
+    fontSize: 24,
+    fontWeight: "700",
     color: COLORS.textDark,
-    lineHeight: 34,
+    textAlign: "center",
+    lineHeight: 30,
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 17,
+    fontSize: 15,
     color: COLORS.textMuted,
-    fontWeight: "500",
-  },
-  scrollView: {
-    flex: 1,
+    textAlign: "center",
   },
   goalsGrid: {
-    paddingBottom: 16,
-    gap: CARD_GAP,
+    paddingTop: 4,
+    paddingBottom: 12,
   },
   gridRow: {
     flexDirection: "row",
     justifyContent: "center",
     gap: CARD_GAP,
+    marginBottom: CARD_GAP,
   },
   goalCard: {
-    width: CARD_SIZE,
-    aspectRatio: 1,
+    width: 135,
+    height: 125,
     backgroundColor: COLORS.surface,
     borderRadius: 16,
     padding: 12,
@@ -329,6 +318,9 @@ const styles = StyleSheet.create({
       android: {
         elevation: 3,
       },
+      web: {
+        boxShadow: "0 4px 12px rgba(123, 160, 123, 0.08)",
+      },
     }),
   },
   goalCardSelected: {
@@ -343,9 +335,9 @@ const styles = StyleSheet.create({
     borderColor: COLORS.primaryBorder,
   },
   iconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: COLORS.primaryLight,
     alignItems: "center",
     justifyContent: "center",
@@ -368,22 +360,27 @@ const styles = StyleSheet.create({
     color: COLORS.textLight,
   },
   footer: {
-    paddingTop: 16,
+    paddingTop: 24,
+    paddingHorizontal: 32,
   },
   continueButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
     backgroundColor: COLORS.primary,
     paddingVertical: 18,
-    borderRadius: 20,
-    alignItems: "center",
+    paddingHorizontal: 32,
+    borderRadius: 999,
     ...Platform.select({
       ios: {
         shadowColor: COLORS.primary,
         shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.3,
+        shadowOpacity: 0.35,
         shadowRadius: 16,
       },
       android: {
-        elevation: 6,
+        elevation: 8,
       },
     }),
   },
@@ -393,8 +390,8 @@ const styles = StyleSheet.create({
     elevation: 0,
   },
   continueButtonText: {
-    fontSize: 18,
-    fontWeight: "700",
+    fontSize: 17,
+    fontWeight: "600",
     color: "#FFFFFF",
   },
   continueButtonTextDisabled: {

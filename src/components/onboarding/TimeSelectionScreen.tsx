@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -9,16 +9,11 @@ import {
   Pressable,
   Modal,
   ScrollView,
-  Dimensions,
-  Animated,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { EtherealBackground } from "../EtherealBackground";
 import { mediumHaptic, lightHaptic } from "../../lib/haptics";
 import { TimeOfDay } from "../../lib/OnboardingContext";
-
-const { width } = Dimensions.get("window");
-const DIAL_SIZE = Math.min(width - 80, 300);
 
 // Colors
 const COLORS = {
@@ -30,15 +25,6 @@ const COLORS = {
   textMuted: "#64748B",
   textLight: "#94A3B8",
   border: "#E2E8F0",
-  dialBg: "#F8FAFC",
-  dialTrack: "#E2E8F0",
-};
-
-// Subtle background tints for each time
-const TIME_BG_COLORS: Record<string, string> = {
-  morning: "rgba(251, 191, 36, 0.15)",    // Soft warm yellow
-  afternoon: "rgba(251, 146, 60, 0.12)",  // Soft orange
-  evening: "rgba(129, 140, 248, 0.15)",   // Soft indigo
 };
 
 interface TimeSelectionScreenProps {
@@ -80,41 +66,6 @@ export function TimeSelectionScreen({
   onBack,
 }: TimeSelectionScreenProps) {
   const [showTimePicker, setShowTimePicker] = useState(false);
-  const scaleAnim = useRef(new Animated.Value(0.9)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  
-  // Animation values for each time button
-  const morningScale = useRef(new Animated.Value(1)).current;
-  const afternoonScale = useRef(new Animated.Value(1)).current;
-  const eveningScale = useRef(new Animated.Value(1)).current;
-  
-  // Background tint animation
-  const tintAnim = useRef(new Animated.Value(0)).current;
-  
-  const getScaleAnim = (id: TimeOfDay) => {
-    switch (id) {
-      case "morning": return morningScale;
-      case "afternoon": return afternoonScale;
-      case "evening": return eveningScale;
-      default: return morningScale;
-    }
-  };
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        tension: 50,
-        friction: 7,
-        useNativeDriver: true,
-      }),
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, []);
 
   // Suggest time based on current hour
   useEffect(() => {
@@ -132,23 +83,6 @@ export function TimeSelectionScreen({
 
   const handleTimeSelect = (time: TimeOfDay) => {
     lightHaptic();
-    
-    // Animate the selected button
-    const buttonScale = getScaleAnim(time);
-    Animated.sequence([
-      Animated.timing(buttonScale, {
-        toValue: 0.85,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-      Animated.spring(buttonScale, {
-        toValue: 1,
-        tension: 300,
-        friction: 10,
-        useNativeDriver: true,
-      }),
-    ]).start();
-    
     onTimeSelect(time);
   };
 
@@ -158,210 +92,143 @@ export function TimeSelectionScreen({
     setShowTimePicker(false);
   };
 
-  const getSelectedData = () => {
-    if (selectedTime === "custom" && customTime) {
-      const [hours, minutes] = customTime.split(":").map(Number);
-      const period = hours >= 12 ? "PM" : "AM";
-      const displayHours = hours % 12 || 12;
-      return {
-        label: "Custom",
-        description: `${displayHours}:${minutes.toString().padStart(2, "0")} ${period}`,
-        icon: "time-outline" as keyof typeof Ionicons.glyphMap,
-      };
-    }
-    return timeData.find((t) => t.id === selectedTime) || timeData[0];
-  };
-  
-  // Get subtle background tint color
-  const bgTintColor = selectedTime && selectedTime !== "custom" 
-    ? TIME_BG_COLORS[selectedTime] 
-    : TIME_BG_COLORS.morning;
-
-  const selectedData = getSelectedData();
-
-  // Calculate positions for dial buttons (morning top-left, afternoon right, evening bottom-left)
-  const getDialPosition = (index: number) => {
-    const angles = [-135, 0, 135]; // degrees from right (3 o'clock position)
-    const angle = (angles[index] * Math.PI) / 180;
-    const radius = DIAL_SIZE / 2 + 10;
-    return {
-      x: Math.cos(angle) * radius,
-      y: Math.sin(angle) * radius,
-    };
-  };
-
   return (
     <View style={styles.container}>
       <EtherealBackground />
       
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.content}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Pressable
-              style={({ pressed }) => [styles.backButton, pressed && { opacity: 0.7 }]}
-              onPress={onBack}
-            >
-              <Ionicons name="arrow-back" size={22} color={COLORS.textMuted} />
-            </Pressable>
-            <View style={styles.progressContainer}>
-              <View style={styles.progressDot} />
-              <View style={[styles.progressDot, styles.progressDotActive]} />
-              <View style={styles.progressDot} />
-            </View>
-            <View style={styles.placeholder} />
-          </View>
-
-          {/* Title */}
-          <View style={styles.titleSection}>
-            <Text style={styles.title}>When do you want your guidance?</Text>
-            <Text style={styles.subtitle}>
-              Choose the perfect moment for your daily connection
-            </Text>
-          </View>
-
-          {/* Dial */}
-          <Animated.View
-            style={[
-              styles.dialContainer,
-              {
-                opacity: fadeAnim,
-                transform: [{ scale: scaleAnim }],
-              },
-            ]}
+        {/* Header */}
+        <View style={styles.header}>
+          <Pressable
+            style={({ pressed }) => [styles.backButton, pressed && { opacity: 0.7 }]}
+            onPress={onBack}
           >
-            {/* Outer ring / track */}
-            <View style={styles.dialOuter}>
-              {/* Inner circle with selected info */}
-              <View style={styles.dialInner}>
-                <View style={styles.selectedIconContainer}>
-                  <Ionicons name={selectedData.icon} size={28} color={COLORS.primary} />
+            <Ionicons name="arrow-back" size={22} color={COLORS.textMuted} />
+          </Pressable>
+          <View style={styles.progressContainer}>
+            <View style={styles.progressDot} />
+            <View style={[styles.progressDot, styles.progressDotActive]} />
+            <View style={styles.progressDot} />
+          </View>
+          <View style={styles.placeholder} />
+        </View>
+
+        {/* Title */}
+        <View style={styles.titleSection}>
+          <Text style={styles.title}>When do you want your guidance?</Text>
+          <Text style={styles.subtitle}>
+            Choose the perfect moment for your daily connection
+          </Text>
+        </View>
+
+        {/* Time Options - Simple Cards */}
+        <View style={styles.timeCardsContainer}>
+          {timeData.map((time) => {
+            const isSelected = selectedTime === time.id;
+            return (
+              <Pressable
+                key={time.id}
+                style={({ pressed }) => [
+                  styles.timeCard,
+                  isSelected && styles.timeCardSelected,
+                  pressed && styles.timeCardPressed,
+                ]}
+                onPress={() => handleTimeSelect(time.id)}
+              >
+                <View style={[styles.timeIconContainer, isSelected && styles.timeIconContainerSelected]}>
+                  <Ionicons
+                    name={time.icon}
+                    size={24}
+                    color={isSelected ? "#FFFFFF" : COLORS.primary}
+                  />
                 </View>
-                <Text style={styles.selectedLabel}>{selectedData.label}</Text>
-                <Text style={styles.selectedDescription}>{selectedData.description}</Text>
+                <View style={styles.timeCardContent}>
+                  <Text style={[styles.timeCardLabel, isSelected && styles.timeCardLabelSelected]}>
+                    {time.label}
+                  </Text>
+                  <Text style={styles.timeCardDescription}>{time.description}</Text>
+                </View>
+                <View style={[styles.radioOuter, isSelected && styles.radioOuterSelected]}>
+                  {isSelected && <View style={styles.radioInner} />}
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {/* Custom time link */}
+        <Pressable
+          style={({ pressed }) => [
+            styles.customTimeButton,
+            pressed && { opacity: 0.7 },
+          ]}
+          onPress={() => {
+            lightHaptic();
+            setShowTimePicker(true);
+          }}
+        >
+          <Ionicons name="time-outline" size={18} color={COLORS.primary} />
+          <Text style={styles.customTimeText}>Pick a specific time instead</Text>
+        </Pressable>
+
+        {/* Custom Time Picker Modal */}
+        <Modal
+          visible={showTimePicker}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowTimePicker(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Choose a time</Text>
+                <Pressable onPress={() => setShowTimePicker(false)}>
+                  <Ionicons name="close" size={24} color={COLORS.textMuted} />
+                </Pressable>
               </View>
-
-              {/* Time option buttons around the dial */}
-              {timeData.map((time, index) => {
-                const pos = getDialPosition(index);
-                const isSelected = selectedTime === time.id;
-                const buttonScaleAnim = getScaleAnim(time.id);
-                
-                return (
-                  <Animated.View
-                    key={time.id}
-                    style={[
-                      styles.dialButtonWrapper,
-                      {
-                        transform: [
-                          { translateX: pos.x },
-                          { translateY: pos.y },
-                          { scale: buttonScaleAnim },
-                        ],
-                      },
+              <ScrollView style={styles.timeList} showsVerticalScrollIndicator={false}>
+                {TIME_OPTIONS.map((time) => (
+                  <Pressable
+                    key={time.value}
+                    style={({ pressed }) => [
+                      styles.timeOption,
+                      customTime === time.value && styles.timeOptionSelected,
+                      pressed && styles.timeOptionPressed,
                     ]}
+                    onPress={() => handleCustomTimeSelect(time.value)}
                   >
-                    <Pressable
-                      onPress={() => handleTimeSelect(time.id)}
-                      style={({ pressed }) => pressed && { opacity: 0.9 }}
+                    <Text
+                      style={[
+                        styles.timeOptionText,
+                        customTime === time.value && styles.timeOptionTextSelected,
+                      ]}
                     >
-                      <View style={[
-                        styles.dialButton,
-                        isSelected && styles.dialButtonSelected,
-                      ]}>
-                        <Ionicons
-                          name={time.icon}
-                          size={isSelected ? 26 : 22}
-                          color={isSelected ? "#FFFFFF" : COLORS.primary}
-                        />
-                      </View>
-                      <Text style={[
-                        styles.dialButtonLabel,
-                        isSelected && styles.dialButtonLabelSelected,
-                      ]}>
-                        {time.label}
-                      </Text>
-                    </Pressable>
-                  </Animated.View>
-                );
-              })}
+                      {time.label}
+                    </Text>
+                    {customTime === time.value && (
+                      <Ionicons name="checkmark" size={20} color={COLORS.primary} />
+                    )}
+                  </Pressable>
+                ))}
+              </ScrollView>
             </View>
-          </Animated.View>
+          </View>
+        </Modal>
 
-          {/* Custom time link */}
+        {/* Continue Button */}
+        <View style={styles.footer}>
           <Pressable
             style={({ pressed }) => [
-              styles.customTimeButton,
-              pressed && { opacity: 0.7 },
+              styles.continueButton,
+              pressed && styles.buttonPressed,
             ]}
             onPress={() => {
-              lightHaptic();
-              setShowTimePicker(true);
+              mediumHaptic();
+              onContinue();
             }}
           >
-            <Ionicons name="time-outline" size={18} color={COLORS.textMuted} />
-            <Text style={styles.customTimeText}>Pick a specific time instead</Text>
+            <Text style={styles.continueButtonText}>Continue</Text>
           </Pressable>
-
-          {/* Custom Time Picker Modal */}
-          <Modal
-            visible={showTimePicker}
-            transparent
-            animationType="slide"
-            onRequestClose={() => setShowTimePicker(false)}
-          >
-            <View style={styles.modalOverlay}>
-              <View style={styles.modalContent}>
-                <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>Choose a time</Text>
-                  <Pressable onPress={() => setShowTimePicker(false)}>
-                    <Ionicons name="close" size={24} color={COLORS.textMuted} />
-                  </Pressable>
-                </View>
-                <ScrollView style={styles.timeList} showsVerticalScrollIndicator={false}>
-                  {TIME_OPTIONS.map((time) => (
-                    <Pressable
-                      key={time.value}
-                      style={({ pressed }) => [
-                        styles.timeOption,
-                        customTime === time.value && styles.timeOptionSelected,
-                        pressed && styles.timeOptionPressed,
-                      ]}
-                      onPress={() => handleCustomTimeSelect(time.value)}
-                    >
-                      <Text
-                        style={[
-                          styles.timeOptionText,
-                          customTime === time.value && styles.timeOptionTextSelected,
-                        ]}
-                      >
-                        {time.label}
-                      </Text>
-                      {customTime === time.value && (
-                        <Ionicons name="checkmark" size={20} color={COLORS.primary} />
-                      )}
-                    </Pressable>
-                  ))}
-                </ScrollView>
-              </View>
-            </View>
-          </Modal>
-
-          {/* Continue Button */}
-          <View style={styles.footer}>
-            <Pressable
-              style={({ pressed }) => [
-                styles.continueButton,
-                pressed && styles.buttonPressed,
-              ]}
-              onPress={() => {
-                mediumHaptic();
-                onContinue();
-              }}
-            >
-              <Text style={styles.continueButtonText}>Continue</Text>
-            </Pressable>
-          </View>
         </View>
       </SafeAreaView>
     </View>
@@ -375,13 +242,9 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
-  },
-  content: {
-    flex: 1,
     paddingHorizontal: 24,
     paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 16 : 16,
     paddingBottom: 24,
-    zIndex: 2,
   },
   header: {
     flexDirection: "row",
@@ -396,6 +259,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     alignItems: "center",
     justifyContent: "center",
+    marginLeft: Platform.OS === "ios" ? 12 : 4,
     ...Platform.select({
       ios: {
         shadowColor: "#000",
@@ -430,144 +294,99 @@ const styles = StyleSheet.create({
   },
   titleSection: {
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: 20,
     paddingHorizontal: 16,
   },
   title: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: "700",
     color: COLORS.textDark,
     textAlign: "center",
-    lineHeight: 32,
+    lineHeight: 30,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 15,
     color: COLORS.textMuted,
     textAlign: "center",
-    lineHeight: 22,
   },
-  dialContainer: {
-    flex: 1,
+  timeCardsContainer: {
+    gap: 14,
+    marginBottom: 24,
+    paddingHorizontal: 16,
+  },
+  timeCard: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-  },
-  dialOuter: {
-    width: DIAL_SIZE,
-    height: DIAL_SIZE,
-    borderRadius: DIAL_SIZE / 2,
     backgroundColor: COLORS.surface,
-    alignItems: "center",
-    justifyContent: "center",
-    ...Platform.select({
-      ios: {
-        shadowColor: COLORS.primary,
-        shadowOffset: { width: 0, height: 20 },
-        shadowOpacity: 0.15,
-        shadowRadius: 40,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.5)",
-  },
-  dialInner: {
-    width: DIAL_SIZE - 80,
-    height: DIAL_SIZE - 80,
-    borderRadius: (DIAL_SIZE - 80) / 2,
-    backgroundColor: COLORS.surface,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    borderRadius: 18,
+    padding: 18,
+    borderWidth: 2,
+    borderColor: "transparent",
     ...Platform.select({
       ios: {
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
       },
       android: {
         elevation: 2,
       },
     }),
   },
-  selectedIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+  timeCardSelected: {
+    borderColor: COLORS.primary,
+    backgroundColor: "rgba(116, 159, 130, 0.08)",
+  },
+  timeCardPressed: {
+    opacity: 0.9,
+  },
+  timeIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: COLORS.primaryLight,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 8,
+    marginRight: 16,
   },
-  selectedLabel: {
-    fontSize: 22,
-    fontWeight: "700",
+  timeIconContainerSelected: {
+    backgroundColor: COLORS.primary,
+  },
+  timeCardContent: {
+    flex: 1,
+  },
+  timeCardLabel: {
+    fontSize: 17,
+    fontWeight: "600",
     color: COLORS.textDark,
-    marginBottom: 4,
+    marginBottom: 3,
   },
-  selectedDescription: {
+  timeCardLabelSelected: {
+    color: COLORS.textDark,
+  },
+  timeCardDescription: {
     fontSize: 14,
     color: COLORS.textMuted,
-    fontWeight: "500",
   },
-  dialButtonWrapper: {
-    position: "absolute",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  dialButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: COLORS.surface,
-    alignItems: "center",
-    justifyContent: "center",
+  radioOuter: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     borderWidth: 2,
     borderColor: COLORS.border,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.12,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
+    alignItems: "center",
+    justifyContent: "center",
   },
-  dialButtonSelected: {
+  radioOuterSelected: {
+    borderColor: COLORS.primary,
+  },
+  radioInner: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
     backgroundColor: COLORS.primary,
-    borderColor: COLORS.surface,
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 4,
-    ...Platform.select({
-      ios: {
-        shadowColor: COLORS.primary,
-        shadowOpacity: 0.4,
-        shadowRadius: 16,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
-  },
-  dialButtonLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: COLORS.textMuted,
-    marginTop: 6,
-    textAlign: "center",
-  },
-  dialButtonLabelSelected: {
-    color: COLORS.primary,
-    fontWeight: "700",
   },
   customTimeButton: {
     flexDirection: "row",
@@ -651,51 +470,37 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   footer: {
-    paddingTop: 8,
+    paddingTop: 24,
+    paddingHorizontal: 32,
   },
   continueButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
     backgroundColor: COLORS.primary,
     paddingVertical: 18,
-    borderRadius: 20,
-    alignItems: "center",
+    paddingHorizontal: 32,
+    borderRadius: 999,
     ...Platform.select({
       ios: {
         shadowColor: COLORS.primary,
         shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.3,
+        shadowOpacity: 0.35,
         shadowRadius: 16,
       },
       android: {
-        elevation: 6,
+        elevation: 8,
       },
     }),
   },
   continueButtonText: {
-    fontSize: 18,
-    fontWeight: "700",
+    fontSize: 17,
+    fontWeight: "600",
     color: "#FFFFFF",
   },
   buttonPressed: {
     opacity: 0.9,
     transform: [{ scale: 0.98 }],
-  },
-  bgGlow: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 1,
-  },
-  lightRayContainer: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 1,
-    overflow: 'hidden',
-  },
-  lightRay: {
-    position: 'absolute',
-    top: -200,
-    left: '10%',
-    width: '80%',
-    height: 500,
-    borderRadius: 250,
-    opacity: 1,
-    transform: [{ scaleX: 1.5 }],
   },
 });

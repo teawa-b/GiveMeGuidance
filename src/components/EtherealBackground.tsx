@@ -1,42 +1,45 @@
 import React, { useEffect, useRef } from "react";
-import { View, StyleSheet, Dimensions, Animated, Easing, Image } from "react-native";
+import { View, StyleSheet, Dimensions, Animated, Easing, Image, DimensionValue } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
 const { width, height } = Dimensions.get("window");
+
+// Type for position values
+type PositionValue = DimensionValue | undefined;
 
 // Nature leaf image
 const natureLeafImage = require("../../assets/HomeScreenAssets/nature.png");
 
 // Decorative leaf PNG positions - positioned around edges like the HTML design
-const decorativeLeaves = [
-  { top: "10%", left: -50, size: 150, rotation: -15, opacity: 0.12 },
-  { top: "25%", right: -60, size: 200, rotation: 45, opacity: 0.1 },
-  { bottom: "20%", left: -30, size: 120, rotation: -45, opacity: 0.12 },
-  { bottom: "10%", right: -40, size: 180, rotation: 15, opacity: 0.1 },
+const decorativeLeaves: { top?: PositionValue; bottom?: PositionValue; left?: number; right?: number; size: number; rotation: number; opacity: number }[] = [
+  { top: "10%" as PositionValue, left: -50, size: 150, rotation: -15, opacity: 0.12 },
+  { top: "25%" as PositionValue, right: -60, size: 200, rotation: 45, opacity: 0.1 },
+  { bottom: "20%" as PositionValue, left: -30, size: 120, rotation: -45, opacity: 0.12 },
+  { bottom: "10%" as PositionValue, right: -40, size: 180, rotation: 15, opacity: 0.1 },
 ];
 
 // Floating leaves for depth - enhanced with more variety
-const floatingLeaves = [
-  { top: "10%", left: "15%", size: 60, opacity: 0.25, rotation: 15 },
-  { top: "25%", right: "10%", size: 45, opacity: 0.2, rotation: -30 },
-  { bottom: "35%", left: "5%", size: 55, opacity: 0.22, rotation: 45 },
-  { top: "55%", right: "20%", size: 70, opacity: 0.18, rotation: -15 },
-  { top: "40%", left: "60%", size: 40, opacity: 0.2, rotation: 60 },
-  { bottom: "15%", right: "40%", size: 50, opacity: 0.25, rotation: -45 },
-  { top: "70%", left: "25%", size: 45, opacity: 0.18, rotation: 30 },
-  { bottom: "50%", right: "5%", size: 55, opacity: 0.2, rotation: -60 },
+const floatingLeaves: { top?: PositionValue; bottom?: PositionValue; left?: PositionValue; right?: PositionValue; size: number; opacity: number; rotation: number }[] = [
+  { top: "10%" as PositionValue, left: "15%" as PositionValue, size: 60, opacity: 0.25, rotation: 15 },
+  { top: "25%" as PositionValue, right: "10%" as PositionValue, size: 45, opacity: 0.2, rotation: -30 },
+  { bottom: "35%" as PositionValue, left: "5%" as PositionValue, size: 55, opacity: 0.22, rotation: 45 },
+  { top: "55%" as PositionValue, right: "20%" as PositionValue, size: 70, opacity: 0.18, rotation: -15 },
+  { top: "40%" as PositionValue, left: "60%" as PositionValue, size: 40, opacity: 0.2, rotation: 60 },
+  { bottom: "15%" as PositionValue, right: "40%" as PositionValue, size: 50, opacity: 0.25, rotation: -45 },
+  { top: "70%" as PositionValue, left: "25%" as PositionValue, size: 45, opacity: 0.18, rotation: 30 },
+  { bottom: "50%" as PositionValue, right: "5%" as PositionValue, size: 55, opacity: 0.2, rotation: -60 },
 ];
 
 // Sparkle particles for extra magic - emerald themed
-const sparkles = [
-  { top: "12%", left: "30%", size: 6, delay: 0 },
-  { top: "28%", right: "25%", size: 4, delay: 800 },
-  { top: "45%", left: "70%", size: 5, delay: 400 },
-  { top: "62%", left: "20%", size: 4, delay: 1200 },
-  { top: "75%", right: "35%", size: 6, delay: 600 },
-  { bottom: "20%", left: "45%", size: 5, delay: 1000 },
-  { top: "35%", left: "85%", size: 4, delay: 200 },
-  { bottom: "40%", right: "15%", size: 5, delay: 1400 },
+const sparkles: { top?: PositionValue; bottom?: PositionValue; left?: PositionValue; right?: PositionValue; size: number; delay: number }[] = [
+  { top: "12%" as PositionValue, left: "30%" as PositionValue, size: 6, delay: 0 },
+  { top: "28%" as PositionValue, right: "25%" as PositionValue, size: 4, delay: 800 },
+  { top: "45%" as PositionValue, left: "70%" as PositionValue, size: 5, delay: 400 },
+  { top: "62%" as PositionValue, left: "20%" as PositionValue, size: 4, delay: 1200 },
+  { top: "75%" as PositionValue, right: "35%" as PositionValue, size: 6, delay: 600 },
+  { bottom: "20%" as PositionValue, left: "45%" as PositionValue, size: 5, delay: 1000 },
+  { top: "35%" as PositionValue, left: "85%" as PositionValue, size: 4, delay: 200 },
+  { bottom: "40%" as PositionValue, right: "15%" as PositionValue, size: 5, delay: 1400 },
 ];
 
 // Animated floating leaf component

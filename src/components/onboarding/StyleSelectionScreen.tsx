@@ -7,17 +7,14 @@ import {
   Platform,
   StatusBar,
   Pressable,
-  Switch,
-  Dimensions,
+  ActivityIndicator,
 } from "react-native";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { EtherealBackground } from "../EtherealBackground";
 import { mediumHaptic, lightHaptic } from "../../lib/haptics";
 import { GuidanceStyle } from "../../lib/OnboardingContext";
 
-const { width } = Dimensions.get("window");
 const CARD_GAP = 12;
-const CARD_WIDTH = (width - 48 - CARD_GAP) / 2;
 
 // Colors
 const COLORS = {
@@ -34,9 +31,7 @@ const COLORS = {
 
 interface StyleSelectionScreenProps {
   selectedStyle: GuidanceStyle;
-  prayerPromptEnabled: boolean;
   onStyleSelect: (style: GuidanceStyle) => void;
-  onPrayerToggle: (enabled: boolean) => void;
   onContinue: () => void;
   onBack: () => void;
   isLoading?: boolean;
@@ -70,9 +65,7 @@ const styleOptions: {
 
 export function StyleSelectionScreen({
   selectedStyle,
-  prayerPromptEnabled,
   onStyleSelect,
-  onPrayerToggle,
   onContinue,
   onBack,
   isLoading,
@@ -81,9 +74,8 @@ export function StyleSelectionScreen({
     <View style={styles.container}>
       <EtherealBackground />
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.content}>
-          {/* Header */}
-          <View style={styles.header}>
+        {/* Header */}
+        <View style={styles.header}>
             <Pressable 
               style={({ pressed }) => [styles.backButton, pressed && { opacity: 0.7 }]} 
               onPress={onBack}
@@ -109,7 +101,7 @@ export function StyleSelectionScreen({
           {/* Style Options - Grid Layout */}
           <View style={styles.gridContainer}>
             {/* First Row - Two square cards */}
-            <View style={styles.topRow}>
+            <View style={styles.cardRow}>
               {styleOptions.slice(0, 2).map((option) => {
                 const isSelected = selectedStyle === option.value;
                 return (
@@ -134,7 +126,7 @@ export function StyleSelectionScreen({
                     <View style={[styles.iconBox, isSelected && styles.iconBoxSelected]}>
                       <Ionicons
                         name={option.icon as any}
-                        size={24}
+                        size={22}
                         color={isSelected ? COLORS.primary : COLORS.textLight}
                       />
                     </View>
@@ -151,74 +143,49 @@ export function StyleSelectionScreen({
               })}
             </View>
 
-            {/* Second Row - Full width card */}
-            {(() => {
-              const option = styleOptions[2];
-              const isSelected = selectedStyle === option.value;
-              return (
-                <Pressable
-                  key={option.value}
-                  style={({ pressed }) => [
-                    styles.wideCard,
-                    isSelected && styles.cardSelected,
-                    pressed && styles.cardPressed,
-                  ]}
-                  onPress={() => {
-                    lightHaptic();
-                    onStyleSelect(option.value);
-                  }}
-                >
-                  {/* Icon */}
-                  <View style={[styles.wideIconBox, isSelected && styles.iconBoxSelected]}>
-                    <Ionicons
-                      name={option.icon as any}
-                      size={24}
-                      color={isSelected ? COLORS.primary : COLORS.textLight}
-                    />
-                  </View>
-                  
-                  {/* Text */}
-                  <View style={styles.wideCardContent}>
-                    <Text style={[styles.wideCardTitle, isSelected && styles.cardTitleSelected]}>
+            {/* Second Row - Bible Deep Dive as square card */}
+            <View style={styles.cardRow}>
+              {(() => {
+                const option = styleOptions[2];
+                const isSelected = selectedStyle === option.value;
+                return (
+                  <Pressable
+                    key={option.value}
+                    style={({ pressed }) => [
+                      styles.squareCard,
+                      isSelected && styles.cardSelected,
+                      pressed && styles.cardPressed,
+                    ]}
+                    onPress={() => {
+                      lightHaptic();
+                      onStyleSelect(option.value);
+                    }}
+                  >
+                    {/* Selection indicator */}
+                    <View style={[styles.radioOuter, isSelected && styles.radioOuterSelected]}>
+                      {isSelected && <View style={styles.radioInner} />}
+                    </View>
+                    
+                    {/* Icon */}
+                    <View style={[styles.iconBox, isSelected && styles.iconBoxSelected]}>
+                      <Ionicons
+                        name={option.icon as any}
+                        size={22}
+                        color={isSelected ? COLORS.primary : COLORS.textLight}
+                      />
+                    </View>
+                    
+                    {/* Text */}
+                    <Text style={[styles.cardTitle, isSelected && styles.cardTitleSelected]}>
                       {option.title}
                     </Text>
-                    <Text style={[styles.wideCardDescription, isSelected && styles.cardDescriptionSelected]}>
+                    <Text style={[styles.cardDescription, isSelected && styles.cardDescriptionSelected]}>
                       {option.description}
                     </Text>
-                  </View>
-                  
-                  {/* Selection indicator */}
-                  <View style={[styles.wideRadioOuter, isSelected && styles.radioOuterSelected]}>
-                    {isSelected && <View style={styles.radioInner} />}
-                  </View>
-                </Pressable>
-              );
-            })()}
-          </View>
-
-          {/* Prayer Prompt Toggle */}
-          <View style={styles.toggleCard}>
-            <View style={styles.toggleLeft}>
-              <View style={styles.toggleIcon}>
-                <MaterialCommunityIcons name="hands-pray" size={20} color={COLORS.primary} />
-              </View>
-              <View style={styles.toggleTextContainer}>
-                <Text style={styles.toggleTitle}>Include a prayer prompt</Text>
-                <Text style={styles.toggleDescription}>
-                  Start or end with a short prayer
-                </Text>
-              </View>
+                  </Pressable>
+                );
+              })()}
             </View>
-            <Switch
-              value={prayerPromptEnabled}
-              onValueChange={(value) => {
-                lightHaptic();
-                onPrayerToggle(value);
-              }}
-              trackColor={{ false: "#E5E7EB", true: "rgba(116, 159, 130, 0.4)" }}
-              thumbColor={prayerPromptEnabled ? COLORS.primary : "#FFFFFF"}
-              ios_backgroundColor="#E5E7EB"
-            />
           </View>
 
           {/* Continue Button */}
@@ -237,17 +204,16 @@ export function StyleSelectionScreen({
             >
               {isLoading ? (
                 <View style={styles.loadingContainer}>
-                  <MaterialCommunityIcons name="loading" size={20} color="#ffffff" />
-                  <Text style={styles.continueButtonText}>Generating your guidance...</Text>
+                  <ActivityIndicator size="small" color="#ffffff" />
+                  <Text style={styles.continueButtonText}>Generating...</Text>
                 </View>
               ) : (
                 <>
                   <Text style={styles.continueButtonText}>Generate today's guidance</Text>
-                  <MaterialCommunityIcons name="creation" size={20} color="#ffffff" />
+                  <Ionicons name="sparkles" size={18} color="#ffffff" />
                 </>
               )}
             </Pressable>
-          </View>
         </View>
       </SafeAreaView>
     </View>
@@ -260,9 +226,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#fafafa",
   },
   safeArea: {
-    flex: 1,
-  },
-  content: {
     flex: 1,
     paddingHorizontal: 24,
     paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 16 : 16,
@@ -281,6 +244,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     alignItems: "center",
     justifyContent: "center",
+    marginLeft: Platform.OS === "ios" ? 12 : 4,
     ...Platform.select({
       ios: {
         shadowColor: "#000",
@@ -316,70 +280,54 @@ const styles = StyleSheet.create({
   },
   titleSection: {
     alignItems: "center",
-    marginBottom: 28,
+    marginBottom: 20,
+    paddingHorizontal: 16,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: "700",
     color: COLORS.textDark,
     textAlign: "center",
+    lineHeight: 30,
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 15,
     color: COLORS.textMuted,
     textAlign: "center",
   },
   gridContainer: {
     gap: CARD_GAP,
     marginBottom: 20,
+    paddingHorizontal: 16,
   },
-  topRow: {
+  cardRow: {
     flexDirection: "row",
     gap: CARD_GAP,
+    justifyContent: "center",
   },
   squareCard: {
-    width: CARD_WIDTH,
-    backgroundColor: COLORS.surface,
-    borderRadius: 24,
-    padding: 20,
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "transparent",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
-  },
-  wideCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: COLORS.surface,
-    borderRadius: 24,
-    padding: 20,
-    borderWidth: 2,
-    borderColor: "transparent",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
-  },
-  wideCardContent: {
     flex: 1,
+    maxWidth: 180,
+    minHeight: 160,
+    backgroundColor: COLORS.surface,
+    borderRadius: 20,
+    padding: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "transparent",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
   },
   cardSelected: {
     backgroundColor: COLORS.primaryLight,
@@ -390,38 +338,23 @@ const styles = StyleSheet.create({
     opacity: 0.9,
   },
   iconBox: {
-    width: 48,
-    height: 48,
+    width: 52,
+    height: 52,
     borderRadius: 16,
     backgroundColor: COLORS.iconBg,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 16,
-  },
-  wideIconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: COLORS.iconBg,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 16,
+    marginBottom: 14,
   },
   iconBoxSelected: {
     backgroundColor: "rgba(255, 255, 255, 0.7)",
   },
   cardTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: "700",
     color: COLORS.textDark,
     marginBottom: 6,
     textAlign: "center",
-  },
-  wideCardTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: COLORS.textDark,
-    marginBottom: 4,
   },
   cardTitleSelected: {
     color: COLORS.textDark,
@@ -430,11 +363,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.textMuted,
     textAlign: "center",
-    lineHeight: 18,
-  },
-  wideCardDescription: {
-    fontSize: 13,
-    color: COLORS.textMuted,
     lineHeight: 18,
   },
   cardDescriptionSelected: {
@@ -453,17 +381,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: COLORS.surface,
   },
-  wideRadioOuter: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: COLORS.border,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: COLORS.surface,
-    marginLeft: 12,
-  },
   radioOuterSelected: {
     borderColor: COLORS.primary,
   },
@@ -473,57 +390,9 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: COLORS.primary,
   },
-  toggleCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    backgroundColor: COLORS.surface,
-    borderRadius: 20,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
-  },
-  toggleLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
-  toggleIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.primaryLight,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 14,
-  },
-  toggleTextContainer: {
-    flex: 1,
-  },
-  toggleTitle: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: COLORS.textDark,
-    marginBottom: 2,
-  },
-  toggleDescription: {
-    fontSize: 13,
-    color: COLORS.textMuted,
-  },
   footer: {
-    flex: 1,
-    justifyContent: "flex-end",
-    paddingTop: 16,
+    paddingTop: 24,
+    paddingHorizontal: 32,
   },
   continueButton: {
     flexDirection: "row",
@@ -532,16 +401,17 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: COLORS.primary,
     paddingVertical: 18,
-    borderRadius: 16,
+    paddingHorizontal: 32,
+    borderRadius: 999,
     ...Platform.select({
       ios: {
         shadowColor: COLORS.primary,
         shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.3,
+        shadowOpacity: 0.35,
         shadowRadius: 16,
       },
       android: {
-        elevation: 6,
+        elevation: 8,
       },
     }),
   },

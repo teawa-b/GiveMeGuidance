@@ -136,3 +136,36 @@ export async function chatApi(
   const data = await response.json();
   return data.content;
 }
+
+interface DailyWalkRequest {
+  verseText: string;
+  verseReference: string;
+  userGoals: string;
+  style: string;
+}
+
+interface DailyWalkResponse {
+  reflection: string;
+  step: string;
+  prayer: string;
+}
+
+/**
+ * Generate daily walk content (reflection, short step, and prayer) for onboarding
+ */
+export async function generateDailyWalkApi(request: DailyWalkRequest): Promise<DailyWalkResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/dailywalk`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || "Failed to generate daily walk");
+  }
+
+  return response.json();
+}

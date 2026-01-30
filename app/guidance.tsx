@@ -13,7 +13,6 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import ViewShot from "react-native-view-shot";
 import * as Sharing from "expo-sharing";
 import { ShareableVerseCard } from "../src/components/ShareableVerseCard";
 import { getGuidance, getExplanation, type VerseData, type ExplanationData } from "../src/services/guidance";
@@ -31,6 +30,15 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { successHaptic, mediumHaptic, lightHaptic } from "../src/lib/haptics";
 import { playGuidanceLoadedSound } from "../src/lib/sounds";
 import { EtherealBackground } from "../src/components/EtherealBackground";
+import { useOnboarding, goalDisplayNames, styleDisplayNames } from "../src/lib/OnboardingContext";
+
+// Conditionally import ViewShot - it may not be available in dev builds
+let ViewShot: any = null;
+try {
+  ViewShot = require("react-native-view-shot").default;
+} catch (e) {
+  console.warn("react-native-view-shot not available:", e);
+}
 
 export default function GuidanceScreen() {
   const params = useLocalSearchParams<{
@@ -44,8 +52,44 @@ export default function GuidanceScreen() {
   const { q: query } = params;
   const router = useRouter();
   
+  // Get onboarding preferences
+  const { data: onboardingData } = useOnboarding();
+  
   // Get cache invalidation function
   const { invalidateBookmarks } = useDataCache();
+
+  // Build enhanced query with user preferences
+  const buildEnhancedQuery = useCallback((baseQuery: string): string => {
+    // If user has set goals, incorporate them into the query
+    const goals = onboardingData.goalCategories;
+    const style = onboardingData.preferredStyle;
+    
+    // If no goals set, just return the base query
+    if (!goals || goals.length === 0) {
+      return baseQuery;
+    }
+
+    // Build goal context
+    const goalDescriptions = goals.map(g => goalDisplayNames[g]).join(" and ");
+    
+    // Build style context
+    let styleContext = "";
+    if (style === "gentle") {
+      styleContext = "Please provide warm, supportive, and encouraging guidance.";
+    } else if (style === "direct") {
+      styleContext = "Please be clear, focused, and actionable.";
+    } else if (style === "deep") {
+      styleContext = "Please provide rich biblical context and scripture study.";
+    }
+
+    // For "daily guidance" queries, personalize based on goals
+    if (baseQuery.toLowerCase().includes("daily guidance") || baseQuery.toLowerCase().includes("today")) {
+      return `I'm seeking guidance today. My spiritual focus is on: ${goalDescriptions}. ${styleContext} ${baseQuery}`;
+    }
+    
+    // For other queries, add context about their goals
+    return `${baseQuery}. (Context: I'm working on ${goalDescriptions}. ${styleContext})`;
+  }, [onboardingData.goalCategories, onboardingData.preferredStyle]);
 
   // Check if we have restored data from a saved chat
   const restoredVerseData: VerseData | null = params.verseText && params.verseReference
@@ -75,7 +119,7 @@ export default function GuidanceScreen() {
   const [isBookmarking, setIsBookmarking] = useState(false);
   const [showSharePreview, setShowSharePreview] = useState(false);
   const [isCapturingImage, setIsCapturingImage] = useState(false);
-  const viewShotRef = useRef<ViewShot>(null);
+  const viewShotRef = useRef<any>(null);
 
   const normalizeSecondPerson = (text: string) => {
     return text
@@ -146,7 +190,11 @@ export default function GuidanceScreen() {
   };
 
   const handleCaptureAndShare = async () => {
-    if (!viewShotRef.current?.capture) return;
+    if (!ViewShot || !viewShotRef.current?.capture) {
+      console.warn("ViewShot not available for sharing");
+      setShowSharePreview(false);
+      return;
+    }
     
     setIsCapturingImage(true);
     try {
@@ -272,7 +320,9 @@ export default function GuidanceScreen() {
       setBookmarked(false);
 
       try {
-        const data = await getGuidance(searchQuery);
+        // Enhance the query with user's onboarding preferences
+        const enhancedQuery = buildEnhancedQuery(searchQuery);
+        const data = await getGuidance(enhancedQuery);
         setVerseData(data);
         
         // Play sound when guidance loads
@@ -286,7 +336,7 @@ export default function GuidanceScreen() {
         setIsLoadingVerse(false);
       }
     },
-    [fetchExplanation]
+    [fetchExplanation, buildEnhancedQuery]
   );
 
   useEffect(() => {
@@ -621,16 +671,25 @@ export default function GuidanceScreen() {
             <Text style={styles.modalTitle}>Share Verse</Text>
             <Text style={styles.modalSubtitle}>Preview your shareable image</Text>
             
-            <ViewShot
-              ref={viewShotRef}
-              options={{ format: "png", quality: 1 }}
-              style={styles.viewShotContainer}
-            >
-              <ShareableVerseCard
-                verseText={verseData?.text || ""}
-                verseReference={verseData?.reference.passage || ""}
-              />
-            </ViewShot>
+            {ViewShot ? (
+              <ViewShot
+                ref={viewShotRef}
+                options={{ format: "png", quality: 1 }}
+                style={styles.viewShotContainer}
+              >
+                <ShareableVerseCard
+                  verseText={verseData?.text || ""}
+                  verseReference={verseData?.reference.passage || ""}
+                />
+              </ViewShot>
+            ) : (
+              <View style={styles.viewShotContainer}>
+                <ShareableVerseCard
+                  verseText={verseData?.text || ""}
+                  verseReference={verseData?.reference.passage || ""}
+                />
+              </View>
+            )}
             
             <View style={styles.modalActions}>
               <Pressable

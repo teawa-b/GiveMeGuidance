@@ -86,13 +86,12 @@ export function LoginScreen({ onBack, onAuthenticated, onEmailPress }: LoginScre
     <View style={styles.container}>
       <EtherealBackground />
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.content}>
-          {/* Back button */}
-          {onBack && (
-            <Pressable style={styles.backButton} onPress={onBack}>
-              <Ionicons name="arrow-back" size={24} color="#6b7280" />
-            </Pressable>
-          )}
+        {/* Back button */}
+        {onBack && (
+          <Pressable style={styles.backButton} onPress={onBack}>
+            <Ionicons name="arrow-back" size={24} color="#6b7280" />
+          </Pressable>
+        )}
 
           {/* Logo & Header */}
           <View style={styles.header}>
@@ -194,7 +193,6 @@ export function LoginScreen({ onBack, onAuthenticated, onEmailPress }: LoginScre
               Your guidance is private. We don't share your personal entries.
             </Text>
           </View>
-        </View>
       </SafeAreaView>
     </View>
   );
@@ -206,9 +204,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#fafafa",
   },
   safeArea: {
-    flex: 1,
-  },
-  content: {
     flex: 1,
     paddingHorizontal: 24,
     paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 12 : 12,

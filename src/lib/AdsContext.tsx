@@ -2,10 +2,17 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { Platform, InteractionManager } from "react-native";
 import Constants from "expo-constants";
 
-// Only import tracking transparency on native platforms
-const requestTrackingPermissionsAsync = Platform.OS !== "web" 
-  ? require("expo-tracking-transparency").requestTrackingPermissionsAsync 
-  : async () => ({ status: "denied" });
+// Only import tracking transparency on native platforms with error handling
+let requestTrackingPermissionsAsync = async () => ({ status: "denied" as const });
+
+if (Platform.OS !== "web") {
+  try {
+    const trackingModule = require("expo-tracking-transparency");
+    requestTrackingPermissionsAsync = trackingModule.requestTrackingPermissionsAsync;
+  } catch (e) {
+    console.warn("expo-tracking-transparency not available:", e);
+  }
+}
 
 // Check if running in Expo Go (where native modules aren't available)
 const isExpoGo = Constants.appOwnership === "expo";

@@ -117,9 +117,8 @@ export function SaveJourneyScreen({
     <View style={styles.container}>
       <EtherealBackground />
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.content}>
-          {/* Top Section */}
-          <View style={styles.topSection}>
+        {/* Top Section */}
+        <View style={styles.topSection}>
             {/* Icon */}
             <View style={styles.iconContainer}>
               <Ionicons name="bookmark" size={32} color={COLORS.primary} />
@@ -236,7 +235,6 @@ export function SaveJourneyScreen({
               <Text style={styles.skipButtonText}>Not now</Text>
             </Pressable>
           </View>
-        </View>
       </SafeAreaView>
     </View>
   );
@@ -248,9 +246,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#fafafa",
   },
   safeArea: {
-    flex: 1,
-  },
-  content: {
     flex: 1,
     paddingHorizontal: 24,
     paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 32 : 32,

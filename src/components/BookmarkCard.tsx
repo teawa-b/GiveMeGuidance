@@ -3,9 +3,16 @@ import { View, Text, StyleSheet, Pressable, Platform, Modal } from "react-native
 import { Ionicons } from "@expo/vector-icons";
 import { errorHaptic, lightHaptic, successHaptic } from "../lib/haptics";
 import { ShareableVerseCard } from "./ShareableVerseCard";
-import ViewShot from "react-native-view-shot";
 import * as Sharing from "expo-sharing";
 import * as FileSystem from "expo-file-system";
+
+// Conditionally import ViewShot - it may not be available in dev builds
+let ViewShot: any = null;
+try {
+  ViewShot = require("react-native-view-shot").default;
+} catch (e) {
+  console.warn("react-native-view-shot not available:", e);
+}
 
 interface BookmarkCardProps {
   verseText: string;
@@ -24,7 +31,7 @@ export function BookmarkCard({
   onOpenVerse,
   onChat,
 }: BookmarkCardProps) {
-  const viewShotRef = useRef<ViewShot>(null);
+  const viewShotRef = useRef<any>(null);
   const [showSharePreview, setShowSharePreview] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
 
@@ -40,7 +47,11 @@ export function BookmarkCard({
   };
 
   const handleCaptureAndShare = async () => {
-    if (!viewShotRef.current?.capture) return;
+    if (!ViewShot || !viewShotRef.current?.capture) {
+      console.warn("ViewShot not available for sharing");
+      setShowSharePreview(false);
+      return;
+    }
     
     setIsSharing(true);
     try {
@@ -140,16 +151,25 @@ export function BookmarkCard({
             <Text style={styles.modalTitle}>Share Verse</Text>
             <Text style={styles.modalSubtitle}>Preview your shareable image</Text>
             
-            <ViewShot
-              ref={viewShotRef}
-              options={{ format: "png", quality: 1 }}
-              style={styles.viewShotContainer}
-            >
-              <ShareableVerseCard
-                verseText={verseText}
-                verseReference={verseReference}
-              />
-            </ViewShot>
+            {ViewShot ? (
+              <ViewShot
+                ref={viewShotRef}
+                options={{ format: "png", quality: 1 }}
+                style={styles.viewShotContainer}
+              >
+                <ShareableVerseCard
+                  verseText={verseText}
+                  verseReference={verseReference}
+                />
+              </ViewShot>
+            ) : (
+              <View style={styles.viewShotContainer}>
+                <ShareableVerseCard
+                  verseText={verseText}
+                  verseReference={verseReference}
+                />
+              </View>
+            )}
             
             <View style={styles.modalActions}>
               <Pressable

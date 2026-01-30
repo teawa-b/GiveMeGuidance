@@ -1,4 +1,4 @@
-package com.yourname.givemeguidance
+package com.shroozy.givemeguidance
 
 import android.os.Build
 import android.os.Bundle

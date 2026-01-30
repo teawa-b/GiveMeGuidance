@@ -7,7 +7,12 @@ import {
   SpiritualGoal,
   TimeOfDay,
   GuidanceStyle,
+  goalDisplayNames,
+  styleDisplayNames,
 } from "../../src/lib/OnboardingContext";
+import { getGuidance } from "../../src/services/guidance";
+import { generateDailyWalkApi } from "../../src/services/api";
+import { supabase } from "../../src/lib/supabase";
 import {
   GoalSelectionScreen,
   TimeSelectionScreen,
@@ -32,17 +37,6 @@ type OnboardingStep =
   | "save_journey_email"
   | "notifications"
   | "progress";
-
-// Sample daily walk data - in production this would come from the API
-const SAMPLE_DAILY_WALK: DailyWalkData = {
-  verse: "Be still, and know that I am God",
-  reference: "Psalm 46:10",
-  reflection:
-    "In the chaos of life, God invites us to pause and trust His presence. This isn't passive waiting—it's an active choice to release our grip on control and acknowledge that He is sovereign. When anxiety rises or plans fall apart, stillness becomes our anchor. Today, let this verse remind you that peace isn't found in having all the answers, but in knowing the One who does.",
-  step: "Set a 2-minute timer. Close your eyes, breathe deeply, and simply say 'You are God, I am not.' Repeat until the timer ends.",
-  prayerPrompt:
-    "Lord, help me release my need for control today. In the moments I feel anxious, remind me to be still and trust You. Amen.",
-};
 
 export default function OnboardingScreen() {
   const router = useRouter();
@@ -78,22 +72,103 @@ export default function OnboardingScreen() {
     updateData({ preferredStyle: style });
   };
 
-  // Handle prayer toggle
-  const handlePrayerToggle = (enabled: boolean) => {
-    updateData({ prayerPromptEnabled: enabled });
+  // Save preferences to Supabase
+  const savePreferencesToSupabase = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase
+          .from("user_preferences")
+          .upsert({
+            user_id: user.id,
+            goal_categories: data.goalCategories,
+            preferred_time_of_day: data.preferredTimeOfDay,
+            custom_time: data.customTime || null,
+            preferred_style: data.preferredStyle,
+            prayer_prompt_enabled: data.prayerPromptEnabled,
+            notification_enabled: data.notificationEnabled,
+            activation_completed: false,
+            onboarding_completed: false,
+          }, { onConflict: "user_id" });
+      }
+    } catch (error) {
+      console.error("[Onboarding] Failed to save preferences:", error);
+    }
   };
 
-  // Generate daily walk (in production, call API)
+  // Build personalized query based on user preferences
+  const buildPersonalizedQuery = (): string => {
+    const goals = data.goalCategories;
+    const style = data.preferredStyle;
+    
+    // Build goal context
+    const goalDescriptions = goals.map(g => goalDisplayNames[g]).join(" and ");
+    
+    // Build style context
+    let styleContext = "";
+    if (style === "gentle") {
+      styleContext = "Please provide warm, supportive, and encouraging guidance.";
+    } else if (style === "direct") {
+      styleContext = "Please be clear, focused, and actionable.";
+    } else if (style === "deep") {
+      styleContext = "Please provide rich biblical context and scripture study.";
+    }
+
+    return `I'm seeking guidance today. My spiritual focus is on: ${goalDescriptions}. ${styleContext}`;
+  };
+
+  // Generate daily walk using real API
   const handleGenerateGuidance = async () => {
     setIsGenerating(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    // In production, call the API with user preferences
-    setDailyWalkData(SAMPLE_DAILY_WALK);
-    setIsGenerating(false);
-    setStep("daily_walk");
+    try {
+      // Save preferences to Supabase first
+      await savePreferencesToSupabase();
+      
+      // Build personalized query
+      const query = buildPersonalizedQuery();
+      const goals = data.goalCategories;
+      const goalDescriptions = goals.map(g => goalDisplayNames[g]).join(" and ");
+      
+      // Get style description
+      let styleDesc = "warm and encouraging";
+      if (data.preferredStyle === "direct") {
+        styleDesc = "clear and actionable";
+      } else if (data.preferredStyle === "deep") {
+        styleDesc = "rich with biblical context";
+      }
+      
+      // Get verse from API
+      const verseData = await getGuidance(query);
+      
+      // Get daily walk content (reflection, short step, prayer) from API
+      const dailyWalk = await generateDailyWalkApi({
+        verseText: verseData.text,
+        verseReference: verseData.reference.passage,
+        userGoals: goalDescriptions,
+        style: styleDesc,
+      });
+      
+      // Transform to DailyWalkData format
+      setDailyWalkData({
+        verse: verseData.text,
+        reference: verseData.reference.passage,
+        reflection: dailyWalk.reflection,
+        step: dailyWalk.step,
+        prayerPrompt: dailyWalk.prayer,
+      });
+      
+      setStep("daily_walk");
+    } catch (error) {
+      console.error("[Onboarding] Failed to generate guidance:", error);
+      Alert.alert(
+        "Something went wrong",
+        "We couldn't generate your guidance. Please try again.",
+        [{ text: "OK" }]
+      );
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   // Handle step completion
@@ -238,9 +313,7 @@ export default function OnboardingScreen() {
         return (
           <StyleSelectionScreen
             selectedStyle={data.preferredStyle}
-            prayerPromptEnabled={data.prayerPromptEnabled}
             onStyleSelect={handleStyleSelect}
-            onPrayerToggle={handlePrayerToggle}
             onContinue={handleGenerateGuidance}
             onBack={() => setStep("time")}
             isLoading={isGenerating}
