@@ -167,6 +167,12 @@ export default function HomeScreen() {
   };
 
   const getUserInitials = () => {
+    // Priority: display name from user_metadata (Google: name or full_name, Apple: full_name)
+    const displayName = user?.user_metadata?.name || user?.user_metadata?.full_name;
+    if (displayName && typeof displayName === 'string' && displayName.trim().length > 0) {
+      return displayName.trim().charAt(0).toUpperCase();
+    }
+    // Fallback to email
     if (user?.email) {
       return user.email.charAt(0).toUpperCase();
     }
