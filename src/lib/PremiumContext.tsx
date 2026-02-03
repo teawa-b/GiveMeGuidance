@@ -11,13 +11,11 @@ import Purchases, {
 import RevenueCatUI, { PAYWALL_RESULT } from "react-native-purchases-ui";
 import { useAuth } from "./AuthContext";
 
-// ⚠️ REVENUECAT TEMPORARILY DISABLED
-// Set to true once you have the production iOS API key (starts with appl_)
-// Get from RevenueCat Dashboard > Your App > API Keys > Public iOS API key
-const REVENUECAT_ENABLED = false;
+// RevenueCat Configuration
+const REVENUECAT_ENABLED = true;
 
-// RevenueCat API Key - Replace with your production key when ready
-const REVENUECAT_API_KEY = "appl_YOUR_PRODUCTION_KEY_HERE"; // TODO: Replace with your actual production key
+// RevenueCat API Key - iOS Production Key
+const REVENUECAT_API_KEY = "appl_oMUDcCcIwqrFRrMtjpJDpHWnDyL";
 
 // Entitlement identifier - must match what's configured in RevenueCat dashboard
 const ENTITLEMENT_ID = "Support Guidance";

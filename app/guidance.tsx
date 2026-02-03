@@ -26,6 +26,7 @@ import {
   getDaysOfGuidance,
 } from "../src/services/dailyGuidance";
 import { NativeAdLoading } from "../src/components/NativeAdLoading";
+import { BannerAdComponent } from "../src/components/BannerAdComponent";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { successHaptic, mediumHaptic, lightHaptic } from "../src/lib/haptics";
 import { playGuidanceLoadedSound } from "../src/lib/sounds";
@@ -584,13 +585,28 @@ export default function GuidanceScreen() {
 
             <Pressable
               style={({ pressed }) => [
-                styles.reflectButton,
-                pressed && styles.reflectButtonPressed,
+                styles.chatMoreButton,
+                pressed && styles.chatMoreButtonPressed,
               ]}
               onPress={handleChatMore}
             >
-              <Text style={styles.reflectButtonText}>Chat more about this verse...</Text>
-              <Ionicons name="chatbubble-ellipses-outline" size={20} color="#10b981" />
+              <LinearGradient
+                colors={["#10b981", "#059669"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.chatMoreGradient}
+              >
+                <View style={styles.chatMoreContent}>
+                  <View style={styles.chatMoreIconContainer}>
+                    <Ionicons name="chatbubbles" size={22} color="#ffffff" />
+                  </View>
+                  <View style={styles.chatMoreTextContainer}>
+                    <Text style={styles.chatMoreTitle}>Continue the Conversation</Text>
+                    <Text style={styles.chatMoreSubtitle}>Chat with your AI guide about this verse</Text>
+                  </View>
+                  <Ionicons name="arrow-forward-circle" size={28} color="rgba(255,255,255,0.9)" />
+                </View>
+              </LinearGradient>
             </Pressable>
           </View>
         )}
@@ -607,6 +623,9 @@ export default function GuidanceScreen() {
           <Ionicons name="refresh" size={18} color="#10b981" />
           <Text style={styles.anotherVerseText}>Give me another verse</Text>
         </Pressable>
+
+        {/* Banner Ad */}
+        <BannerAdComponent style={styles.bannerAd} />
       </ScrollView>
 
       {/* Footer Actions */}
@@ -1014,6 +1033,50 @@ const styles = StyleSheet.create({
     color: "#065f46",
     fontStyle: "italic",
   },
+  chatMoreButton: {
+    borderRadius: 20,
+    marginTop: 8,
+    shadowColor: "#10b981",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  chatMoreButtonPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.98 }],
+  },
+  chatMoreGradient: {
+    borderRadius: 20,
+    padding: 16,
+  },
+  chatMoreContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  chatMoreIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  chatMoreTextContainer: {
+    flex: 1,
+  },
+  chatMoreTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#ffffff",
+    marginBottom: 2,
+  },
+  chatMoreSubtitle: {
+    fontSize: 13,
+    color: "rgba(255, 255, 255, 0.85)",
+    fontWeight: "500",
+  },
   anotherVerseButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -1033,6 +1096,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "500",
     color: "#10b981",
+  },
+  bannerAd: {
+    width: "100%",
+    borderRadius: 12,
+    overflow: "hidden",
+    marginTop: 16,
   },
   footer: {
     position: "absolute",

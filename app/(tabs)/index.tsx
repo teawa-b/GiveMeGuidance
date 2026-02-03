@@ -290,6 +290,8 @@ export default function HomeScreen() {
             </View>
           </View>
 
+          <BannerAdComponent style={styles.bannerAd} />
+
           <Pressable
             style={({ pressed }) => [
               styles.savedCard,
@@ -310,8 +312,6 @@ export default function HomeScreen() {
             </View>
             <Ionicons name="chevron-forward" size={22} color="#9ca3af" />
           </Pressable>
-
-          <BannerAdComponent style={styles.bannerAd} />
         </ScrollView>
       </SafeAreaView>
 

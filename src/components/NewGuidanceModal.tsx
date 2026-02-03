@@ -13,7 +13,6 @@ import {
 import { useRouter } from "expo-router";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { EtherealBackground } from "./EtherealBackground";
-import { BannerAdComponent } from "./BannerAdComponent";
 import { usePremium } from "../lib/PremiumContext";
 import { useAds } from "../lib/AdsContext";
 import { mediumHaptic, lightHaptic } from "../lib/haptics";
@@ -157,9 +156,6 @@ export function NewGuidanceModal({ visible, onClose }: NewGuidanceModalProps) {
                 </Pressable>
               ))}
             </View>
-
-            {/* Banner Ad */}
-            <BannerAdComponent style={styles.bannerAd} />
 
             {/* Glass card with input */}
             <View style={styles.glassCard}>
@@ -402,12 +398,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#ffffff",
-  },
-  bannerAd: {
-    width: "100%",
-    maxWidth: 380,
-    marginBottom: 20,
-    borderRadius: 12,
-    overflow: "hidden",
   },
 });
