@@ -1,32 +1,22 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   Platform,
-  StatusBar,
   Pressable,
+  Animated,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { EtherealBackground } from "../EtherealBackground";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { mediumHaptic, lightHaptic } from "../../lib/haptics";
 import { GuidanceStyle } from "../../lib/OnboardingContext";
+import { MascotBird } from "./MascotBird";
+import { WarmBackground } from "./WarmBackground";
+import { OB_COLORS, cardShadow, buttonShadow, softShadow } from "./theme";
+import { LinearGradient } from "expo-linear-gradient";
 
 const CARD_GAP = 12;
-
-// Colors
-const COLORS = {
-  primary: "#749F82",
-  primaryDark: "#5C8268",
-  primaryLight: "rgba(116, 159, 130, 0.12)",
-  surface: "#FFFFFF",
-  textDark: "#1F2937",
-  textMuted: "#6B7280",
-  textLight: "#9CA3B8",
-  border: "#E5E7EB",
-  iconBg: "#F3F4F6",
-};
 
 interface StyleSelectionScreenProps {
   selectedStyle: GuidanceStyle;
@@ -35,30 +25,16 @@ interface StyleSelectionScreenProps {
   onBack: () => void;
 }
 
-const styleOptions: { 
-  value: GuidanceStyle; 
-  icon: string; 
+const styleOptions: {
+  value: GuidanceStyle;
+  icon: string;
+  color: string;
   title: string;
   description: string;
 }[] = [
-  {
-    value: "gentle",
-    icon: "heart",
-    title: "Gentle",
-    description: "Warm, supportive, and encouraging tone",
-  },
-  {
-    value: "direct",
-    icon: "flash",
-    title: "Direct",
-    description: "Clear, focused, and actionable",
-  },
-  {
-    value: "deep",
-    icon: "book",
-    title: "Bible Deep Dive",
-    description: "Rich context and scripture study",
-  },
+  { value: "gentle", icon: "heart-outline", color: "#D4A843", title: "Gentle", description: "Warm, supportive, and encouraging tone" },
+  { value: "direct", icon: "flash-outline", color: "#E8963E", title: "Direct", description: "Clear, focused, and actionable" },
+  { value: "deep", icon: "library-outline", color: "#5B8C5A", title: "Bible Deep Dive", description: "Rich context and scripture study" },
 ];
 
 export function StyleSelectionScreen({
@@ -67,347 +43,230 @@ export function StyleSelectionScreen({
   onContinue,
   onBack,
 }: StyleSelectionScreenProps) {
+  const insets = useSafeAreaInsets();
+
+  const isWeb = Platform.OS === "web";
+  const cardAnims = useRef(styleOptions.map(() => new Animated.Value(isWeb ? 1 : 0))).current;
+  const cardSlides = useRef(styleOptions.map(() => new Animated.Value(isWeb ? 0 : 24))).current;
+
+  useEffect(() => {
+    if (isWeb) return;
+    styleOptions.forEach((_, i) => {
+      Animated.parallel([
+        Animated.timing(cardAnims[i], { toValue: 1, duration: 400, delay: 400 + i * 100, useNativeDriver: true }),
+        Animated.spring(cardSlides[i], { toValue: 0, tension: 60, friction: 9, delay: 400 + i * 100, useNativeDriver: true }),
+      ]).start();
+    });
+  }, []);
+
   return (
     <View style={styles.container}>
-      <EtherealBackground />
-      <SafeAreaView style={styles.safeArea}>
-        {/* Header */}
+      <WarmBackground />
+      <SafeAreaView
+        style={[
+          styles.safeArea,
+          {
+            paddingTop: insets.top + 8,
+            paddingBottom: Math.max(insets.bottom, 16) + 8,
+          },
+        ]}
+      >
         <View style={styles.header}>
-            <Pressable 
-              style={({ pressed }) => [styles.backButton, pressed && { opacity: 0.7 }]} 
-              onPress={onBack}
-            >
-              <Ionicons name="arrow-back" size={22} color={COLORS.textMuted} />
-            </Pressable>
-            <View style={styles.progressContainer}>
-              <View style={[styles.progressDot, styles.progressDotCompleted]} />
-              <View style={[styles.progressDot, styles.progressDotCompleted]} />
-              <View style={[styles.progressDot, styles.progressDotActive]} />
-            </View>
-            <View style={styles.placeholder} />
-          </View>
+          <Pressable style={({ pressed }) => [styles.backButton, pressed && { opacity: 0.7 }]} onPress={onBack}>
+            <Ionicons name="arrow-back" size={22} color={OB_COLORS.textMuted} />
+          </Pressable>
+          <ProgressSteps current={2} />
+          <View style={styles.placeholder} />
+        </View>
 
-          {/* Title */}
-          <View style={styles.titleSection}>
-            <Text style={styles.title}>How should it feel?</Text>
-            <Text style={styles.subtitle}>
-              Choose the style that resonates with you
-            </Text>
-          </View>
+        <View style={styles.mascotRow}>
+          <MascotBird pose="pointing-up" size="small" animate delay={100} />
+        </View>
 
-          {/* Style Options - Grid Layout */}
-          <View style={styles.gridContainer}>
-            {/* First Row - Two square cards */}
-            <View style={styles.cardRow}>
-              {styleOptions.slice(0, 2).map((option) => {
-                const isSelected = selectedStyle === option.value;
-                return (
+        <View style={styles.titleSection}>
+          <Text style={styles.title}>How should it feel?</Text>
+          <Text style={styles.subtitle}>Choose the style that resonates with you</Text>
+        </View>
+
+        <View style={styles.gridContainer}>
+          <View style={styles.cardRow}>
+            {styleOptions.slice(0, 2).map((option, i) => {
+              const isSelected = selectedStyle === option.value;
+              return (
+                <Animated.View key={option.value} style={[styles.cardWrapper, { opacity: cardAnims[i], transform: [{ translateY: cardSlides[i] }] }]}>
                   <Pressable
-                    key={option.value}
-                    style={({ pressed }) => [
-                      styles.squareCard,
-                      isSelected && styles.cardSelected,
-                      pressed && styles.cardPressed,
-                    ]}
+                    style={({ pressed }) => [styles.squareCard, isSelected && styles.cardSelected, pressed && styles.cardPressed]}
                     onPress={() => {
                       lightHaptic();
                       onStyleSelect(option.value);
                     }}
                   >
-                    {/* Selection indicator */}
                     <View style={[styles.radioOuter, isSelected && styles.radioOuterSelected]}>
                       {isSelected && <View style={styles.radioInner} />}
                     </View>
-                    
-                    {/* Icon */}
-                    <View style={[styles.iconBox, isSelected && styles.iconBoxSelected]}>
-                      <Ionicons
-                        name={option.icon as any}
-                        size={22}
-                        color={isSelected ? COLORS.primary : COLORS.textLight}
-                      />
+                    <View style={[styles.cardIconWrap, { backgroundColor: `${option.color}15` }]}>
+                      <Ionicons name={option.icon as any} size={28} color={isSelected ? OB_COLORS.primaryDark : option.color} />
                     </View>
-                    
-                    {/* Text */}
-                    <Text style={[styles.cardTitle, isSelected && styles.cardTitleSelected]}>
-                      {option.title}
-                    </Text>
-                    <Text style={[styles.cardDescription, isSelected && styles.cardDescriptionSelected]}>
-                      {option.description}
-                    </Text>
+                    <Text style={[styles.cardTitle, isSelected && styles.cardTitleSelected]}>{option.title}</Text>
+                    <Text style={[styles.cardDescription, isSelected && styles.cardDescriptionSelected]}>{option.description}</Text>
                   </Pressable>
-                );
-              })}
-            </View>
+                </Animated.View>
+              );
+            })}
+          </View>
 
-            {/* Second Row - Bible Deep Dive as square card */}
-            <View style={styles.cardRow}>
-              {(() => {
-                const option = styleOptions[2];
-                const isSelected = selectedStyle === option.value;
-                return (
+          <View style={styles.cardRow}>
+            {(() => {
+              const option = styleOptions[2];
+              const isSelected = selectedStyle === option.value;
+              return (
+                <Animated.View key={option.value} style={[styles.cardWrapper, { opacity: cardAnims[2], transform: [{ translateY: cardSlides[2] }] }]}>
                   <Pressable
-                    key={option.value}
-                    style={({ pressed }) => [
-                      styles.squareCard,
-                      isSelected && styles.cardSelected,
-                      pressed && styles.cardPressed,
-                    ]}
+                    style={({ pressed }) => [styles.squareCard, isSelected && styles.cardSelected, pressed && styles.cardPressed]}
                     onPress={() => {
                       lightHaptic();
                       onStyleSelect(option.value);
                     }}
                   >
-                    {/* Selection indicator */}
                     <View style={[styles.radioOuter, isSelected && styles.radioOuterSelected]}>
                       {isSelected && <View style={styles.radioInner} />}
                     </View>
-                    
-                    {/* Icon */}
-                    <View style={[styles.iconBox, isSelected && styles.iconBoxSelected]}>
-                      <Ionicons
-                        name={option.icon as any}
-                        size={22}
-                        color={isSelected ? COLORS.primary : COLORS.textLight}
-                      />
+                    <View style={[styles.cardIconWrap, { backgroundColor: `${option.color}15` }]}>
+                      <Ionicons name={option.icon as any} size={28} color={isSelected ? OB_COLORS.primaryDark : option.color} />
                     </View>
-                    
-                    {/* Text */}
-                    <Text style={[styles.cardTitle, isSelected && styles.cardTitleSelected]}>
-                      {option.title}
-                    </Text>
-                    <Text style={[styles.cardDescription, isSelected && styles.cardDescriptionSelected]}>
-                      {option.description}
-                    </Text>
+                    <Text style={[styles.cardTitle, isSelected && styles.cardTitleSelected]}>{option.title}</Text>
+                    <Text style={[styles.cardDescription, isSelected && styles.cardDescriptionSelected]}>{option.description}</Text>
                   </Pressable>
-                );
-              })()}
-            </View>
+                </Animated.View>
+              );
+            })()}
           </View>
+        </View>
 
-          {/* Continue Button */}
-          <View style={styles.footer}>
-            <Pressable
-              style={({ pressed }) => [
-                styles.continueButton,
-                pressed && styles.buttonPressed,
-              ]}
-              onPress={() => {
-                mediumHaptic();
-                onContinue();
-              }}
+        <View style={styles.footer}>
+          <Pressable
+            style={({ pressed }) => [styles.continueButton, pressed && styles.buttonPressed]}
+            onPress={() => {
+              mediumHaptic();
+              onContinue();
+            }}
+          >
+            <LinearGradient
+              colors={["#5B8C5A", "#4A7A49"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.continueGradient}
             >
               <Text style={styles.continueButtonText}>Generate today's guidance</Text>
-              <Ionicons name="sparkles" size={18} color="#ffffff" />
-            </Pressable>
+              <Ionicons name="arrow-forward" size={18} color="#ffffff" />
+            </LinearGradient>
+          </Pressable>
         </View>
       </SafeAreaView>
     </View>
   );
 }
 
+function ProgressSteps({ current }: { current: number }) {
+  return (
+    <View style={styles.progressContainer}>
+      {[0, 1, 2].map((i) => (
+        <View key={i} style={[styles.progressDot, i === current && styles.progressDotActive, i < current && styles.progressDotCompleted]} />
+      ))}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fafafa",
-  },
+  container: { flex: 1, backgroundColor: OB_COLORS.cream },
   safeArea: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 16 : 16,
-    paddingBottom: 24,
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 16,
-  },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.surface,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: OB_COLORS.surface,
     alignItems: "center",
     justifyContent: "center",
-    marginLeft: Platform.OS === "ios" ? 12 : 4,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+    ...softShadow,
   },
-  progressContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  progressDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "rgba(116, 159, 130, 0.3)",
-  },
-  progressDotActive: {
-    width: 24,
-    backgroundColor: COLORS.primary,
-  },
-  progressDotCompleted: {
-    backgroundColor: COLORS.primary,
-  },
-  placeholder: {
-    width: 40,
-  },
-  titleSection: {
-    alignItems: "center",
-    marginBottom: 20,
-    paddingHorizontal: 16,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: COLORS.textDark,
-    textAlign: "center",
-    lineHeight: 30,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 15,
-    color: COLORS.textMuted,
-    textAlign: "center",
-  },
-  gridContainer: {
-    gap: CARD_GAP,
-    marginBottom: 20,
-    paddingHorizontal: 16,
-  },
-  cardRow: {
-    flexDirection: "row",
-    gap: CARD_GAP,
-    justifyContent: "center",
-  },
+  progressContainer: { flexDirection: "row", alignItems: "center", gap: 6 },
+  progressDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: OB_COLORS.disabled },
+  progressDotActive: { width: 28, borderRadius: 4, backgroundColor: OB_COLORS.primary },
+  progressDotCompleted: { backgroundColor: OB_COLORS.primary },
+  placeholder: { width: 42 },
+
+  mascotRow: { alignItems: "center", marginBottom: 2 },
+
+  titleSection: { alignItems: "center", marginBottom: 14, paddingHorizontal: 16 },
+  title: { fontSize: 24, fontWeight: "800", color: OB_COLORS.textDark, textAlign: "center", lineHeight: 30, letterSpacing: -0.4, marginBottom: 6 },
+  subtitle: { fontSize: 14, color: OB_COLORS.textMuted, textAlign: "center" },
+
+  gridContainer: { gap: CARD_GAP, marginBottom: 12, paddingHorizontal: 12 },
+  cardRow: { flexDirection: "row", gap: CARD_GAP, justifyContent: "center" },
+  cardWrapper: { flex: 1, maxWidth: 180 },
+
   squareCard: {
-    flex: 1,
-    maxWidth: 180,
     minHeight: 160,
-    backgroundColor: COLORS.surface,
-    borderRadius: 20,
-    padding: 20,
+    backgroundColor: OB_COLORS.surface,
+    borderRadius: 22,
+    padding: 18,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
     borderColor: "transparent",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
+    position: "relative",
+    ...cardShadow,
   },
-  cardSelected: {
-    backgroundColor: COLORS.primaryLight,
-    borderColor: COLORS.primary,
-  },
-  cardPressed: {
-    transform: [{ scale: 0.98 }],
-    opacity: 0.9,
-  },
-  iconBox: {
+  cardSelected: { backgroundColor: OB_COLORS.primaryLight, borderColor: OB_COLORS.primary },
+  cardPressed: { transform: [{ scale: 0.97 }], opacity: 0.9 },
+  cardIconWrap: {
     width: 52,
     height: 52,
     borderRadius: 16,
-    backgroundColor: COLORS.iconBg,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 14,
+    marginBottom: 10,
   },
-  iconBoxSelected: {
-    backgroundColor: "rgba(255, 255, 255, 0.7)",
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: COLORS.textDark,
-    marginBottom: 6,
-    textAlign: "center",
-  },
-  cardTitleSelected: {
-    color: COLORS.textDark,
-  },
-  cardDescription: {
-    fontSize: 13,
-    color: COLORS.textMuted,
-    textAlign: "center",
-    lineHeight: 18,
-  },
-  cardDescriptionSelected: {
-    color: COLORS.textMuted,
-  },
+  cardTitle: { fontSize: 16, fontWeight: "800", color: OB_COLORS.textDark, marginBottom: 6, textAlign: "center" },
+  cardTitleSelected: { color: OB_COLORS.primaryDark },
+  cardDescription: { fontSize: 12, color: OB_COLORS.textMuted, textAlign: "center", lineHeight: 17 },
+  cardDescriptionSelected: { color: OB_COLORS.textBody },
+
   radioOuter: {
     position: "absolute",
-    top: 16,
-    right: 16,
+    top: 14,
+    right: 14,
     width: 20,
     height: 20,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: COLORS.border,
+    borderColor: OB_COLORS.border,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: COLORS.surface,
+    backgroundColor: OB_COLORS.surface,
   },
-  radioOuterSelected: {
-    borderColor: COLORS.primary,
-  },
-  radioInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: COLORS.primary,
-  },
-  footer: {
-    paddingTop: 24,
-    paddingHorizontal: 32,
-  },
+  radioOuterSelected: { borderColor: OB_COLORS.primary },
+  radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: OB_COLORS.primary },
+
+  footer: { paddingTop: 12, paddingHorizontal: 20 },
   continueButton: {
+    borderRadius: 18,
+    overflow: "hidden",
+    ...buttonShadow,
+  },
+  continueGradient: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    backgroundColor: COLORS.primary,
-    paddingVertical: 18,
+    gap: 10,
+    paddingVertical: 16,
     paddingHorizontal: 32,
-    borderRadius: 999,
-    ...Platform.select({
-      ios: {
-        shadowColor: COLORS.primary,
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.35,
-        shadowRadius: 16,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
+    borderRadius: 18,
   },
-  continueButtonText: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: "#ffffff",
-  },
-  buttonPressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.98 }],
-  },
+  continueButtonText: { fontSize: 17, fontWeight: "700", color: "#ffffff" },
+  buttonPressed: { opacity: 0.9, transform: [{ scale: 0.97 }] },
 });

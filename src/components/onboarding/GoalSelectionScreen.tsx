@@ -1,32 +1,29 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   Platform,
-  StatusBar,
   Pressable,
+  Animated,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { EtherealBackground } from "../EtherealBackground";
+import {
+  BookOpen,
+  Compass,
+  HandHeart,
+  HeartPulse,
+  ShieldCheck,
+  Sunrise,
+  type LucideIcon,
+} from "lucide-react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { mediumHaptic, lightHaptic } from "../../lib/haptics";
 import { SpiritualGoal } from "../../lib/OnboardingContext";
-
-const CARD_GAP = 12;
-
-// Colors
-const COLORS = {
-  primary: "#7BA07B",
-  primaryLight: "rgba(123, 160, 123, 0.12)",
-  primaryBorder: "rgba(123, 160, 123, 0.5)",
-  surface: "#FFFFFF",
-  textDark: "#1F2937",
-  textMuted: "#6B7280",
-  textLight: "#9CA3AF",
-  border: "#F3F4F6",
-  disabled: "#E5E7EB",
-};
+import { MascotBird } from "./MascotBird";
+import { WarmBackground } from "./WarmBackground";
+import { OB_COLORS, cardShadow, buttonShadow } from "./theme";
+import { LinearGradient } from "expo-linear-gradient";
 
 interface GoalSelectionScreenProps {
   selectedGoals: SpiritualGoal[];
@@ -35,14 +32,13 @@ interface GoalSelectionScreenProps {
   onBack: () => void;
 }
 
-// Updated goals with better labels matching the design
-const goalData: { id: SpiritualGoal; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { id: "prayer", label: "Build a daily prayer habit", icon: "time-outline" },
-  { id: "bible", label: "Understand the Bible better", icon: "book-outline" },
-  { id: "peace", label: "Find peace and reduce anxiety", icon: "leaf-outline" },
-  { id: "discipline", label: "Beat temptation & grow discipline", icon: "shield-checkmark-outline" },
-  { id: "healing", label: "Healing and forgiveness", icon: "heart-outline" },
-  { id: "purpose", label: "Purpose and direction", icon: "compass-outline" },
+const goalData: { id: SpiritualGoal; label: string; icon: LucideIcon; color: string }[] = [
+  { id: "prayer", label: "Build a daily prayer habit", icon: HandHeart, color: "#D4A843" },
+  { id: "bible", label: "Understand the Bible better", icon: BookOpen, color: "#5B8C5A" },
+  { id: "peace", label: "Find peace and reduce anxiety", icon: Sunrise, color: "#6BA3BE" },
+  { id: "discipline", label: "Beat temptation & grow discipline", icon: ShieldCheck, color: "#8B6BAE" },
+  { id: "healing", label: "Healing and forgiveness", icon: HeartPulse, color: "#D4756A" },
+  { id: "purpose", label: "Purpose and direction", icon: Compass, color: "#7C6B4F" },
 ];
 
 export function GoalSelectionScreen({
@@ -52,41 +48,63 @@ export function GoalSelectionScreen({
   onBack,
 }: GoalSelectionScreenProps) {
   const canContinue = selectedGoals.length >= 1;
+  const insets = useSafeAreaInsets();
+
+  const isWeb = Platform.OS === "web";
+  const cardAnims = useRef(goalData.map(() => new Animated.Value(isWeb ? 1 : 0))).current;
+  const cardSlides = useRef(goalData.map(() => new Animated.Value(isWeb ? 0 : 30))).current;
+
+  useEffect(() => {
+    if (isWeb) return;
+    const staggered = goalData.map((_, i) =>
+      Animated.parallel([
+        Animated.timing(cardAnims[i], { toValue: 1, duration: 400, delay: 400 + i * 80, useNativeDriver: true }),
+        Animated.spring(cardSlides[i], { toValue: 0, tension: 60, friction: 8, delay: 400 + i * 80, useNativeDriver: true }),
+      ])
+    );
+    Animated.parallel(staggered).start();
+  }, []);
 
   return (
     <View style={styles.container}>
-      <EtherealBackground />
-      <SafeAreaView style={styles.safeArea}>
-        {/* Header */}
+      <WarmBackground />
+      <SafeAreaView
+        style={[
+          styles.safeArea,
+          {
+            paddingTop: insets.top + 8,
+            paddingBottom: Math.max(insets.bottom, 16) + 8,
+          },
+        ]}
+      >
         <View style={styles.header}>
-          <Pressable 
-            style={({ pressed }) => [
-              styles.backButton,
-              pressed && { opacity: 0.7 }
-            ]} 
+          <Pressable
+            style={({ pressed }) => [styles.backButton, pressed && { opacity: 0.7 }]}
             onPress={onBack}
           >
-            <Ionicons name="arrow-back" size={22} color={COLORS.textMuted} />
+            <Ionicons name="arrow-back" size={22} color={OB_COLORS.textMuted} />
           </Pressable>
-          <View style={styles.progressContainer}>
-            <View style={[styles.progressDot, styles.progressDotActive]} />
-            <View style={styles.progressDot} />
-            <View style={styles.progressDot} />
-          </View>
+          <ProgressSteps current={0} />
           <View style={styles.placeholder} />
         </View>
 
-        {/* Title */}
+        <View style={styles.mascotRow}>
+          <MascotBird pose="pointing-up" size="small" animate delay={100} style={{ marginRight: -12 }} />
+          <View style={styles.speechBubble}>
+            <Text style={styles.speechText}>What's on your heart?</Text>
+            <View style={styles.speechTail} />
+          </View>
+        </View>
+
         <View style={styles.titleSection}>
-          <Text style={styles.title}>What do you want help with right now?</Text>
+          <Text style={styles.title}>What do you want{"\n"}help with right now?</Text>
           <Text style={styles.subtitle}>Select 1 or 2 that resonate most</Text>
         </View>
 
-        {/* Goals Grid */}
         <View style={styles.goalsGrid}>
           <View style={styles.gridRow}>
-            {goalData.slice(0, 2).map((goal) => (
-              <GoalCard
+            {goalData.slice(0, 2).map((goal, i) => (
+              <AnimatedGoalCard
                 key={goal.id}
                 goal={goal}
                 isSelected={selectedGoals.includes(goal.id)}
@@ -97,12 +115,14 @@ export function GoalSelectionScreen({
                     onGoalToggle(goal.id);
                   }
                 }}
+                animOpacity={cardAnims[i]}
+                animSlide={cardSlides[i]}
               />
             ))}
           </View>
           <View style={styles.gridRow}>
-            {goalData.slice(2, 4).map((goal) => (
-              <GoalCard
+            {goalData.slice(2, 4).map((goal, i) => (
+              <AnimatedGoalCard
                 key={goal.id}
                 goal={goal}
                 isSelected={selectedGoals.includes(goal.id)}
@@ -113,12 +133,14 @@ export function GoalSelectionScreen({
                     onGoalToggle(goal.id);
                   }
                 }}
+                animOpacity={cardAnims[i + 2]}
+                animSlide={cardSlides[i + 2]}
               />
             ))}
           </View>
           <View style={styles.gridRow}>
-            {goalData.slice(4, 6).map((goal) => (
-              <GoalCard
+            {goalData.slice(4, 6).map((goal, i) => (
+              <AnimatedGoalCard
                 key={goal.id}
                 goal={goal}
                 isSelected={selectedGoals.includes(goal.id)}
@@ -129,12 +151,13 @@ export function GoalSelectionScreen({
                     onGoalToggle(goal.id);
                   }
                 }}
+                animOpacity={cardAnims[i + 4]}
+                animSlide={cardSlides[i + 4]}
               />
             ))}
           </View>
         </View>
 
-        {/* Continue Button */}
         <View style={styles.footer}>
           <Pressable
             style={({ pressed }) => [
@@ -150,14 +173,21 @@ export function GoalSelectionScreen({
             }}
             disabled={!canContinue}
           >
-            <Text
-              style={[
-                styles.continueButtonText,
-                !canContinue && styles.continueButtonTextDisabled,
-              ]}
-            >
-              Continue
-            </Text>
+            {canContinue ? (
+              <LinearGradient
+                colors={["#5B8C5A", "#4A7A49"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.continueGradient}
+              >
+                <Text style={styles.continueButtonText}>Continue</Text>
+                <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+              </LinearGradient>
+            ) : (
+              <View style={styles.continueGradient}>
+                <Text style={styles.continueButtonTextDisabled}>Continue</Text>
+              </View>
+            )}
           </Pressable>
         </View>
       </SafeAreaView>
@@ -165,240 +195,221 @@ export function GoalSelectionScreen({
   );
 }
 
-// Goal Card Component
-function GoalCard({
+function ProgressSteps({ current }: { current: number }) {
+  return (
+    <View style={styles.progressContainer}>
+      {[0, 1, 2].map((i) => (
+        <View
+          key={i}
+          style={[
+            styles.progressDot,
+            i === current && styles.progressDotActive,
+            i < current && styles.progressDotCompleted,
+          ]}
+        />
+      ))}
+    </View>
+  );
+}
+
+function AnimatedGoalCard({
   goal,
   isSelected,
   isDisabled,
   onPress,
+  animOpacity,
+  animSlide,
 }: {
-  goal: { id: SpiritualGoal; label: string; icon: keyof typeof Ionicons.glyphMap };
+  goal: (typeof goalData)[0];
   isSelected: boolean;
   isDisabled: boolean;
   onPress: () => void;
+  animOpacity: Animated.Value;
+  animSlide: Animated.Value;
 }) {
+  const Icon = goal.icon;
+
   return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.goalCard,
-        isSelected && styles.goalCardSelected,
-        isDisabled && styles.goalCardDisabled,
-        pressed && !isDisabled && styles.goalCardPressed,
-      ]}
-      onPress={onPress}
-      disabled={isDisabled}
-    >
-      <View
-        style={[
-          styles.iconContainer,
-          isSelected && styles.iconContainerSelected,
+    <Animated.View style={{ opacity: animOpacity, transform: [{ translateY: animSlide }] }}>
+      <Pressable
+        style={({ pressed }) => [
+          styles.goalCard,
+          isSelected && styles.goalCardSelected,
+          isDisabled && styles.goalCardDisabled,
+          pressed && !isDisabled && styles.goalCardPressed,
         ]}
+        onPress={onPress}
+        disabled={isDisabled}
       >
-        <Ionicons
-          name={goal.icon}
-          size={20}
-          color={isSelected ? "#FFFFFF" : COLORS.primary}
-        />
-      </View>
-      <Text
-        style={[
-          styles.goalLabel,
-          isSelected && styles.goalLabelSelected,
-          isDisabled && styles.goalLabelDisabled,
-        ]}
-      >
-        {goal.label}
-      </Text>
-    </Pressable>
+        <View style={[styles.goalIconWrap, { backgroundColor: `${goal.color}15` }]}> 
+          <Icon
+            size={24}
+            color={isSelected ? OB_COLORS.primaryDark : goal.color}
+            strokeWidth={2.25}
+          />
+        </View>
+        <Text style={[styles.goalLabel, isSelected && styles.goalLabelSelected, isDisabled && styles.goalLabelDisabled]}>
+          {goal.label}
+        </Text>
+        {isSelected && (
+          <View style={styles.selectedBadge}>
+            <Ionicons name="checkmark" size={12} color="#fff" />
+          </View>
+        )}
+      </Pressable>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F2F7F4",
-  },
+  container: { flex: 1, backgroundColor: OB_COLORS.cream },
   safeArea: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 16 : 16,
-    paddingBottom: 24,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 16,
+    marginBottom: 6,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.surface,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: OB_COLORS.surface,
     alignItems: "center",
     justifyContent: "center",
-    marginLeft: Platform.OS === "ios" ? 12 : 4,
     ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
+      ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 4 },
+      android: { elevation: 2 },
     }),
   },
-  progressContainer: {
+  progressContainer: { flexDirection: "row", alignItems: "center", gap: 6 },
+  progressDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: OB_COLORS.disabled },
+  progressDotActive: { width: 28, borderRadius: 4, backgroundColor: OB_COLORS.primary },
+  progressDotCompleted: { backgroundColor: OB_COLORS.primary },
+  placeholder: { width: 42 },
+
+  mascotRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    justifyContent: "center",
+    gap: 8,
+    marginBottom: 4,
   },
-  progressDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#D1D5DB",
+  speechBubble: {
+    backgroundColor: OB_COLORS.surface,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: OB_COLORS.primaryLight,
+    position: "relative",
+    ...Platform.select({
+      ios: { shadowColor: OB_COLORS.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 6 },
+      android: { elevation: 2 },
+    }),
   },
-  progressDotActive: {
-    backgroundColor: COLORS.primary,
-    width: 24,
-    height: 6,
-    borderRadius: 3,
+  speechText: { fontSize: 13, fontWeight: "600", color: OB_COLORS.primary },
+  speechTail: {
+    position: "absolute",
+    left: -6,
+    top: "50%",
+    marginTop: -4,
+    width: 0,
+    height: 0,
+    borderTopWidth: 5,
+    borderBottomWidth: 5,
+    borderRightWidth: 6,
+    borderTopColor: "transparent",
+    borderBottomColor: "transparent",
+    borderRightColor: OB_COLORS.primaryLight,
   },
-  placeholder: {
-    width: 40,
-  },
-  titleSection: {
-    alignItems: "center",
-    marginBottom: 20,
-    paddingHorizontal: 16,
-  },
+
+  titleSection: { alignItems: "center", marginBottom: 12, paddingHorizontal: 16 },
   title: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: COLORS.textDark,
+    fontSize: 23,
+    fontWeight: "800",
+    color: OB_COLORS.textDark,
     textAlign: "center",
     lineHeight: 30,
-    marginBottom: 8,
+    letterSpacing: -0.4,
+    marginBottom: 6,
   },
-  subtitle: {
-    fontSize: 15,
-    color: COLORS.textMuted,
-    textAlign: "center",
-  },
-  goalsGrid: {
-    paddingTop: 4,
-    paddingBottom: 12,
-  },
-  gridRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: CARD_GAP,
-    marginBottom: CARD_GAP,
-  },
+  subtitle: { fontSize: 14, color: OB_COLORS.textMuted, textAlign: "center" },
+
+  goalsGrid: { paddingTop: 4, paddingBottom: 8 },
+  gridRow: { flexDirection: "row", justifyContent: "center", gap: 12, marginBottom: 12 },
+
   goalCard: {
-    width: 135,
-    height: 125,
-    backgroundColor: COLORS.surface,
-    borderRadius: 16,
+    width: 140,
+    height: 120,
+    backgroundColor: OB_COLORS.surface,
+    borderRadius: 20,
     padding: 12,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
     borderColor: "transparent",
-    ...Platform.select({
-      ios: {
-        shadowColor: COLORS.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 3,
-      },
-      web: {
-        boxShadow: "0 4px 12px rgba(123, 160, 123, 0.08)",
-      },
-    }),
+    position: "relative",
+    ...cardShadow,
   },
   goalCardSelected: {
-    borderColor: COLORS.primary,
-    backgroundColor: "#F0FDF4",
+    borderColor: OB_COLORS.primary,
+    backgroundColor: OB_COLORS.primaryLight,
   },
-  goalCardDisabled: {
-    opacity: 0.5,
-  },
-  goalCardPressed: {
-    transform: [{ scale: 0.97 }],
-    borderColor: COLORS.primaryBorder,
-  },
-  iconContainer: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: COLORS.primaryLight,
+  goalCardDisabled: { opacity: 0.4 },
+  goalCardPressed: { transform: [{ scale: 0.96 }] },
+  goalIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 8,
-  },
-  iconContainerSelected: {
-    backgroundColor: COLORS.primary,
+    marginBottom: 6,
   },
   goalLabel: {
     fontSize: 12,
-    fontWeight: "600",
-    color: COLORS.textDark,
+    fontWeight: "700",
+    color: OB_COLORS.textDark,
     textAlign: "center",
     lineHeight: 16,
   },
-  goalLabelSelected: {
-    color: COLORS.textDark,
+  goalLabelSelected: { color: OB_COLORS.primaryDark },
+  goalLabelDisabled: { color: OB_COLORS.textLight },
+  selectedBadge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: OB_COLORS.primary,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  goalLabelDisabled: {
-    color: COLORS.textLight,
-  },
-  footer: {
-    paddingTop: 24,
-    paddingHorizontal: 32,
-  },
+
+  footer: { paddingTop: 10, paddingHorizontal: 24 },
   continueButton: {
+    borderRadius: 18,
+    overflow: "hidden",
+    ...buttonShadow,
+  },
+  continueGradient: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    backgroundColor: COLORS.primary,
-    paddingVertical: 18,
-    paddingHorizontal: 32,
-    borderRadius: 999,
-    ...Platform.select({
-      ios: {
-        shadowColor: COLORS.primary,
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.35,
-        shadowRadius: 16,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
+    gap: 10,
+    paddingVertical: 16,
+    paddingHorizontal: 30,
+    borderRadius: 18,
   },
   continueButtonDisabled: {
-    backgroundColor: COLORS.disabled,
-    shadowOpacity: 0,
-    elevation: 0,
+    backgroundColor: OB_COLORS.disabled,
+    ...Platform.select({ ios: { shadowOpacity: 0 }, android: { elevation: 0 } }),
   },
-  continueButtonText: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: "#FFFFFF",
-  },
-  continueButtonTextDisabled: {
-    color: COLORS.textLight,
-  },
-  buttonPressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.98 }],
-  },
+  continueButtonText: { fontSize: 17, fontWeight: "700", color: "#FFFFFF" },
+  continueButtonTextDisabled: { color: OB_COLORS.textLight, fontSize: 17, fontWeight: "700" },
+  buttonPressed: { opacity: 0.9, transform: [{ scale: 0.97 }] },
 });

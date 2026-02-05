@@ -1,0 +1,69 @@
+{
+  "app_name": "Give Me Guidance",
+  "subtitle": "Daily Spiritual Wisdom & Insight",
+  "promotional_text": "Discover personalized spiritual guidance for your journey. Get daily wisdom, chat with your spiritual companion, and save meaningful insights along the way.",
+  "description": "Give Me Guidance is your personal spiritual companion, offering daily wisdom and guidance tailored to your unique journey.\n\n🌟 DAILY SPIRITUAL GUIDANCE\nReceive personalized spiritual insights each day. Our guidance draws from timeless wisdom traditions to help you navigate life's challenges and celebrate its joys.\n\n💬 SPIRITUAL COMPANION\nChat with an understanding companion that listens without judgment. Ask questions about life, relationships, purpose, and spirituality. Get thoughtful, compassionate responses that resonate with your soul.\n\n📚 SAVE YOUR INSIGHTS\nBookmark meaningful guidance that speaks to you. Build your personal collection of wisdom to revisit whenever you need inspiration or comfort.\n\n✨ FEATURES\n• Personalized daily spiritual guidance\n• Chat for deep, meaningful conversations\n• Bookmark and organize your favorite insights\n• Beautiful, calming ethereal design\n• Dark mode support\n• Streak tracking for daily practice\n\n🔒 PRIVACY FOCUSED\nYour spiritual journey is personal. We respect your privacy and keep your conversations secure.\n\n💎 PREMIUM FEATURES\nUnlock unlimited guidance, ad-free experience, and exclusive features with our premium subscription.\n\nWhether you're seeking clarity, peace, or direction, Give Me Guidance is here to support your spiritual growth every step of the way.\n\nDownload now and begin your journey to inner wisdom.",
+  "keywords": "spiritual,guidance,meditation,wisdom,insight,chat,daily,mindfulness,inspiration,self-help",
+  "whats_new": "• Improved AI guidance responses\n• Enhanced chat experience\n• Performance improvements\n• Bug fixes",
+  "support_url": "https://givemeguidance.app/support",
+  "privacy_policy_url": "https://givemeguidance.app/privacy",
+  "marketing_url": "https://givemeguidance.app",
+  "copyright": "© 2026 Shroozy",
+  "primary_category": "Lifestyle",
+  "secondary_category": "Health & Fitness",
+  "age_rating": "4+",
+  "price_tier": "Free",
+  "in_app_purchases": true,
+  "branding": {
+    "primary_color": "#10b981",
+    "secondary_color": "#059669",
+    "background_gradient": ["#10b981", "#047857"],
+    "accent_color": "#34d399",
+    "text_light": "#ffffff",
+    "text_dark": "#064e3b"
+  },
+  "screenshots": {
+    "iphone_67": {
+      "dimensions": "1290x2796",
+      "required": true,
+      "suggested_screens": [
+        "home_guidance",
+        "chat_conversation", 
+        "bookmarks_list",
+        "profile_settings",
+        "premium_features"
+      ]
+    },
+    "iphone_65": {
+      "dimensions": "1242x2688",
+      "required": true,
+      "suggested_screens": [
+        "home_guidance",
+        "chat_conversation",
+        "bookmarks_list",
+        "profile_settings",
+        "premium_features"
+      ]
+    },
+    "iphone_55": {
+      "dimensions": "1242x2208",
+      "required": true,
+      "suggested_screens": [
+        "home_guidance",
+        "chat_conversation",
+        "bookmarks_list",
+        "profile_settings",
+        "premium_features"
+      ]
+    },
+    "ipad_129": {
+      "dimensions": "2048x2732",
+      "required": false,
+      "suggested_screens": [
+        "home_guidance",
+        "chat_conversation",
+        "bookmarks_list"
+      ]
+    }
+  }
+}

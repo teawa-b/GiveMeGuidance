@@ -129,9 +129,8 @@ export function AdsProvider({ children }: { children: ReactNode }) {
         });
       });
 
-      // Add a delay to ensure the app is fully initialized
-      // This helps prevent crashes during rapid startup
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Small delay to ensure the app is fully initialized
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       try {
         // Request App Tracking Transparency permission on iOS
@@ -142,9 +141,11 @@ export function AdsProvider({ children }: { children: ReactNode }) {
         }
 
         // Try to import and initialize the ads SDK
+        console.log("[Ads] Importing Google Mobile Ads SDK...");
         const adsModuleImport = require("react-native-google-mobile-ads");
         const mobileAds = adsModuleImport.default;
         
+        console.log("[Ads] Configuring request settings...");
         // Configure request settings before initialization
         await mobileAds().setRequestConfiguration({
           // Set to true for apps directed at children
@@ -153,8 +154,10 @@ export function AdsProvider({ children }: { children: ReactNode }) {
           tagForUnderAgeOfConsent: false,
         });
         
-        await mobileAds().initialize();
+        console.log("[Ads] Initializing Google Mobile Ads SDK...");
+        const initStatus = await mobileAds().initialize();
         console.log("[Ads] Google Mobile Ads initialized successfully");
+        console.log("[Ads] Adapter statuses:", JSON.stringify(initStatus));
         setAdsModule(adsModuleImport);
         setIsAdsInitialized(true);
       } catch (error) {

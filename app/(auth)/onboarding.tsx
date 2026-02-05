@@ -23,9 +23,9 @@ import {
   ProgressScreen,
   LoginScreen,
   DailyWalkData,
+  WarmBackground,
 } from "../../src/components/onboarding";
 import { EmailAuthForm } from "../../src/components/EmailAuthForm";
-import { EtherealBackground } from "../../src/components/EtherealBackground";
 import { NativeAdLoading } from "../../src/components/NativeAdLoading";
 import { SafeAreaView } from "react-native";
 
@@ -328,7 +328,7 @@ export default function OnboardingScreen() {
       case "loading":
         return (
           <View style={styles.loadingContainer}>
-            <EtherealBackground />
+            <WarmBackground />
             <NativeAdLoading
               isVisible={true}
               loadingMessage="Finding the perfect verse for you..."
@@ -358,7 +358,7 @@ export default function OnboardingScreen() {
       case "save_journey_email":
         return (
           <View style={styles.container}>
-            <EtherealBackground />
+            <WarmBackground />
             <SafeAreaView style={styles.safeArea}>
               <View style={styles.content}>
                 <EmailAuthForm
@@ -410,7 +410,7 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fafafa",
+    backgroundColor: "#FFF8F0",
   },
   safeArea: {
     flex: 1,
@@ -423,7 +423,7 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: "#fafafa",
+    backgroundColor: "#FFF8F0",
     justifyContent: "center",
     alignItems: "center",
   },

@@ -8,11 +8,13 @@ import {
   StatusBar,
   Pressable,
   ScrollView,
-  Animated,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { EtherealBackground } from "../EtherealBackground";
 import { mediumHaptic, successHaptic, lightHaptic } from "../../lib/haptics";
+import { MascotBird } from "./MascotBird";
+import { WarmBackground } from "./WarmBackground";
+import { OB_COLORS, cardShadow, buttonShadow } from "./theme";
+import { LinearGradient } from "expo-linear-gradient";
 
 export interface DailyWalkData {
   verse: string;
@@ -44,8 +46,6 @@ export function DailyWalkScreen({
     successHaptic();
     setStepCompleted(true);
     setShowReward(true);
-    
-    // Hide reward after 2 seconds and proceed
     setTimeout(() => {
       setShowReward(false);
       onMarkDone();
@@ -54,129 +54,114 @@ export function DailyWalkScreen({
 
   return (
     <View style={styles.container}>
-      <EtherealBackground />
+      <WarmBackground />
       <SafeAreaView style={styles.safeArea}>
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Header */}
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {/* Header with bird */}
           <View style={styles.header}>
-            <View style={styles.headerBadge}>
-              <MaterialCommunityIcons name="white-balance-sunny" size={16} color="#66b083" />
-              <Text style={styles.headerBadgeText}>TODAY'S WALK</Text>
+            <View style={styles.headerRow}>
+              <View style={styles.headerBadge}>
+                <Ionicons name="sunny" size={14} color={OB_COLORS.gold} />
+                <Text style={styles.headerBadgeText}>TODAY'S WALK</Text>
+              </View>
+              <MascotBird pose="reading" size="tiny" animate delay={200} bobAmount={3} />
             </View>
           </View>
 
           {/* Main Card */}
           <View style={styles.card}>
-            {/* Verse Section */}
+            {/* Verse */}
             <View style={styles.verseSection}>
               <Text style={styles.verseText}>"{data.verse}"</Text>
               <Text style={styles.verseReference}>{data.reference}</Text>
             </View>
 
-            {/* Divider */}
             <View style={styles.divider} />
 
             {/* Reflection */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <Ionicons name="bulb-outline" size={18} color="#66b083" />
+                <Ionicons name="bulb-outline" size={18} color={OB_COLORS.gold} />
                 <Text style={styles.sectionTitle}>Reflection</Text>
               </View>
               <Text style={styles.reflectionText}>{data.reflection}</Text>
             </View>
 
-            {/* Step for Today */}
+            {/* Step */}
             <View style={styles.stepSection}>
               <View style={styles.sectionHeader}>
-                <Ionicons name="footsteps-outline" size={18} color="#66b083" />
+                <MaterialCommunityIcons name="shoe-print" size={18} color={OB_COLORS.primary} />
                 <Text style={styles.sectionTitle}>One step for today</Text>
               </View>
               <View style={[styles.stepCard, stepCompleted && styles.stepCardCompleted]}>
-                <Text style={[styles.stepText, stepCompleted && styles.stepTextCompleted]}>
-                  {data.step}
-                </Text>
-                {stepCompleted && (
-                  <Ionicons name="checkmark-circle" size={24} color="#66b083" />
-                )}
+                <Text style={[styles.stepText, stepCompleted && styles.stepTextCompleted]}>{data.step}</Text>
+                {stepCompleted && <Ionicons name="checkmark-circle" size={24} color={OB_COLORS.primary} />}
               </View>
             </View>
 
-            {/* Prayer Prompt (optional) */}
+            {/* Prayer */}
             {showPrayerPrompt && data.prayerPrompt && (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <MaterialCommunityIcons name="hands-pray" size={18} color="#9333ea" />
-                  <Text style={[styles.sectionTitle, { color: "#9333ea" }]}>Prayer</Text>
+                  <MaterialCommunityIcons name="hands-pray" size={18} color="#7C3AED" />
+                  <Text style={[styles.sectionTitle, { color: "#7C3AED" }]}>Prayer</Text>
                 </View>
                 <Text style={styles.prayerText}>{data.prayerPrompt}</Text>
               </View>
             )}
           </View>
 
-          {/* Reward Message */}
+          {/* Reward */}
           {showReward && (
             <View style={styles.rewardContainer}>
               <View style={styles.rewardBadge}>
-                <Ionicons name="sparkles" size={16} color="#f59e0b" />
+                <Ionicons name="sparkles" size={16} color={OB_COLORS.gold} />
                 <Text style={styles.rewardText}>Nice. Showing up counts.</Text>
               </View>
             </View>
           )}
 
-          {/* Action Buttons */}
+          {/* Actions */}
           <View style={styles.actionsContainer}>
             {!stepCompleted ? (
               <Pressable
-                style={({ pressed }) => [
-                  styles.primaryButton,
-                  pressed && styles.buttonPressed,
-                ]}
+                style={({ pressed }) => [styles.primaryButton, pressed && styles.buttonPressed]}
                 onPress={handleMarkDone}
               >
-                <Ionicons name="checkmark-circle-outline" size={20} color="#ffffff" />
-                <Text style={styles.primaryButtonText}>Mark step as done</Text>
+                <LinearGradient
+                  colors={["#5B8C5A", "#4A7A49"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.primaryGradient}
+                >
+                  <Ionicons name="checkmark-circle-outline" size={20} color="#ffffff" />
+                  <Text style={styles.primaryButtonText}>Mark step as done</Text>
+                </LinearGradient>
               </Pressable>
             ) : (
               <View style={styles.completedButton}>
-                <Ionicons name="checkmark-circle" size={20} color="#66b083" />
+                <Ionicons name="checkmark-circle" size={20} color={OB_COLORS.primary} />
                 <Text style={styles.completedButtonText}>Step completed!</Text>
               </View>
             )}
 
-            {/* Secondary Actions */}
             {!stepCompleted && (
               <View style={styles.secondaryActions}>
                 {onMakeShorter && (
                   <Pressable
-                    style={({ pressed }) => [
-                      styles.secondaryButton,
-                      pressed && styles.buttonPressed,
-                    ]}
-                    onPress={() => {
-                      lightHaptic();
-                      onMakeShorter();
-                    }}
+                    style={({ pressed }) => [styles.secondaryButton, pressed && styles.buttonPressed]}
+                    onPress={() => { lightHaptic(); onMakeShorter(); }}
                   >
-                    <Ionicons name="contract-outline" size={18} color="#6b7280" />
+                    <Ionicons name="contract-outline" size={18} color={OB_COLORS.textMuted} />
                     <Text style={styles.secondaryButtonText}>Make it shorter</Text>
                   </Pressable>
                 )}
                 {onAnotherAngle && (
                   <Pressable
-                    style={({ pressed }) => [
-                      styles.secondaryButton,
-                      pressed && styles.buttonPressed,
-                    ]}
-                    onPress={() => {
-                      lightHaptic();
-                      onAnotherAngle();
-                    }}
+                    style={({ pressed }) => [styles.secondaryButton, pressed && styles.buttonPressed]}
+                    onPress={() => { lightHaptic(); onAnotherAngle(); }}
                   >
-                    <Ionicons name="refresh-outline" size={18} color="#6b7280" />
+                    <Ionicons name="refresh-outline" size={18} color={OB_COLORS.textMuted} />
                     <Text style={styles.secondaryButtonText}>Another angle</Text>
                   </Pressable>
                 )}
@@ -190,216 +175,79 @@ export function DailyWalkScreen({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fafafa",
-  },
-  safeArea: {
-    flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-  },
+  container: { flex: 1, backgroundColor: OB_COLORS.cream },
+  safeArea: { flex: 1 },
+  scrollView: { flex: 1 },
   scrollContent: {
     paddingHorizontal: 24,
-    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 20 : 20,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 16 : 16,
     paddingBottom: 40,
   },
-  header: {
-    alignItems: "center",
-    marginBottom: 24,
-  },
+
+  header: { marginBottom: 20 },
+  headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   headerBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#f0fdf4",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    flexDirection: "row", alignItems: "center", gap: 8,
+    backgroundColor: OB_COLORS.goldLight, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20,
   },
-  headerBadgeText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#66b083",
-    letterSpacing: 0.5,
-  },
+  headerBadgeText: { fontSize: 12, fontWeight: "800", color: OB_COLORS.gold, letterSpacing: 0.5 },
+
   card: {
-    backgroundColor: "#ffffff",
-    borderRadius: 24,
-    padding: 24,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 20,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
+    backgroundColor: OB_COLORS.surface, borderRadius: 24, padding: 24,
+    ...cardShadow,
   },
-  verseSection: {
-    marginBottom: 20,
-  },
-  verseText: {
-    fontSize: 22,
-    fontWeight: "600",
-    color: "#1f2937",
-    lineHeight: 32,
-    fontStyle: "italic",
-    marginBottom: 12,
-  },
-  verseReference: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#66b083",
-  },
-  divider: {
-    height: 1,
-    backgroundColor: "#f3f4f6",
-    marginVertical: 20,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#66b083",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  reflectionText: {
-    fontSize: 16,
-    color: "#4b5563",
-    lineHeight: 26,
-  },
-  stepSection: {
-    marginBottom: 24,
-  },
+  verseSection: { marginBottom: 20 },
+  verseText: { fontSize: 20, fontWeight: "700", color: OB_COLORS.textDark, lineHeight: 30, fontStyle: "italic", marginBottom: 12 },
+  verseReference: { fontSize: 14, fontWeight: "700", color: OB_COLORS.primary },
+  divider: { height: 1, backgroundColor: OB_COLORS.border, marginVertical: 20 },
+
+  section: { marginBottom: 24 },
+  sectionHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 },
+  sectionTitle: { fontSize: 13, fontWeight: "800", color: OB_COLORS.primary, textTransform: "uppercase", letterSpacing: 0.5 },
+  reflectionText: { fontSize: 16, color: OB_COLORS.textBody, lineHeight: 26 },
+
+  stepSection: { marginBottom: 24 },
   stepCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#f0fdf4",
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: "#dcfce7",
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    backgroundColor: OB_COLORS.primaryLight, padding: 16, borderRadius: 18,
+    borderWidth: 2, borderColor: "rgba(91, 140, 90, 0.2)",
   },
-  stepCardCompleted: {
-    backgroundColor: "#dcfce7",
-    borderColor: "#66b083",
-  },
-  stepText: {
-    fontSize: 15,
-    fontWeight: "500",
-    color: "#1f2937",
-    flex: 1,
-    lineHeight: 22,
-  },
-  stepTextCompleted: {
-    color: "#166534",
-  },
-  prayerText: {
-    fontSize: 15,
-    color: "#6b7280",
-    lineHeight: 24,
-    fontStyle: "italic",
-  },
-  rewardContainer: {
-    alignItems: "center",
-    marginTop: 16,
-    marginBottom: 8,
-  },
+  stepCardCompleted: { backgroundColor: "#dcfce7", borderColor: OB_COLORS.primary },
+  stepText: { fontSize: 15, color: OB_COLORS.textDark, lineHeight: 22, flex: 1, fontWeight: "500" },
+  stepTextCompleted: { textDecorationLine: "line-through", color: OB_COLORS.textMuted },
+
+  prayerText: { fontSize: 16, color: OB_COLORS.textBody, lineHeight: 26, fontStyle: "italic" },
+
+  rewardContainer: { alignItems: "center", paddingVertical: 16 },
   rewardBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#fef3c7",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
+    flexDirection: "row", alignItems: "center", gap: 8,
+    backgroundColor: OB_COLORS.goldLight, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20,
   },
-  rewardText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#92400e",
-  },
-  actionsContainer: {
-    marginTop: 24,
-    gap: 12,
-  },
+  rewardText: { fontSize: 14, fontWeight: "700", color: OB_COLORS.gold },
+
+  actionsContainer: { marginTop: 16, gap: 12 },
   primaryButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: "#66b083",
-    paddingVertical: 18,
-    borderRadius: 16,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#66b083",
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.3,
-        shadowRadius: 16,
-      },
-      android: {
-        elevation: 6,
-      },
-    }),
+    borderRadius: 999,
+    overflow: "hidden",
+    ...buttonShadow,
   },
-  primaryButtonText: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: "#ffffff",
+  primaryGradient: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+    paddingVertical: 18, borderRadius: 999,
   },
+  primaryButtonText: { fontSize: 17, fontWeight: "700", color: "#ffffff" },
   completedButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: "#dcfce7",
-    paddingVertical: 18,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: "#66b083",
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+    backgroundColor: OB_COLORS.primaryLight, paddingVertical: 18, borderRadius: 999,
+    borderWidth: 2, borderColor: OB_COLORS.primary,
   },
-  completedButtonText: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: "#166534",
-  },
-  secondaryActions: {
-    flexDirection: "row",
-    gap: 12,
-  },
+  completedButtonText: { fontSize: 17, fontWeight: "700", color: OB_COLORS.primary },
+  secondaryActions: { flexDirection: "row", gap: 12 },
   secondaryButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    backgroundColor: "#f3f4f6",
-    paddingVertical: 14,
-    borderRadius: 12,
+    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 6, backgroundColor: OB_COLORS.surface, paddingVertical: 14, borderRadius: 14,
+    borderWidth: 1.5, borderColor: OB_COLORS.border,
   },
-  secondaryButtonText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#6b7280",
-  },
-  buttonPressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.98 }],
-  },
+  secondaryButtonText: { fontSize: 13, fontWeight: "600", color: OB_COLORS.textMuted },
+  buttonPressed: { opacity: 0.9, transform: [{ scale: 0.97 }] },
 });

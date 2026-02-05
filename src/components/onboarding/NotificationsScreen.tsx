@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,59 +7,67 @@ import {
   Platform,
   StatusBar,
   Pressable,
+  Animated,
+  Easing,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { EtherealBackground } from "../EtherealBackground";
 import { mediumHaptic, successHaptic, lightHaptic } from "../../lib/haptics";
+import { MascotBird } from "./MascotBird";
+import { WarmBackground } from "./WarmBackground";
+import { OB_COLORS, cardShadow, buttonShadow, softShadow } from "./theme";
+import { LinearGradient } from "expo-linear-gradient";
 
 interface NotificationsScreenProps {
-  preferredTime: string; // Display time like "8:00 AM"
+  preferredTime: string;
   onEnable: () => void;
   onSkip: () => void;
 }
 
-export function NotificationsScreen({
-  preferredTime,
-  onEnable,
-  onSkip,
-}: NotificationsScreenProps) {
+export function NotificationsScreen({ preferredTime, onEnable, onSkip }: NotificationsScreenProps) {
   const [showConfirmation, setShowConfirmation] = useState(false);
+
+  // Confirmation entrance
+  const confirmScale = useRef(new Animated.Value(0.5)).current;
+  const confirmOpacity = useRef(new Animated.Value(0)).current;
 
   const handleEnableReminders = async () => {
     mediumHaptic();
-
     try {
-      // For now, we'll just show confirmation and proceed
-      // Actual notification scheduling would be implemented with expo-notifications
       successHaptic();
       setShowConfirmation(true);
-      setTimeout(() => {
-        onEnable();
-      }, 2000);
-    } catch (error) {
-      console.error("Error requesting notifications permission:", error);
-      // Still proceed even if there's an error
+      const isWeb = Platform.OS === "web";
+      if (isWeb) {
+        confirmScale.setValue(1);
+        confirmOpacity.setValue(1);
+      } else {
+        Animated.parallel([
+          Animated.spring(confirmScale, { toValue: 1, tension: 50, friction: 6, useNativeDriver: true }),
+          Animated.timing(confirmOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+        ]).start();
+      }
+      setTimeout(() => onEnable(), 2200);
+    } catch {
       successHaptic();
       setShowConfirmation(true);
-      setTimeout(() => {
-        onEnable();
-      }, 2000);
+      setTimeout(() => onEnable(), 2200);
     }
   };
 
   if (showConfirmation) {
     return (
       <View style={styles.container}>
-        <EtherealBackground />
+        <WarmBackground />
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.confirmationContent}>
-            <View style={styles.confirmationIcon}>
-              <Ionicons name="checkmark-circle" size={64} color="#66b083" />
-            </View>
-            <Text style={styles.confirmationTitle}>Reminder set!</Text>
-            <Text style={styles.confirmationSubtitle}>
-              We'll send you a gentle reminder at {preferredTime}
-            </Text>
+            <Animated.View style={{ opacity: confirmOpacity, transform: [{ scale: confirmScale }] }}>
+              <MascotBird pose="pointing-up" size="large" animate={false} />
+            </Animated.View>
+            <Animated.View style={[styles.confirmTextWrap, { opacity: confirmOpacity }]}>
+              <Text style={styles.confirmationTitle}>Reminder set! <Ionicons name="sparkles" size={22} color={OB_COLORS.gold} /></Text>
+              <Text style={styles.confirmationSubtitle}>
+                We'll send you a gentle reminder at {preferredTime}
+              </Text>
+            </Animated.View>
           </View>
         </SafeAreaView>
       </View>
@@ -68,233 +76,118 @@ export function NotificationsScreen({
 
   return (
     <View style={styles.container}>
-      <EtherealBackground />
+      <WarmBackground />
       <SafeAreaView style={styles.safeArea}>
-        {/* Icon */}
-        <View style={styles.iconSection}>
-            <View style={styles.iconContainer}>
-              <Ionicons name="notifications" size={40} color="#66b083" />
+        {/* Bird pointing at notification */}
+        <View style={styles.mascotSection}>
+          <MascotBird pose="pointing-right" size="medium" animate delay={100} />
+        </View>
+
+        {/* Title */}
+        <View style={styles.titleSection}>
+          <Text style={styles.title}>Want a reminder for{"\n"}your daily time with God?</Text>
+          <Text style={styles.subtitle}>We'll send one gentle reminder at your chosen time.</Text>
+        </View>
+
+        {/* Notification Preview Card */}
+        <View style={styles.previewCard}>
+          <View style={styles.previewHeader}>
+            <View style={styles.previewIconContainer}>
+              <Text style={{ fontSize: 18 }}><MaterialCommunityIcons name="bird" size={20} color={OB_COLORS.primary} /></Text>
+            </View>
+            <View style={styles.previewTextContainer}>
+              <Text style={styles.previewTitle}>Give Me Guidance</Text>
+              <Text style={styles.previewTime}>{preferredTime}</Text>
             </View>
           </View>
+          <Text style={styles.previewMessage}>
+            Your daily walk is ready. Take 2 minutes to connect with God today.
+          </Text>
+        </View>
 
-          {/* Title */}
-          <View style={styles.titleSection}>
-            <Text style={styles.title}>Want a reminder for your daily time with God?</Text>
-            <Text style={styles.subtitle}>
-              We'll send one gentle reminder at your chosen time.
-            </Text>
-          </View>
+        <View style={styles.spacer} />
 
-          {/* Preview */}
-          <View style={styles.previewCard}>
-            <View style={styles.previewHeader}>
-              <View style={styles.previewIconContainer}>
-                <MaterialCommunityIcons name="leaf" size={20} color="#66b083" />
-              </View>
-              <View style={styles.previewTextContainer}>
-                <Text style={styles.previewTitle}>Give Me Guidance</Text>
-                <Text style={styles.previewTime}>{preferredTime}</Text>
-              </View>
-            </View>
-            <Text style={styles.previewMessage}>
-              Your daily walk is ready. Take 2 minutes to connect with God today.
-            </Text>
-          </View>
-
-          {/* Spacer */}
-          <View style={styles.spacer} />
-
-          {/* Buttons */}
-          <View style={styles.buttonsContainer}>
-            <Pressable
-              style={({ pressed }) => [
-                styles.enableButton,
-                pressed && styles.buttonPressed,
-              ]}
-              onPress={handleEnableReminders}
+        {/* Buttons */}
+        <View style={styles.buttonsContainer}>
+          <Pressable
+            style={({ pressed }) => [styles.enableButton, pressed && styles.buttonPressed]}
+            onPress={handleEnableReminders}
+          >
+            <LinearGradient
+              colors={["#5B8C5A", "#4A7A49"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.enableGradient}
             >
               <Ionicons name="notifications-outline" size={20} color="#ffffff" />
               <Text style={styles.enableButtonText}>Enable reminders</Text>
-            </Pressable>
+            </LinearGradient>
+          </Pressable>
 
-            <Pressable
-              style={({ pressed }) => [
-                styles.skipButton,
-                pressed && styles.buttonPressed,
-              ]}
-              onPress={() => {
-                lightHaptic();
-                onSkip();
-              }}
-            >
-              <Text style={styles.skipButtonText}>Not now</Text>
-            </Pressable>
-          </View>
+          <Pressable
+            style={({ pressed }) => [styles.skipButton, pressed && styles.buttonPressed]}
+            onPress={() => { lightHaptic(); onSkip(); }}
+          >
+            <Text style={styles.skipButtonText}>Not now</Text>
+          </Pressable>
+        </View>
       </SafeAreaView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fafafa",
-  },
+  container: { flex: 1, backgroundColor: OB_COLORS.cream },
   safeArea: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 48 : 48,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 32 : 32,
     paddingBottom: 24,
   },
-  confirmationContent: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 24,
-  },
-  confirmationIcon: {
-    marginBottom: 24,
-  },
-  confirmationTitle: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#1f2937",
-    marginBottom: 8,
-  },
-  confirmationSubtitle: {
-    fontSize: 16,
-    color: "#6b7280",
-    textAlign: "center",
-  },
-  iconSection: {
-    alignItems: "center",
-    marginBottom: 32,
-  },
-  iconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
-    backgroundColor: "#f0fdf4",
-    alignItems: "center",
-    justifyContent: "center",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#66b083",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
-  },
-  titleSection: {
-    alignItems: "center",
-    marginBottom: 32,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#1f2937",
-    textAlign: "center",
-    lineHeight: 36,
-    marginBottom: 12,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "#6b7280",
-    textAlign: "center",
-  },
+  confirmationContent: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 24, gap: 24 },
+  confirmTextWrap: { alignItems: "center" },
+  confirmationTitle: { fontSize: 28, fontWeight: "800", color: OB_COLORS.textDark, marginBottom: 8 },
+  confirmationSubtitle: { fontSize: 16, color: OB_COLORS.textMuted, textAlign: "center" },
+
+  mascotSection: { alignItems: "center", marginBottom: 20 },
+
+  titleSection: { alignItems: "center", marginBottom: 28 },
+  title: { fontSize: 24, fontWeight: "800", color: OB_COLORS.textDark, textAlign: "center", lineHeight: 32, letterSpacing: -0.3, marginBottom: 10 },
+  subtitle: { fontSize: 15, color: OB_COLORS.textMuted, textAlign: "center" },
+
   previewCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: 16,
-    padding: 16,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
+    backgroundColor: OB_COLORS.surface,
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: OB_COLORS.border,
+    ...cardShadow,
   },
-  previewHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-  },
+  previewHeader: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
   previewIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    backgroundColor: "#f0fdf4",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
+    width: 40, height: 40, borderRadius: 12,
+    backgroundColor: OB_COLORS.primaryLight,
+    alignItems: "center", justifyContent: "center", marginRight: 12,
   },
-  previewTextContainer: {
-    flex: 1,
-  },
-  previewTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#1f2937",
-  },
-  previewTime: {
-    fontSize: 12,
-    color: "#9ca3af",
-  },
-  previewMessage: {
-    fontSize: 14,
-    color: "#4b5563",
-    lineHeight: 20,
-  },
-  spacer: {
-    flex: 1,
-  },
-  buttonsContainer: {
-    gap: 12,
-  },
+  previewTextContainer: { flex: 1 },
+  previewTitle: { fontSize: 14, fontWeight: "700", color: OB_COLORS.textDark },
+  previewTime: { fontSize: 12, color: OB_COLORS.textLight },
+  previewMessage: { fontSize: 14, color: OB_COLORS.textBody, lineHeight: 20 },
+
+  spacer: { flex: 1 },
+
+  buttonsContainer: { gap: 12 },
   enableButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: "#66b083",
-    paddingVertical: 18,
-    borderRadius: 16,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#66b083",
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.3,
-        shadowRadius: 16,
-      },
-      android: {
-        elevation: 6,
-      },
-    }),
+    borderRadius: 999,
+    overflow: "hidden",
+    ...buttonShadow,
   },
-  enableButtonText: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: "#ffffff",
+  enableGradient: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+    paddingVertical: 18, borderRadius: 999,
   },
-  skipButton: {
-    alignItems: "center",
-    paddingVertical: 16,
-  },
-  skipButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#9ca3af",
-  },
-  buttonPressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.98 }],
-  },
+  enableButtonText: { fontSize: 17, fontWeight: "700", color: "#ffffff" },
+  skipButton: { alignItems: "center", paddingVertical: 14 },
+  skipButtonText: { fontSize: 15, fontWeight: "600", color: OB_COLORS.textLight },
+  buttonPressed: { opacity: 0.9, transform: [{ scale: 0.97 }] },
 });

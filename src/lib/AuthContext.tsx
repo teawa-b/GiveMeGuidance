@@ -2,12 +2,24 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { InteractionManager, Platform } from "react-native";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
-import {
-  GoogleSignin,
-  isSuccessResponse,
-  isErrorWithCode,
-  statusCodes,
-} from "@react-native-google-signin/google-signin";
+
+// --- Google Sign-In: only import on native (crashes on web due to missing native module) ---
+let GoogleSignin: any = null;
+let isSuccessResponse: any = () => false;
+let isErrorWithCode: any = () => false;
+let statusCodes: any = {};
+
+if (Platform.OS !== "web") {
+  try {
+    const gsi = require("@react-native-google-signin/google-signin");
+    GoogleSignin = gsi.GoogleSignin;
+    isSuccessResponse = gsi.isSuccessResponse;
+    isErrorWithCode = gsi.isErrorWithCode;
+    statusCodes = gsi.statusCodes;
+  } catch (e) {
+    console.warn("[Auth] Google Sign-In module not available:", e);
+  }
+}
 
 // ⚠️ IMPORTANT: Replace these with your actual Google OAuth Client IDs from Google Cloud Console
 // Get these from: https://console.cloud.google.com/apis/credentials
@@ -15,7 +27,7 @@ const GOOGLE_WEB_CLIENT_ID = "YOUR_WEB_CLIENT_ID.apps.googleusercontent.com";
 const GOOGLE_IOS_CLIENT_ID = "YOUR_IOS_CLIENT_ID.apps.googleusercontent.com";
 
 // Configure Google Sign In (only on native platforms)
-if (Platform.OS !== "web") {
+if (Platform.OS !== "web" && GoogleSignin) {
   GoogleSignin.configure({
     webClientId: GOOGLE_WEB_CLIENT_ID, // Required for getting idToken
     iosClientId: GOOGLE_IOS_CLIENT_ID, // iOS client ID
@@ -139,7 +151,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     // Sign out from Google if signed in (native platforms only)
-    if (Platform.OS !== "web") {
+    if (Platform.OS !== "web" && GoogleSignin) {
       try {
         const isSignedIn = await GoogleSignin.hasPreviousSignIn();
         if (isSignedIn) {
@@ -155,7 +167,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithGoogle = useCallback(async () => {
     // Use native Google Sign In on iOS
-    if (Platform.OS === "ios") {
+    if (Platform.OS === "ios" && GoogleSignin) {
       try {
         // Check if Google Play Services are available (always true on iOS)
         await GoogleSignin.hasPlayServices();

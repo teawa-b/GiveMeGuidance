@@ -7,3 +7,5 @@ export { DailyWalkScreen, type DailyWalkData } from "./DailyWalkScreen";
 export { SaveJourneyScreen } from "./SaveJourneyScreen";
 export { NotificationsScreen } from "./NotificationsScreen";
 export { ProgressScreen } from "./ProgressScreen";
+export { MascotBird } from "./MascotBird";
+export { WarmBackground } from "./WarmBackground";

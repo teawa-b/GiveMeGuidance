@@ -1,9 +1,8 @@
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { useAuth } from "../../src/lib/AuthContext";
-import { LandingScreen, LoginScreen } from "../../src/components/onboarding";
+import { LandingScreen, LoginScreen, WarmBackground } from "../../src/components/onboarding";
 import { EmailAuthForm } from "../../src/components/EmailAuthForm";
-import { EtherealBackground } from "../../src/components/EtherealBackground";
 import { View, SafeAreaView, StyleSheet } from "react-native";
 
 type AuthView = "landing" | "login" | "email";
@@ -92,7 +91,7 @@ export default function AuthIndex() {
   if (currentView === "email") {
     return (
       <View style={styles.container}>
-        <EtherealBackground />
+        <WarmBackground />
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.content}>
             <EmailAuthForm
@@ -126,7 +125,7 @@ export default function AuthIndex() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fafafa",
+    backgroundColor: "#FFF8F0",
   },
   safeArea: {
     flex: 1,

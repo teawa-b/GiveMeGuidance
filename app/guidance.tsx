@@ -602,7 +602,7 @@ export default function GuidanceScreen() {
                   </View>
                   <View style={styles.chatMoreTextContainer}>
                     <Text style={styles.chatMoreTitle}>Continue the Conversation</Text>
-                    <Text style={styles.chatMoreSubtitle}>Chat with your AI guide about this verse</Text>
+                    <Text style={styles.chatMoreSubtitle}>Chat with your guide about this verse</Text>
                   </View>
                   <Ionicons name="arrow-forward-circle" size={28} color="rgba(255,255,255,0.9)" />
                 </View>

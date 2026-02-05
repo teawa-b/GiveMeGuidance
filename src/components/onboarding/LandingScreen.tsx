@@ -3,260 +3,307 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   Platform,
   StatusBar,
-  Image,
   Pressable,
   Animated,
+  Easing,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { EtherealBackground } from "../EtherealBackground";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 import { mediumHaptic } from "../../lib/haptics";
-
-// Sage green color palette
-const COLORS = {
-  primary: "#7FA988",
-  primaryDark: "#6B9273",
-  backgroundLight: "#F0F7F2",
-  surfaceLight: "#FFFFFF",
-  textDark: "#1e293b",
-  textMuted: "#64748b",
-  borderLight: "#e2e8f0",
-};
+import { MascotBird } from "./MascotBird";
+import { WarmBackground } from "./WarmBackground";
+import { OB_COLORS, buttonShadow, softShadow } from "./theme";
 
 interface LandingScreenProps {
   onGetStarted: () => void;
   onSignIn: () => void;
 }
 
+const FEATURES: { text: string; icon: string; iconSet: "ion" | "mci"; color: string }[] = [
+  { text: "Daily scripture guidance", icon: "book-open-outline", iconSet: "mci", color: "#5B8C5A" },
+  { text: "Personalized reflections", icon: "heart-outline", iconSet: "ion", color: "#D4A843" },
+  { text: "One simple step each day", icon: "shoe-print", iconSet: "mci", color: "#7C6B4F" },
+];
+
 export function LandingScreen({ onGetStarted, onSignIn }: LandingScreenProps) {
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
+  const isWeb = Platform.OS === "web";
+  const insets = useSafeAreaInsets();
+
+  const fadeTitle = useRef(new Animated.Value(isWeb ? 1 : 0)).current;
+  const slideTitle = useRef(new Animated.Value(isWeb ? 0 : 30)).current;
+  const fadeFeatures = useRef(new Animated.Value(isWeb ? 1 : 0)).current;
+  const slideFeatures = useRef(new Animated.Value(isWeb ? 0 : 28)).current;
+  const fadeCTA = useRef(new Animated.Value(isWeb ? 1 : 0)).current;
+  const slideCTA = useRef(new Animated.Value(isWeb ? 0 : 24)).current;
+  const birdSlide = useRef(new Animated.Value(isWeb ? 0 : 80)).current;
+  const birdOpacity = useRef(new Animated.Value(isWeb ? 1 : 0)).current;
+  const sparkle1 = useRef(new Animated.Value(isWeb ? 1 : 0)).current;
+  const sparkle2 = useRef(new Animated.Value(isWeb ? 1 : 0)).current;
+  const sparkle3 = useRef(new Animated.Value(isWeb ? 1 : 0)).current;
+  const ctaGlow = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 800,
-        useNativeDriver: true,
-      }),
+    if (isWeb) return;
+
+    Animated.stagger(220, [
+      Animated.parallel([
+        Animated.timing(fadeTitle, { toValue: 1, duration: 650, useNativeDriver: true }),
+        Animated.spring(slideTitle, { toValue: 0, tension: 50, friction: 8, useNativeDriver: true }),
+      ]),
+      Animated.parallel([
+        Animated.timing(fadeFeatures, { toValue: 1, duration: 550, useNativeDriver: true }),
+        Animated.spring(slideFeatures, { toValue: 0, tension: 50, friction: 9, useNativeDriver: true }),
+      ]),
+      Animated.parallel([
+        Animated.timing(fadeCTA, { toValue: 1, duration: 500, useNativeDriver: true }),
+        Animated.spring(slideCTA, { toValue: 0, tension: 50, friction: 9, useNativeDriver: true }),
+      ]),
     ]).start();
+
+    setTimeout(() => {
+      Animated.parallel([
+        Animated.spring(birdSlide, { toValue: 0, tension: 35, friction: 7, useNativeDriver: true }),
+        Animated.timing(birdOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
+      ]).start();
+    }, 350);
+
+    const makeSparkle = (anim: Animated.Value, delay: number, dur: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(anim, {
+            toValue: 1,
+            duration: dur,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: true,
+          }),
+          Animated.timing(anim, {
+            toValue: 0.2,
+            duration: dur,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+
+    makeSparkle(sparkle1, 0, 2200);
+    makeSparkle(sparkle2, 800, 1900);
+    makeSparkle(sparkle3, 1400, 2500);
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(ctaGlow, { toValue: 1, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(ctaGlow, { toValue: 0, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    ).start();
   }, []);
+
+  const ctaScale = ctaGlow.interpolate({ inputRange: [0, 1], outputRange: [1, 1.015] });
 
   return (
     <View style={styles.container}>
-      <EtherealBackground />
-
-      <SafeAreaView style={styles.safeArea}>
+      <WarmBackground />
+      <SafeAreaView
+        style={[
+          styles.safeArea,
+          {
+            paddingTop: insets.top + 14,
+            paddingBottom: Math.max(insets.bottom, 16) + 12,
+          },
+        ]}
+      >
         <StatusBar barStyle="dark-content" />
-        
-        <Animated.View 
-          style={[
-            styles.content,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
-          {/* Logo Section */}
-          <View style={styles.logoSection}>
-            <Image
-              source={require("../../../assets/NewLogo.png")}
-              style={styles.logoImage}
-              resizeMode="contain"
-            />
 
-            <Text style={styles.title}>
-              Get closer to God,{"\n"}one day at a time
-            </Text>
-            <Text style={styles.subtitle}>
-              2–5 minutes daily. A verse, reflection, and next step.
-            </Text>
-          </View>
-
-          {/* Features Section */}
-          <View style={styles.features}>
-            <View style={styles.featureItem}>
-              <View style={styles.featureIcon}>
-                <Ionicons name="book-outline" size={24} color={COLORS.primary} />
-              </View>
-              <Text style={styles.featureText}>Daily scripture guidance</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <View style={styles.featureIcon}>
-                <Ionicons name="heart-outline" size={24} color={COLORS.primary} />
-              </View>
-              <Text style={styles.featureText}>Personalized reflections</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <View style={styles.featureIcon}>
-                <Ionicons name="footsteps-outline" size={24} color={COLORS.primary} />
-              </View>
-              <Text style={styles.featureText}>One simple step each day</Text>
-            </View>
-          </View>
-
-          {/* CTA Section */}
-          <View style={styles.ctaSection}>
-            <Pressable
-              style={({ pressed }) => [
-                styles.primaryButton,
-                pressed && styles.primaryButtonPressed,
+        <View style={styles.content}>
+          <View style={styles.topSection}>
+            <Animated.View
+              style={[
+                styles.heroMascot,
+                {
+                  opacity: birdOpacity,
+                  transform: [{ translateY: birdSlide }],
+                  pointerEvents: "none" as any,
+                },
               ]}
-              onPress={() => {
-                mediumHaptic();
-                onGetStarted();
-              }}
             >
-              <Text style={styles.primaryButtonText}>Get started</Text>
-              <Ionicons name="arrow-forward" size={20} color="#ffffff" />
-            </Pressable>
+              <Animated.View style={[styles.sparkle, styles.sparkleOne, { opacity: sparkle1 }]}>
+                <Ionicons name="sparkles" size={16} color={OB_COLORS.gold} />
+              </Animated.View>
+              <Animated.View style={[styles.sparkle, styles.sparkleTwo, { opacity: sparkle2 }]}>
+                <MaterialCommunityIcons name="star-four-points" size={14} color={OB_COLORS.gold} />
+              </Animated.View>
+              <Animated.View style={[styles.sparkle, styles.sparkleThree, { opacity: sparkle3 }]}>
+                <Ionicons name="sparkles" size={12} color={OB_COLORS.primary} />
+              </Animated.View>
+              <MascotBird pose="reading" size="large" animate={false} bobAmount={4} />
+            </Animated.View>
+
+            <Animated.View style={[styles.titleSection, { opacity: fadeTitle, transform: [{ translateY: slideTitle }] }]}>
+              <Text style={styles.title}>
+                Walk with God,{"\n"}
+                <Text style={styles.titleAccent}>every single day.</Text>
+              </Text>
+
+              <Text style={styles.subtitle}>
+                2-5 minutes of scripture, reflection, and a next step with calm, clear guidance.
+              </Text>
+            </Animated.View>
+          </View>
+
+          <Animated.View style={[styles.features, { opacity: fadeFeatures, transform: [{ translateY: slideFeatures }] }]}>
+            {FEATURES.map((feat, i) => (
+              <View key={i} style={styles.featureItem}>
+                <View style={[styles.featureIconWrap, { backgroundColor: `${feat.color}12` }]}>
+                  {feat.iconSet === "ion" ? (
+                    <Ionicons name={feat.icon as any} size={20} color={feat.color} />
+                  ) : (
+                    <MaterialCommunityIcons name={feat.icon as any} size={20} color={feat.color} />
+                  )}
+                </View>
+                <Text style={styles.featureText}>{feat.text}</Text>
+              </View>
+            ))}
+          </Animated.View>
+
+          <Animated.View style={[styles.ctaSection, { opacity: fadeCTA, transform: [{ translateY: slideCTA }] }]}>
+            <Animated.View style={{ width: "100%", transform: [{ scale: ctaScale }] }}>
+              <Pressable
+                style={({ pressed }) => [styles.primaryButton, pressed && styles.primaryButtonPressed]}
+                onPress={() => {
+                  mediumHaptic();
+                  onGetStarted();
+                }}
+              >
+                <LinearGradient
+                  colors={["#5B8C5A", "#4A7A49"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.primaryButtonGradient}
+                >
+                  <Text style={styles.primaryButtonText}>Get started</Text>
+                  <View style={styles.arrowCircle}>
+                    <Ionicons name="arrow-forward" size={18} color={OB_COLORS.primary} />
+                  </View>
+                </LinearGradient>
+              </Pressable>
+            </Animated.View>
 
             <Pressable
-              style={({ pressed }) => [
-                styles.signInButton,
-                pressed && { opacity: 0.7 },
-              ]}
+              style={({ pressed }) => [styles.signInButton, pressed && styles.signInButtonPressed]}
               onPress={() => {
                 mediumHaptic();
                 onSignIn();
               }}
             >
-              <Text style={styles.signInText}>Sign in</Text>
+              <Text style={styles.signInText}>I already have an account</Text>
+              <Ionicons name="chevron-forward" size={16} color={OB_COLORS.textMuted} />
             </Pressable>
-          </View>
-        </Animated.View>
+          </Animated.View>
+        </View>
       </SafeAreaView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.backgroundLight,
-  },
-  safeArea: {
-    flex: 1,
-  },
+  container: { flex: 1, backgroundColor: OB_COLORS.cream, overflow: "hidden" },
+  safeArea: { flex: 1, zIndex: 1 },
   content: {
     flex: 1,
-    paddingHorizontal: 32,
-    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 32 : 32,
-    paddingBottom: 24,
+    paddingHorizontal: 28,
+    paddingTop: 4,
     justifyContent: "space-between",
+    gap: 24,
   },
-  logoSection: {
+
+  topSection: {
     alignItems: "center",
-    paddingTop: 24,
+    gap: 8,
   },
-  logoImage: {
-    width: 120,
-    height: 120,
-    marginBottom: 8,
+  heroMascot: {
+    alignItems: "center",
+    marginTop: 0,
+    marginBottom: 0,
   },
+  sparkle: { position: "absolute", zIndex: 11 },
+  sparkleOne: { top: 4, right: "28%" },
+  sparkleTwo: { top: 38, left: "24%" },
+  sparkleThree: { top: 0, left: "34%" },
+
+  titleSection: { alignItems: "center" },
   title: {
-    fontSize: 34,
-    fontWeight: "700",
-    color: COLORS.textDark,
+    fontSize: 36,
+    fontWeight: "900",
+    color: OB_COLORS.textDark,
     textAlign: "center",
-    lineHeight: 42,
-    letterSpacing: -0.5,
-    marginBottom: 16,
+    lineHeight: 44,
+    letterSpacing: -0.8,
+    marginBottom: 14,
+  },
+  titleAccent: {
+    color: OB_COLORS.primary,
   },
   subtitle: {
-    fontSize: 18,
-    color: COLORS.textMuted,
+    fontSize: 16,
+    color: OB_COLORS.textMuted,
     textAlign: "center",
-    lineHeight: 26,
-    maxWidth: 280,
+    lineHeight: 24,
+    maxWidth: 310,
   },
-  features: {
-    gap: 24,
-    paddingLeft: 8,
-  },
-  featureItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-  },
-  featureIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: COLORS.surfaceLight,
+
+  features: { gap: 14, paddingHorizontal: 8 },
+  featureItem: { flexDirection: "row", alignItems: "center", gap: 14 },
+  featureIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+    ...softShadow,
   },
-  featureText: {
-    fontSize: 17,
-    color: COLORS.textMuted,
-    fontWeight: "500",
-  },
-  ctaSection: {
-    gap: 16,
-    alignItems: "center",
-  },
+  featureText: { fontSize: 16, color: OB_COLORS.textBody, fontWeight: "600" },
+
+  ctaSection: { gap: 12, alignItems: "center" },
   primaryButton: {
+    borderRadius: 18,
+    overflow: "hidden",
+    ...buttonShadow,
+  },
+  primaryButtonGradient: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    backgroundColor: COLORS.primary,
-    paddingVertical: 18,
-    paddingHorizontal: 32,
-    borderRadius: 999,
-    width: "100%",
-    ...Platform.select({
-      ios: {
-        shadowColor: COLORS.primary,
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.35,
-        shadowRadius: 16,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
+    gap: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 36,
+    borderRadius: 18,
   },
-  primaryButtonPressed: {
-    backgroundColor: COLORS.primaryDark,
-    transform: [{ translateY: 1 }],
-  },
+  primaryButtonPressed: { transform: [{ scale: 0.97 }], opacity: 0.9 },
   primaryButtonText: {
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: "800",
     color: "#ffffff",
+    letterSpacing: 0.3,
+  },
+  arrowCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "rgba(255,255,255,0.9)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   signInButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
     paddingVertical: 12,
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
+    borderRadius: 999,
   },
-  signInText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: COLORS.textMuted,
-    textDecorationLine: "underline",
-    textDecorationColor: "#cbd5e1",
-  },
+  signInButtonPressed: { opacity: 0.5 },
+  signInText: { fontSize: 15, fontWeight: "600", color: OB_COLORS.textMuted },
 });
