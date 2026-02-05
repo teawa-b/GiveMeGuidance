@@ -44,6 +44,7 @@ try {
 export default function GuidanceScreen() {
   const params = useLocalSearchParams<{
     q: string;
+    daily?: string;
     verseText?: string;
     verseReference?: string;
     verseTheme?: string;
@@ -51,6 +52,7 @@ export default function GuidanceScreen() {
     existingChatId?: string; // Chat ID from history to prevent duplicates
   }>();
   const { q: query } = params;
+  const isDailyRequest = params.daily === "true" || params.daily === "1";
   const router = useRouter();
   
   // Get onboarding preferences
@@ -264,12 +266,31 @@ export default function GuidanceScreen() {
         // Don't fail the whole save if streak update fails
       }
 
-      // Check if we already saved today's guidance to local cache
+      // Check existing daily entry to keep one stable guidance per day.
+      // Allow only same-verse updates (for example adding explanation later).
       const existingData = await AsyncStorage.getItem(DAILY_GUIDANCE_KEY);
+      let existingDaily: DailyGuidance | null = null;
       if (existingData) {
-        const existing = JSON.parse(existingData);
-        if (existing.date === today) {
-          return; // Already saved today's local cache
+        try {
+          existingDaily = JSON.parse(existingData);
+        } catch {
+          existingDaily = null;
+        }
+      }
+
+      if (existingDaily?.date === today) {
+        const existingPassage = existingDaily.verse?.reference?.passage;
+        const incomingPassage = verse.reference.passage;
+        const isSamePassage = existingPassage === incomingPassage;
+
+        // Preserve the first guidance chosen for today.
+        if (!isSamePassage) {
+          return;
+        }
+
+        // Do not replace richer existing data with less complete data.
+        if (existingDaily.explanation && !explanation) {
+          return;
         }
       }
 
@@ -325,6 +346,12 @@ export default function GuidanceScreen() {
         const enhancedQuery = buildEnhancedQuery(searchQuery);
         const data = await getGuidance(enhancedQuery);
         setVerseData(data);
+
+        // Persist daily guidance immediately so revisits return the same entry
+        // even if the user leaves before explanation finishes loading.
+        if (isDailyRequest) {
+          await saveToDailyCache(searchQuery, data, null);
+        }
         
         // Play sound when guidance loads
         playGuidanceLoadedSound();
@@ -337,20 +364,56 @@ export default function GuidanceScreen() {
         setIsLoadingVerse(false);
       }
     },
-    [fetchExplanation, buildEnhancedQuery]
+    [fetchExplanation, buildEnhancedQuery, isDailyRequest]
   );
 
   useEffect(() => {
-    if (!query) {
-      router.back();
-      return;
-    }
-    // Skip fetching if we have restored data from a saved chat
-    if (restoredVerseData) {
-      return;
-    }
-    fetchGuidance(query);
-  }, [query, router, fetchGuidance, restoredVerseData]);
+    let cancelled = false;
+
+    const loadGuidance = async () => {
+      if (!query) {
+        router.back();
+        return;
+      }
+
+      // Skip fetching if we have restored data from a saved chat
+      if (restoredVerseData) {
+        return;
+      }
+
+      if (isDailyRequest) {
+        setIsLoadingVerse(true);
+        setError(null);
+        try {
+          const cachedDaily = await getTodaysGuidance();
+          if (cancelled) return;
+
+          if (cachedDaily) {
+            setVerseData(cachedDaily.verse);
+            setExplanationData(cachedDaily.explanation);
+            setIsLoadingVerse(false);
+            setBookmarked(false);
+
+            // Recover explanation if older cached entry exists without it.
+            if (!cachedDaily.explanation) {
+              fetchExplanation(cachedDaily.query || query, cachedDaily.verse);
+            }
+            return;
+          }
+        } catch (cacheError) {
+          console.error("Error loading cached daily guidance:", cacheError);
+        }
+      }
+
+      fetchGuidance(query);
+    };
+
+    loadGuidance();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [query, router, fetchGuidance, restoredVerseData, isDailyRequest, fetchExplanation]);
 
   const handleGetAnotherVerse = () => {
     if (query) {

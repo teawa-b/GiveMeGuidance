@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, StyleSheet, Alert } from "react-native";
+import { View, StyleSheet, Alert, Platform } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuth } from "../../src/lib/AuthContext";
 import {
@@ -12,6 +12,7 @@ import {
 } from "../../src/lib/OnboardingContext";
 import { getGuidance } from "../../src/services/guidance";
 import { generateDailyWalkApi } from "../../src/services/api";
+import { requestAndScheduleDailyReminder } from "../../src/services/notifications";
 import { supabase } from "../../src/lib/supabase";
 import {
   GoalSelectionScreen,
@@ -186,40 +187,75 @@ export default function OnboardingScreen() {
     if (!isAuthenticated) {
       setStep("save_journey");
     } else {
-      // Already authenticated, go to notifications
+      // Already authenticated, go to progress
       setJourneySaved(true);
-      setStep("notifications");
+      setStep("progress");
     }
   };
 
   // Handle save journey authentication
   const handleSaveJourneyAuth = () => {
     setJourneySaved(true);
-    setStep("notifications");
+    setStep("progress");
   };
 
   // Handle skip save journey
   const handleSkipSaveJourney = () => {
-    setStep("notifications");
+    setStep("progress");
+  };
+
+  // Resolve preferred reminder time in 24-hour format
+  const getPreferredReminderTime = () => {
+    if (data.preferredTimeOfDay === "custom" && data.customTime) {
+      const [hours, minutes] = data.customTime.split(":").map(Number);
+      if (Number.isFinite(hours) && Number.isFinite(minutes)) {
+        return { hour: hours, minute: minutes };
+      }
+    }
+
+    switch (data.preferredTimeOfDay) {
+      case "afternoon":
+        return { hour: 12, minute: 0 };
+      case "evening":
+        return { hour: 18, minute: 0 };
+      case "morning":
+      default:
+        return { hour: 8, minute: 0 };
+    }
   };
 
   // Handle notifications enable
-  const handleNotificationsEnable = () => {
-    setNotificationsEnabled(true);
-    updateData({ notificationEnabled: true });
-    setStep("progress");
+  const handleNotificationsEnable = async (): Promise<boolean> => {
+    try {
+      const { hour, minute } = getPreferredReminderTime();
+      const enabled = await requestAndScheduleDailyReminder(hour, minute);
+      setNotificationsEnabled(enabled);
+      updateData({ notificationEnabled: enabled });
+      return enabled;
+    } catch (error) {
+      console.error("[Onboarding] Failed to enable reminders:", error);
+      setNotificationsEnabled(false);
+      updateData({ notificationEnabled: false });
+      return false;
+    }
+  };
+
+  const handleNotificationsContinue = async () => {
+    await saveOnboarding({ onboardingCompleted: true });
+    router.replace("/(tabs)");
   };
 
   // Handle notifications skip
-  const handleNotificationsSkip = () => {
-    setStep("progress");
+  const handleNotificationsSkip = async () => {
+    setNotificationsEnabled(false);
+    updateData({ notificationEnabled: false });
+    await saveOnboarding({ onboardingCompleted: true });
+    router.replace("/(tabs)");
   };
 
   // Handle continue to home
-  const handleContinueToHome = async () => {
-    updateData({ onboardingCompleted: true });
-    await saveOnboarding();
-    router.replace("/(tabs)");
+  const handleContinueToHome = () => {
+    setStep("notifications");
   };
 
   // Get display time based on preference
@@ -278,9 +314,22 @@ export default function OnboardingScreen() {
         setEmailError(result.error);
         throw new Error(result.error);
       }
-      if (!result.needsConfirmation) {
-        handleSaveJourneyAuth();
+      if (result.needsConfirmation) {
+        setJourneySaved(true);
+        const verificationMessage =
+          "We've sent a verification link to your email. Please verify your email to finish setting up your account.";
+
+        if (Platform.OS === "web" && typeof window !== "undefined") {
+          window.alert(verificationMessage);
+        } else {
+          Alert.alert("Check your email", verificationMessage, [{ text: "Continue" }]);
+        }
+
+        setStep("progress");
+        return;
       }
+
+      handleSaveJourneyAuth();
     } catch (e: any) {
       if (!emailError) {
         setEmailError(e.message || "Could not create account");
@@ -381,6 +430,7 @@ export default function OnboardingScreen() {
           <NotificationsScreen
             preferredTime={getDisplayTime()}
             onEnable={handleNotificationsEnable}
+            onContinue={handleNotificationsContinue}
             onSkip={handleNotificationsSkip}
           />
         );

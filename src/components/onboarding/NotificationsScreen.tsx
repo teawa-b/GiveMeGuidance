@@ -1,16 +1,17 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
+  Alert,
   StyleSheet,
-  SafeAreaView,
   Platform,
   StatusBar,
   Pressable,
+  ActivityIndicator,
   Animated,
-  Easing,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { mediumHaptic, successHaptic, lightHaptic } from "../../lib/haptics";
 import { MascotBird } from "./MascotBird";
 import { WarmBackground } from "./WarmBackground";
@@ -19,20 +20,36 @@ import { LinearGradient } from "expo-linear-gradient";
 
 interface NotificationsScreenProps {
   preferredTime: string;
-  onEnable: () => void;
+  onEnable: () => Promise<boolean>;
+  onContinue: () => void;
   onSkip: () => void;
 }
 
-export function NotificationsScreen({ preferredTime, onEnable, onSkip }: NotificationsScreenProps) {
+export function NotificationsScreen({ preferredTime, onEnable, onContinue, onSkip }: NotificationsScreenProps) {
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [isEnabling, setIsEnabling] = useState(false);
+  const insets = useSafeAreaInsets();
 
   // Confirmation entrance
   const confirmScale = useRef(new Animated.Value(0.5)).current;
   const confirmOpacity = useRef(new Animated.Value(0)).current;
 
   const handleEnableReminders = async () => {
+    if (isEnabling) return;
+
     mediumHaptic();
+    setIsEnabling(true);
     try {
+      const permissionGranted = await onEnable();
+      if (!permissionGranted) {
+        Alert.alert(
+          "Reminders not enabled",
+          "Notification access is off. You can enable reminders later in Settings.",
+          [{ text: "Continue", onPress: onContinue }]
+        );
+        return;
+      }
+
       successHaptic();
       setShowConfirmation(true);
       const isWeb = Platform.OS === "web";
@@ -45,11 +62,15 @@ export function NotificationsScreen({ preferredTime, onEnable, onSkip }: Notific
           Animated.timing(confirmOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
         ]).start();
       }
-      setTimeout(() => onEnable(), 2200);
+      setTimeout(() => onContinue(), 2200);
     } catch {
-      successHaptic();
-      setShowConfirmation(true);
-      setTimeout(() => onEnable(), 2200);
+      Alert.alert(
+        "Could not enable reminders",
+        "Something went wrong while setting notifications. You can still continue.",
+        [{ text: "Continue", onPress: onContinue }]
+      );
+    } finally {
+      setIsEnabling(false);
     }
   };
 
@@ -60,10 +81,13 @@ export function NotificationsScreen({ preferredTime, onEnable, onSkip }: Notific
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.confirmationContent}>
             <Animated.View style={{ opacity: confirmOpacity, transform: [{ scale: confirmScale }] }}>
-              <MascotBird pose="pointing-up" size="large" animate={false} />
+              <MascotBird pose="reading" size="large" animate={false} />
             </Animated.View>
             <Animated.View style={[styles.confirmTextWrap, { opacity: confirmOpacity }]}>
-              <Text style={styles.confirmationTitle}>Reminder set! <Ionicons name="sparkles" size={22} color={OB_COLORS.gold} /></Text>
+              <View style={styles.confirmTitleRow}>
+                <Text style={styles.confirmationTitle}>Reminder set!</Text>
+                <Ionicons name="sparkles" size={22} color={OB_COLORS.gold} />
+              </View>
               <Text style={styles.confirmationSubtitle}>
                 We'll send you a gentle reminder at {preferredTime}
               </Text>
@@ -77,14 +101,27 @@ export function NotificationsScreen({ preferredTime, onEnable, onSkip }: Notific
   return (
     <View style={styles.container}>
       <WarmBackground />
-      <SafeAreaView style={styles.safeArea}>
-        {/* Bird pointing at notification */}
-        <View style={styles.mascotSection}>
-          <MascotBird pose="pointing-right" size="medium" animate delay={100} />
+      <SafeAreaView
+        style={[
+          styles.safeArea,
+          {
+            paddingTop: insets.top + 8,
+            paddingBottom: Math.max(insets.bottom, 16) + 8,
+          },
+        ]}
+      >
+        {/* Bird mascot */}
+        <View style={styles.mascotRow}>
+          <View style={styles.speechBubble}>
+            <Text style={styles.speechText}>One last setup</Text>
+            <View style={styles.speechTail} />
+          </View>
+          <MascotBird pose="reading" size="medium" animate delay={100} />
         </View>
 
         {/* Title */}
         <View style={styles.titleSection}>
+          <Text style={styles.subtitleBadge}>DAILY REMINDER</Text>
           <Text style={styles.title}>Want a reminder for{"\n"}your daily time with God?</Text>
           <Text style={styles.subtitle}>We'll send one gentle reminder at your chosen time.</Text>
         </View>
@@ -93,7 +130,7 @@ export function NotificationsScreen({ preferredTime, onEnable, onSkip }: Notific
         <View style={styles.previewCard}>
           <View style={styles.previewHeader}>
             <View style={styles.previewIconContainer}>
-              <Text style={{ fontSize: 18 }}><MaterialCommunityIcons name="bird" size={20} color={OB_COLORS.primary} /></Text>
+              <MaterialCommunityIcons name="bird" size={20} color={OB_COLORS.primary} />
             </View>
             <View style={styles.previewTextContainer}>
               <Text style={styles.previewTitle}>Give Me Guidance</Text>
@@ -110,8 +147,9 @@ export function NotificationsScreen({ preferredTime, onEnable, onSkip }: Notific
         {/* Buttons */}
         <View style={styles.buttonsContainer}>
           <Pressable
-            style={({ pressed }) => [styles.enableButton, pressed && styles.buttonPressed]}
+            style={({ pressed }) => [styles.enableButton, pressed && styles.buttonPressed, isEnabling && styles.buttonDisabled]}
             onPress={handleEnableReminders}
+            disabled={isEnabling}
           >
             <LinearGradient
               colors={["#5B8C5A", "#4A7A49"]}
@@ -119,8 +157,17 @@ export function NotificationsScreen({ preferredTime, onEnable, onSkip }: Notific
               end={{ x: 1, y: 1 }}
               style={styles.enableGradient}
             >
-              <Ionicons name="notifications-outline" size={20} color="#ffffff" />
-              <Text style={styles.enableButtonText}>Enable reminders</Text>
+              {isEnabling ? (
+                <>
+                  <ActivityIndicator size="small" color="#ffffff" />
+                  <Text style={styles.enableButtonText}>Requesting permission...</Text>
+                </>
+              ) : (
+                <>
+                  <Ionicons name="notifications-outline" size={20} color="#ffffff" />
+                  <Text style={styles.enableButtonText}>Enable reminders</Text>
+                </>
+              )}
             </LinearGradient>
           </Pressable>
 
@@ -141,25 +188,51 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 32 : 32,
-    paddingBottom: 24,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 8 : 8,
   },
   confirmationContent: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 24, gap: 24 },
   confirmTextWrap: { alignItems: "center" },
-  confirmationTitle: { fontSize: 28, fontWeight: "800", color: OB_COLORS.textDark, marginBottom: 8 },
+  confirmTitleRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 },
+  confirmationTitle: { fontSize: 28, fontWeight: "800", color: OB_COLORS.textDark },
   confirmationSubtitle: { fontSize: 16, color: OB_COLORS.textMuted, textAlign: "center" },
 
-  mascotSection: { alignItems: "center", marginBottom: 20 },
+  mascotRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 6 },
+  speechBubble: {
+    backgroundColor: OB_COLORS.surface,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: OB_COLORS.primaryLight,
+    position: "relative",
+    ...softShadow,
+  },
+  speechText: { fontSize: 13, fontWeight: "600", color: OB_COLORS.primary },
+  speechTail: {
+    position: "absolute",
+    right: -6,
+    top: "50%",
+    marginTop: -4,
+    width: 0,
+    height: 0,
+    borderTopWidth: 5,
+    borderBottomWidth: 5,
+    borderLeftWidth: 6,
+    borderTopColor: "transparent",
+    borderBottomColor: "transparent",
+    borderLeftColor: OB_COLORS.primaryLight,
+  },
 
-  titleSection: { alignItems: "center", marginBottom: 28 },
-  title: { fontSize: 24, fontWeight: "800", color: OB_COLORS.textDark, textAlign: "center", lineHeight: 32, letterSpacing: -0.3, marginBottom: 10 },
-  subtitle: { fontSize: 15, color: OB_COLORS.textMuted, textAlign: "center" },
+  titleSection: { alignItems: "center", marginBottom: 20, paddingHorizontal: 16 },
+  subtitleBadge: { fontSize: 11, fontWeight: "700", color: OB_COLORS.textLight, letterSpacing: 2, marginBottom: 8 },
+  title: { fontSize: 24, fontWeight: "800", color: OB_COLORS.textDark, textAlign: "center", lineHeight: 32, letterSpacing: -0.3, marginBottom: 8 },
+  subtitle: { fontSize: 14, color: OB_COLORS.textMuted, textAlign: "center" },
 
   previewCard: {
     backgroundColor: OB_COLORS.surface,
     borderRadius: 20,
-    padding: 18,
-    borderWidth: 1,
+    padding: 20,
+    borderWidth: 1.5,
     borderColor: OB_COLORS.border,
     ...cardShadow,
   },
@@ -176,7 +249,7 @@ const styles = StyleSheet.create({
 
   spacer: { flex: 1 },
 
-  buttonsContainer: { gap: 12 },
+  buttonsContainer: { gap: 12, paddingHorizontal: 16 },
   enableButton: {
     borderRadius: 999,
     overflow: "hidden",
@@ -187,6 +260,7 @@ const styles = StyleSheet.create({
     paddingVertical: 18, borderRadius: 999,
   },
   enableButtonText: { fontSize: 17, fontWeight: "700", color: "#ffffff" },
+  buttonDisabled: { opacity: 0.75 },
   skipButton: { alignItems: "center", paddingVertical: 14 },
   skipButtonText: { fontSize: 15, fontWeight: "600", color: OB_COLORS.textLight },
   buttonPressed: { opacity: 0.9, transform: [{ scale: 0.97 }] },

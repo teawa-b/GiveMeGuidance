@@ -68,7 +68,10 @@ const PRODUCTION_REWARDED_AD_UNIT_ID = Platform.select({
 });
 
 // Use test ads in development
-const USE_TEST_ADS = __DEV__;
+// Optional override for release/dev-client builds:
+// set EXPO_PUBLIC_FORCE_TEST_ADS=1 to force Google test ad units.
+const FORCE_TEST_ADS = process.env.EXPO_PUBLIC_FORCE_TEST_ADS === "1";
+const USE_TEST_ADS = __DEV__ || FORCE_TEST_ADS;
 
 interface AdsContextType {
   // State

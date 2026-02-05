@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { View, StyleSheet, Platform, Text, Dimensions } from "react-native";
 import Constants from "expo-constants";
 import { useAds } from "../lib/AdsContext";
@@ -20,6 +20,8 @@ export function BannerAdComponent({ style }: BannerAdComponentProps) {
   const [adLoaded, setAdLoaded] = useState(false);
   const [adError, setAdError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [adRequestKey, setAdRequestKey] = useState(0);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Log initialization state
   useEffect(() => {
@@ -32,6 +34,14 @@ export function BannerAdComponent({ style }: BannerAdComponentProps) {
       platform: Platform.OS,
     });
   }, [isPremium, shouldShowAds, isAdsInitialized, BannerAd, bannerAdUnitId]);
+
+  useEffect(() => {
+    return () => {
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+      }
+    };
+  }, []);
 
   // Don't render anything if premium, on web, or in Expo Go
   if (isPremium || Platform.OS === "web" || isExpoGo) {
@@ -58,27 +68,21 @@ export function BannerAdComponent({ style }: BannerAdComponentProps) {
     );
   }
 
-  // Hide on error after max retries
-  if (adError && retryCount >= 3) {
-    console.log("[BannerAd] Max retries reached, hiding ad");
-    return null;
-  }
-
   return (
     <View style={[styles.container, style, !adLoaded && styles.loading]}>
       <BannerAd
+        key={`${bannerAdUnitId}-${adRequestKey}`}
         unitId={bannerAdUnitId}
-        size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+        size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER || BannerAdSize.BANNER}
         requestOptions={{
-          requestNonPersonalizedAdsOnly: false,
-          networkExtras: {
-            collapsible: "bottom",
-          },
+          // More reliable across ATT/consent states.
+          requestNonPersonalizedAdsOnly: Platform.OS === "ios",
         }}
         onAdLoaded={() => {
           console.log("[BannerAd] Ad loaded successfully");
           setAdLoaded(true);
           setAdError(null);
+          setRetryCount(0);
         }}
         onAdFailedToLoad={(error: any) => {
           console.log("[BannerAd] Ad failed to load:", {
@@ -87,8 +91,19 @@ export function BannerAdComponent({ style }: BannerAdComponentProps) {
             domain: error?.domain,
             retryCount,
           });
+          setAdLoaded(false);
           setAdError(error?.message || "Unknown error");
-          setRetryCount(prev => prev + 1);
+          setRetryCount((prev) => {
+            const next = prev + 1;
+            const retryDelayMs = Math.min(30000, 2000 * next);
+            if (retryTimerRef.current) {
+              clearTimeout(retryTimerRef.current);
+            }
+            retryTimerRef.current = setTimeout(() => {
+              setAdRequestKey((k) => k + 1);
+            }, retryDelayMs);
+            return next;
+          });
         }}
         onAdOpened={() => {
           console.log("[BannerAd] Ad opened");

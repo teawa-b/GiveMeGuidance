@@ -51,8 +51,8 @@ function RootLayoutNav() {
         router.replace("/(tabs)");
       }
     } else {
-      // User is not authenticated - make sure they're in auth
-      if (!inAuthGroup) {
+      // User is not authenticated - allow guest users to remain in app routes
+      if (!inAuthGroup && !inProtectedRoute) {
         console.log("[Auth] User not authenticated, redirecting to /(auth)");
         router.replace("/(auth)");
       }

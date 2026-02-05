@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef } from "react";
 import { Platform, Alert, AppState, AppStateStatus, InteractionManager } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Purchases, { 
@@ -14,8 +14,11 @@ import { useAuth } from "./AuthContext";
 // RevenueCat Configuration
 const REVENUECAT_ENABLED = true;
 
-// RevenueCat API Key - iOS Production Key
-const REVENUECAT_API_KEY = "appl_oMUDcCcIwqrFRrMtjpJDpHWnDyL";
+// RevenueCat API Keys
+// Use Test Store key in Expo Go (dev), App Store key in production builds
+const REVENUECAT_API_KEY = __DEV__
+  ? "test_IkvYcxsKGVeFabGframTpyrJOXL"   // Test Store key (works in Expo Go)
+  : "appl_oMUDcCcIwqrFRrMtjpJDpHWnDyL";  // App Store key (production builds only)
 
 // Entitlement identifier - must match what's configured in RevenueCat dashboard
 const ENTITLEMENT_ID = "Support Guidance";
@@ -71,6 +74,8 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
   const [currentOffering, setCurrentOffering] = useState<PurchasesOffering | null>(null);
   const [packages, setPackages] = useState<PremiumPackage[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
+  const inFlightCustomerInfoRef = useRef<Promise<CustomerInfo> | null>(null);
+  const lastStatusCheckAtRef = useRef(0);
 
   // Check if user has active entitlement
   const checkEntitlement = useCallback((info: CustomerInfo): boolean => {
@@ -173,16 +178,43 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Lightweight throttle to reduce duplicate foreground/init bursts.
+    const now = Date.now();
+    if (now - lastStatusCheckAtRef.current < 1200) {
+      return;
+    }
+    lastStatusCheckAtRef.current = now;
+
     try {
       setIsLoading(true);
-      const info = await Purchases.getCustomerInfo();
+      if (!inFlightCustomerInfoRef.current) {
+        inFlightCustomerInfoRef.current = Purchases.getCustomerInfo();
+      }
+
+      const info = await inFlightCustomerInfoRef.current;
       setCustomerInfo(info);
       setIsPremium(checkEntitlement(info));
       console.log("[RevenueCat] Premium status:", checkEntitlement(info));
-    } catch (error) {
+    } catch (error: any) {
+      const backendErrorCode = error?.info?.backendErrorCode;
+      const statusCode = error?.info?.statusCode;
+      const message = String(error?.message || "");
+      const underlying = String(error?.underlyingErrorMessage || "");
+      const isDuplicateRequestError =
+        backendErrorCode === 7638 ||
+        statusCode === 429 ||
+        message.includes("another request in flight") ||
+        underlying.includes("another request in flight");
+
+      if (isDuplicateRequestError) {
+        console.log("[RevenueCat] Skipping duplicate getCustomerInfo request");
+        return;
+      }
+
       console.error("[RevenueCat] Error checking status:", error);
       setIsPremium(false);
     } finally {
+      inFlightCustomerInfoRef.current = null;
       setIsLoading(false);
     }
   }, [checkEntitlement]);

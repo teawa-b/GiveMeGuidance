@@ -11,34 +11,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import LottieView from "lottie-react-native";
 import { lightHaptic, selectionHaptic } from "../lib/haptics";
-
-// Lottie animation URLs
-const FIRE_LOTTIE_URL = "https://lottie.host/dacfa944-e642-4d58-8d18-47b33afeb93c/zsrHvbF6v3.lottie";
-const TROPHY_LOTTIE_URL = "https://lottie.host/9f7c90df-a7df-4244-8343-b65772a9e81f/LP7emmyjoH.lottie";
-
-// Lottie animation component that works on all platforms
-const LottieIcon = ({ 
-  src, 
-  fallbackEmoji, 
-  size = 48 
-}: { 
-  src: string; 
-  fallbackEmoji: string; 
-  size?: number; 
-}) => {
-  return (
-    <View style={{ width: size, height: size }}>
-      <LottieView
-        source={{ uri: src }}
-        autoPlay
-        loop
-        style={{ width: size, height: size }}
-      />
-    </View>
-  );
-};
 
 interface CalendarModalProps {
   visible: boolean;
@@ -156,11 +129,7 @@ export function CalendarModal({
                 colors={["#fef3c7", "#fde68a"]}
                 style={styles.streakGradient}
               >
-                <LottieIcon 
-                  src="https://lottie.host/dacfa944-e642-4d58-8d18-47b33afeb93c/zsrHvbF6v3.lottie"
-                  fallbackEmoji="🔥"
-                  size={48}
-                />
+                <Ionicons name="flame" size={42} color="#d97706" />
                 <Text style={styles.streakNumber}>{currentStreak}</Text>
                 <Text style={styles.streakLabel}>Current Streak</Text>
               </LinearGradient>
@@ -170,11 +139,7 @@ export function CalendarModal({
                 colors={["#dbeafe", "#bfdbfe"]}
                 style={styles.streakGradient}
               >
-                <LottieIcon 
-                  src="https://lottie.host/9f7c90df-a7df-4244-8343-b65772a9e81f/LP7emmyjoH.lottie"
-                  fallbackEmoji="🏆"
-                  size={48}
-                />
+                <Ionicons name="trophy" size={42} color="#2563eb" />
                 <Text style={styles.streakNumberBlue}>{longestStreak}</Text>
                 <Text style={styles.streakLabelBlue}>Best Streak</Text>
               </LinearGradient>
@@ -453,3 +418,4 @@ const styles = StyleSheet.create({
     color: "#64748b",
   },
 });
+

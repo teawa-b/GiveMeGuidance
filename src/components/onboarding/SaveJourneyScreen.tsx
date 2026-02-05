@@ -91,7 +91,7 @@ export function SaveJourneyScreen({ onAuthenticated, onSkip, onEmailPress }: Sav
         {/* Top Section */}
         <View style={styles.topSection}>
           {/* Bird with sparkles */}
-          <MascotBird pose="pointing-up" size="large" animate delay={100} />
+          <MascotBird pose="reading" size="large" animate delay={100} />
 
           <View style={styles.titleSection}>
             <Text style={styles.title}>

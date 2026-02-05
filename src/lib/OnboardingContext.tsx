@@ -33,7 +33,7 @@ interface OnboardingContextType {
   data: OnboardingData;
   updateData: (updates: Partial<OnboardingData>) => void;
   resetOnboarding: () => void;
-  saveOnboarding: () => Promise<void>;
+  saveOnboarding: (overrides?: Partial<OnboardingData>) => Promise<void>;
   loadOnboarding: () => Promise<void>;
   syncWithSupabase: () => Promise<void>;
   isOnboardingComplete: boolean;
@@ -209,10 +209,11 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   // Save onboarding data to local storage and Supabase
-  const saveOnboarding = useCallback(async () => {
+  const saveOnboarding = useCallback(async (overrides: Partial<OnboardingData> = {}) => {
     try {
       const dataToSave = {
         ...data,
+        ...overrides,
         createdAt: data.createdAt || new Date().toISOString(),
       };
       

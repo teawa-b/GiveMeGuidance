@@ -135,11 +135,13 @@ export function LandingScreen({ onGetStarted, onSignIn }: LandingScreenProps) {
               <Animated.View style={[styles.sparkle, styles.sparkleTwo, { opacity: sparkle2 }]}>
                 <MaterialCommunityIcons name="star-four-points" size={14} color={OB_COLORS.gold} />
               </Animated.View>
-              <Animated.View style={[styles.sparkle, styles.sparkleThree, { opacity: sparkle3 }]}>
-                <Ionicons name="sparkles" size={12} color={OB_COLORS.primary} />
-              </Animated.View>
-              <MascotBird pose="reading" size="large" animate={false} bobAmount={4} />
+            <Animated.View style={[styles.sparkle, styles.sparkleThree, { opacity: sparkle3 }]}>
+              <Ionicons name="sparkles" size={12} color={OB_COLORS.primary} />
             </Animated.View>
+            <View style={styles.mascotWrap}>
+              <MascotBird pose="reading" size="large" animate={false} bobAmount={4} />
+            </View>
+          </Animated.View>
 
             <Animated.View style={[styles.titleSection, { opacity: fadeTitle, transform: [{ translateY: slideTitle }] }]}>
               <Text style={styles.title}>
@@ -227,11 +229,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 0,
     marginBottom: 0,
+    position: "relative",
   },
-  sparkle: { position: "absolute", zIndex: 11 },
-  sparkleOne: { top: 4, right: "28%" },
-  sparkleTwo: { top: 38, left: "24%" },
-  sparkleThree: { top: 0, left: "34%" },
+  mascotWrap: { zIndex: 3 },
+  sparkle: { position: "absolute", zIndex: 1 },
+  sparkleOne: { top: -12, right: "16%" },
+  sparkleTwo: { top: 50, left: "14%" },
+  sparkleThree: { top: -20, left: "58%" },
 
   titleSection: { alignItems: "center" },
   title: {

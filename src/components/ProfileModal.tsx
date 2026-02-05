@@ -14,7 +14,6 @@ import {
   KeyboardAvoidingView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import LottieView from "lottie-react-native";
 import { useAuth } from "../lib/AuthContext";
 import { usePremium } from "../lib/PremiumContext";
 import { PremiumPopup } from "./PremiumPopup";
@@ -235,7 +234,7 @@ export function ProfileModal({ visible, onClose, onSignOut, onViewHistory, onVie
           <Ionicons name="person" size={32} color="#10b981" />
         </View>
         <Text style={styles.userEmail} numberOfLines={1}>
-          {user?.email || "User"}
+          {user?.email || "Guest"}
         </Text>
       </View>
 
@@ -243,12 +242,7 @@ export function ProfileModal({ visible, onClose, onSignOut, onViewHistory, onVie
       <View style={styles.streakCard}>
         <View style={styles.streakHeader}>
           <View style={styles.streakIconContainer}>
-            <LottieView
-              source={{ uri: "https://lottie.host/dacfa944-e642-4d58-8d18-47b33afeb93c/zsrHvbF6v3.lottie" }}
-              autoPlay
-              loop
-              style={styles.streakLottie}
-            />
+            <Ionicons name="flame" size={30} color="#f59e0b" />
           </View>
         </View>
         <Text style={styles.streakTitle}>Your Journey</Text>

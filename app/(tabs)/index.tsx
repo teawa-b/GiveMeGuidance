@@ -24,6 +24,8 @@ import { usePremium } from "../../src/lib/PremiumContext";
 import { mediumHaptic, lightHaptic } from "../../src/lib/haptics";
 import { getCurrentStreakDisplay } from "../../src/services/streak";
 import { getBookmarks } from "../../src/services/bookmarks";
+import { getTodaysGuidance } from "../../src/services/dailyGuidance";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Daily guidance status types
 type DailyGuidanceStatus = "not_started" | "in_progress" | "completed";
@@ -33,7 +35,12 @@ const DUMMY_DAILY_GUIDANCE = {
   verse: "\"Be still, and know that I am God.\"",
   reference: "Psalm 46:10",
   reflectionPreview: "In the chaos of life, God invites us to pause and trust His presence...",
-  status: "not_started" as DailyGuidanceStatus,
+};
+
+const LOADING_DAILY_GUIDANCE = {
+  verse: "Loading today's guidance...",
+  reference: "Please wait",
+  reflectionPreview: "Preparing your verse and reflection for today.",
 };
 
 const DUMMY_USER_PATH = {
@@ -41,6 +48,8 @@ const DUMMY_USER_PATH = {
   goal: "peace",
   description: "Daily guidance focused on peace and trust in God.",
 };
+
+const TODAY_GUIDANCE_VIEWED_DATE_KEY = "today_guidance_viewed_date";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -56,6 +65,19 @@ export default function HomeScreen() {
     isActiveToday: false,
   });
   const [savedCount, setSavedCount] = useState(0);
+  const [isDailyGuidanceLoading, setIsDailyGuidanceLoading] = useState(true);
+  const [dailyGuidanceStatus, setDailyGuidanceStatus] = useState<DailyGuidanceStatus>("not_started");
+  const [dailyGuidanceCardData, setDailyGuidanceCardData] = useState({
+    verse: LOADING_DAILY_GUIDANCE.verse,
+    reference: LOADING_DAILY_GUIDANCE.reference,
+    reflectionPreview: LOADING_DAILY_GUIDANCE.reflectionPreview,
+  });
+
+  const clampPreview = (text: string): string => {
+    const trimmed = text.trim();
+    if (trimmed.length <= 120) return trimmed;
+    return `${trimmed.slice(0, 117).trimEnd()}...`;
+  };
 
   // Calculate week progress based on streak
   const getWeekProgress = (currentStreak: number): boolean[] => {
@@ -76,14 +98,42 @@ export default function HomeScreen() {
     useCallback(() => {
       const fetchData = async () => {
         try {
-          const [streak, bookmarks] = await Promise.all([
+          const today = new Date().toISOString().split("T")[0];
+          const [streak, bookmarks, todaysGuidance] = await Promise.all([
             getCurrentStreakDisplay(),
             getBookmarks(),
+            getTodaysGuidance(),
           ]);
+          const viewedDate = await AsyncStorage.getItem(TODAY_GUIDANCE_VIEWED_DATE_KEY);
+
           setStreakData(streak);
           setSavedCount(bookmarks?.length || 0);
+
+          if (todaysGuidance) {
+            const nextStatus: DailyGuidanceStatus =
+              viewedDate === today ? "completed" : "in_progress";
+            setDailyGuidanceStatus(nextStatus);
+            setDailyGuidanceCardData({
+              verse: `"${todaysGuidance.verse.text}"`,
+              reference: todaysGuidance.verse.reference.passage,
+              reflectionPreview: clampPreview(
+                todaysGuidance.explanation?.guidance_application ||
+                todaysGuidance.explanation?.connection_to_user_need ||
+                DUMMY_DAILY_GUIDANCE.reflectionPreview
+              ),
+            });
+          } else {
+            setDailyGuidanceStatus("not_started");
+            setDailyGuidanceCardData({
+              verse: DUMMY_DAILY_GUIDANCE.verse,
+              reference: DUMMY_DAILY_GUIDANCE.reference,
+              reflectionPreview: DUMMY_DAILY_GUIDANCE.reflectionPreview,
+            });
+          }
         } catch (error) {
           console.error("Error fetching data:", error);
+        } finally {
+          setIsDailyGuidanceLoading(false);
         }
       };
       fetchData();
@@ -116,7 +166,16 @@ export default function HomeScreen() {
   }, [shouldShowPopup]);
 
   const handleStartDailyGuidance = () => {
+    if (isDailyGuidanceLoading) {
+      return;
+    }
     mediumHaptic();
+    const today = new Date().toISOString().split("T")[0];
+    AsyncStorage.setItem(TODAY_GUIDANCE_VIEWED_DATE_KEY, today).catch((error) => {
+      console.error("Error saving daily guidance viewed state:", error);
+    });
+    setDailyGuidanceStatus("completed");
+
     router.push({
       pathname: "/guidance",
       params: { q: "daily guidance", daily: "true" },
@@ -156,6 +215,9 @@ export default function HomeScreen() {
   };
 
   const getCTAText = (status: DailyGuidanceStatus) => {
+    if (isDailyGuidanceLoading) {
+      return "Loading today's guidance...";
+    }
     switch (status) {
       case "not_started":
         return "Start today's guidance";
@@ -213,9 +275,11 @@ export default function HomeScreen() {
           <Pressable
             style={({ pressed }) => [
               styles.dailyGuidanceCard,
+              isDailyGuidanceLoading && styles.dailyGuidanceCardDisabled,
               pressed && styles.cardPressed,
             ]}
             onPress={handleStartDailyGuidance}
+            disabled={isDailyGuidanceLoading}
           >
             <View style={styles.dailyGuidanceHeader}>
               <View style={styles.dailyGuidanceTitleRow}>
@@ -223,23 +287,23 @@ export default function HomeScreen() {
                 <Text style={styles.dailyGuidanceLabel}>TODAY'S GUIDANCE</Text>
               </View>
               <View style={styles.statusBadge}>
-                <View style={[styles.statusDot, { backgroundColor: getStatusColor(DUMMY_DAILY_GUIDANCE.status) }]} />
+                <View style={[styles.statusDot, { backgroundColor: isDailyGuidanceLoading ? "#9ca3af" : getStatusColor(dailyGuidanceStatus) }]} />
                 <Text style={styles.statusText}>
-                  {getStatusLabel(DUMMY_DAILY_GUIDANCE.status)}
+                  {isDailyGuidanceLoading ? "LOADING" : getStatusLabel(dailyGuidanceStatus)}
                 </Text>
               </View>
             </View>
 
             <View style={styles.verseSection}>
-              <Text style={styles.verseText}>{DUMMY_DAILY_GUIDANCE.verse}</Text>
-              <Text style={styles.verseReference}>{DUMMY_DAILY_GUIDANCE.reference}</Text>
-              <Text style={styles.reflectionPreview}>
-                {DUMMY_DAILY_GUIDANCE.reflectionPreview}
+              <Text style={styles.verseText} numberOfLines={2}>{dailyGuidanceCardData.verse}</Text>
+              <Text style={styles.verseReference}>{dailyGuidanceCardData.reference}</Text>
+              <Text style={styles.reflectionPreview} numberOfLines={2}>
+                {dailyGuidanceCardData.reflectionPreview}
               </Text>
             </View>
 
             <View style={styles.dailyGuidanceCTA}>
-              <Text style={styles.ctaText}>{getCTAText(DUMMY_DAILY_GUIDANCE.status)}</Text>
+              <Text style={styles.ctaText}>{getCTAText(dailyGuidanceStatus)}</Text>
               <Ionicons name="arrow-forward" size={18} color="#ffffff" />
             </View>
           </Pressable>
@@ -456,6 +520,9 @@ const styles = StyleSheet.create({
         boxShadow: "0 4px 20px -2px rgba(0, 0, 0, 0.05)",
       },
     }),
+  },
+  dailyGuidanceCardDisabled: {
+    opacity: 0.92,
   },
   cardPressed: {
     transform: [{ scale: 0.98 }],
