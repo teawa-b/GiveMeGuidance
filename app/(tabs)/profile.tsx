@@ -9,6 +9,7 @@ import {
   Alert,
   ActivityIndicator,
   StatusBar,
+  Image,
   Modal,
   TextInput,
   KeyboardAvoidingView,
@@ -29,6 +30,7 @@ import { EtherealBackground } from "../../src/components/EtherealBackground";
 import { supabase } from "../../src/lib/supabase";
 
 type EditProfileView = "main" | "changeEmail" | "changePassword" | "dangerZone";
+const profileBird = require("../../assets/mascot/bird-pointing-right.png");
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -375,8 +377,11 @@ export default function ProfileScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Profile</Text>
-          <Text style={styles.headerSubtitle}>Your spiritual journey</Text>
+          <View style={styles.headerTextBlock}>
+            <Text style={styles.headerTitle}>Profile</Text>
+            <Text style={styles.headerSubtitle}>Your spiritual journey</Text>
+          </View>
+          <Image source={profileBird} style={styles.headerBird} resizeMode="contain" />
         </View>
 
         {/* User Info Card */}
@@ -931,7 +936,13 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 20 : 60,
   },
   header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 24,
+  },
+  headerTextBlock: {
+    flex: 1,
   },
   headerTitle: {
     fontSize: 32,
@@ -944,6 +955,12 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: "#10b981",
     marginTop: 4,
+  },
+  headerBird: {
+    width: 72,
+    height: 72,
+    marginLeft: 8,
+    opacity: 0.92,
   },
   userCard: {
     backgroundColor: "#ffffff",

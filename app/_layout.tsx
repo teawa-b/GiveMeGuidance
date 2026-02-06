@@ -85,11 +85,11 @@ function RootLayoutNav() {
           options={{
             headerShown: true,
             headerTitle: "",
-            headerBackTitle: "Back",
-            headerTintColor: "#10b981",
-            headerStyle: { backgroundColor: "#fafaf6" },
+            headerTransparent: true,
             headerShadowVisible: false,
-            headerTransparent: false,
+            headerBackTitle: "Back",
+            headerBackButtonDisplayMode: "default",
+            headerTintColor: "#10b981",
           }}
         />
         <Stack.Screen

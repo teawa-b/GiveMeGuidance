@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useHeaderHeight } from "@react-navigation/elements";
 import { Ionicons } from "@expo/vector-icons";
 import * as Sharing from "expo-sharing";
 import { ShareableVerseCard } from "../src/components/ShareableVerseCard";
@@ -54,6 +55,7 @@ export default function GuidanceScreen() {
   const { q: query } = params;
   const isDailyRequest = params.daily === "true" || params.daily === "1";
   const router = useRouter();
+  const headerHeight = useHeaderHeight();
   
   // Get onboarding preferences
   const { data: onboardingData } = useOnboarding();
@@ -178,7 +180,7 @@ export default function GuidanceScreen() {
     mediumHaptic();
     try {
       await Share.share({
-        message: `"${verseData.text}"\n\n— ${verseData.reference.passage}\n\nShared from Give Me Guidance`,
+        message: `"${verseData.text}"\n\n- ${verseData.reference.passage}\n\nFor more guidance, visit givemeguidance.com`,
         title: "Share Verse",
       });
     } catch (error) {
@@ -206,7 +208,7 @@ export default function GuidanceScreen() {
       
       if (isAvailable) {
         await Sharing.shareAsync(uri, {
-          mimeType: "image/png",
+          mimeType: "image/jpeg",
           dialogTitle: "Share this verse",
         });
         successHaptic();
@@ -516,7 +518,10 @@ export default function GuidanceScreen() {
       <EtherealBackground />
       
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: headerHeight + 12 },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {/* User Query Display */}
@@ -756,7 +761,7 @@ export default function GuidanceScreen() {
             {ViewShot ? (
               <ViewShot
                 ref={viewShotRef}
-                options={{ format: "png", quality: 1 }}
+                options={{ format: "jpg", quality: 0.95 }}
                 style={styles.viewShotContainer}
               >
                 <ShareableVerseCard
@@ -1280,17 +1285,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: "hidden",
     marginBottom: 20,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
+    backgroundColor: "#f0fdf4",
   },
   modalActions: {
     flexDirection: "row",

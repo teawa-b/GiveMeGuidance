@@ -5,7 +5,7 @@ import { LinearGradient } from "expo-linear-gradient";
 // Nature leaf image for decorative elements
 const natureLeafImage = require("../../assets/HomeScreenAssets/nature.png");
 // App logo for branding
-const appLogo = require("../../assets/NewLogo.png");
+const appLogo = require("../../assets/mascot/bird-reading.png");
 
 interface ShareableVerseCardProps {
   verseText: string;
@@ -13,17 +13,17 @@ interface ShareableVerseCardProps {
 }
 
 const { width: screenWidth } = Dimensions.get("window");
-// Card dimensions for 16:9 aspect ratio social sharing
-const CARD_WIDTH = Math.min(screenWidth - 48, 400);
-const CARD_HEIGHT = CARD_WIDTH * (9 / 16); // 16:9 aspect ratio
+// Square card for cleaner sharing across platforms
+const CARD_WIDTH = Math.min(screenWidth - 88, 340);
+const CARD_HEIGHT = CARD_WIDTH;
 
-// Calculate font size based on text length - optimized for 16:9 format
+// Calculate font size based on text length for a square canvas
 const getVerseFontSize = (text: string) => {
   const length = text.length;
-  if (length < 60) return 22;
-  if (length < 100) return 20;
+  if (length < 60) return 24;
+  if (length < 100) return 21;
   if (length < 150) return 18;
-  if (length < 200) return 16;
+  if (length < 220) return 16;
   if (length < 280) return 14;
   return 12;
 };
@@ -78,7 +78,7 @@ export const ShareableVerseCard = forwardRef<View, ShareableVerseCardProps>(
           {/* Verse text */}
           <Text 
             style={[styles.verseText, { fontSize, lineHeight }]}
-            numberOfLines={5}
+            numberOfLines={7}
             ellipsizeMode="tail"
           >
             {verseText}
@@ -100,12 +100,15 @@ export const ShareableVerseCard = forwardRef<View, ShareableVerseCardProps>(
         
         {/* Branding footer - improved visibility */}
         <LinearGradient
-          colors={["transparent", "rgba(240, 253, 244, 0.95)", "#f0fdf4"]}
+          colors={["#e7f8ee", "#f0fdf4"]}
           style={styles.brandingGradient}
         >
           <View style={styles.brandingContent}>
             <Image source={appLogo} style={styles.brandingLogo} resizeMode="contain" />
-            <Text style={styles.brandingText}>Give Me Guidance</Text>
+            <View>
+              <Text style={styles.brandingText}>Give Me Guidance</Text>
+              <Text style={styles.brandingUrl}>givemeguidance.com</Text>
+            </View>
           </View>
         </LinearGradient>
       </View>
@@ -160,27 +163,27 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 48,
+    paddingHorizontal: 26,
+    paddingTop: 26,
+    paddingBottom: 62,
     justifyContent: "center",
     alignItems: "center",
   },
   quoteIcon: {
-    fontSize: 36,
+    fontSize: 42,
     color: "rgba(16, 185, 129, 0.35)",
     fontFamily: Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" }),
-    lineHeight: 36,
-    marginBottom: 4,
+    lineHeight: 42,
+    marginBottom: 6,
   },
   quoteIconClose: {
-    fontSize: 36,
+    fontSize: 42,
     color: "rgba(16, 185, 129, 0.35)",
     fontFamily: Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" }),
-    lineHeight: 36,
+    lineHeight: 42,
     marginTop: 4,
     alignSelf: "flex-end",
-    marginRight: 8,
+    marginRight: 2,
   },
   verseText: {
     fontWeight: "500",
@@ -192,8 +195,8 @@ const styles = StyleSheet.create({
   divider: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 12,
-    marginBottom: 8,
+    marginTop: 14,
+    marginBottom: 10,
     gap: 10,
   },
   dividerLine: {
@@ -208,7 +211,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#10b981",
   },
   reference: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "700",
     color: "#059669",
     textAlign: "center",
@@ -220,9 +223,11 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    paddingTop: 16,
-    paddingBottom: 10,
-    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 12,
+    paddingHorizontal: 22,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(16, 185, 129, 0.16)",
   },
   brandingContent: {
     flexDirection: "row",
@@ -231,14 +236,21 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   brandingLogo: {
-    width: 18,
-    height: 18,
-    borderRadius: 4,
+    width: 40,
+    height: 40,
+    borderRadius: 10,
   },
   brandingText: {
     fontSize: 12,
     fontWeight: "700",
     color: "#059669",
     letterSpacing: 0.5,
+  },
+  brandingUrl: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "rgba(5, 150, 105, 0.9)",
+    letterSpacing: 0.25,
+    marginTop: 1,
   },
 });
