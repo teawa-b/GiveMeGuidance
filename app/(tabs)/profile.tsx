@@ -987,6 +987,7 @@ const styles = StyleSheet.create({
     height: 72,
     marginLeft: 8,
     opacity: 0.92,
+    transform: [{ scaleX: -1 }],
   },
   userCard: {
     backgroundColor: "#ffffff",
