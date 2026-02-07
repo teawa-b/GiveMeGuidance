@@ -20,8 +20,8 @@ export interface ExplanationData {
 }
 
 // Get Bible verse guidance via backend API
-export async function getGuidance(query: string): Promise<VerseData> {
-  return guidanceApi(query);
+export async function getGuidance(query: string, recentVerses?: string[]): Promise<VerseData> {
+  return guidanceApi(query, recentVerses);
 }
 
 // Get explanation for a verse via backend API

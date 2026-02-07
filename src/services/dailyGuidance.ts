@@ -81,8 +81,12 @@ async function saveDailyGuidance(guidance: DailyGuidance): Promise<void> {
 export async function fetchDailyGuidance(query: string): Promise<DailyGuidance> {
   const today = getTodayDateString();
 
-  // Get the verse
-  const verse = await getGuidance(query);
+  // Gather recently shown verse references to avoid repetition
+  const history = await getGuidanceHistory();
+  const recentVerses = history.slice(0, 30).map((entry) => entry.passage);
+
+  // Get the verse, passing recent history so the backend avoids repeats
+  const verse = await getGuidance(query, recentVerses);
 
   // Create initial guidance object
   const dailyGuidance: DailyGuidance = {

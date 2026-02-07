@@ -79,6 +79,25 @@ export async function removeBookmark(bookmarkId: string): Promise<void> {
   }
 }
 
+// Remove a bookmark by verse reference
+export async function removeBookmarkByReference(verseReference: string): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    throw new Error("Must be logged in");
+  }
+
+  const { error } = await supabase
+    .from("bookmarks")
+    .delete()
+    .eq("user_id", user.id)
+    .eq("verse_reference", verseReference);
+
+  if (error) {
+    console.error("Error removing bookmark by reference:", error);
+    throw new Error("Failed to remove bookmark");
+  }
+}
+
 // Remove multiple bookmarks
 export async function removeMultipleBookmarks(bookmarkIds: string[]): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser();

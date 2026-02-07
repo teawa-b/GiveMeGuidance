@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -15,20 +15,31 @@ import {
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { getChat, getChatMessages, addChatMessage, createChat, resetChatMessages, type Chat, type ChatMessage } from "../src/services/chats";
+import { getChat, getChatMessages, addChatMessage, createChat, resetChatMessages } from "../src/services/chats";
 import { sendChatMessage, type ChatContext } from "../src/services/chatAI";
 import { useDataCache } from "../src/lib/DataCache";
 import { ChatLoadingBubble } from "../src/components/ChatLoadingBubble";
 import { lightHaptic, mediumHaptic } from "../src/lib/haptics";
 import { EtherealBackground } from "../src/components/EtherealBackground";
 
-// Bird icon for chat avatar
 const appLogo = require("../assets/mascot/bird-reading.png");
 
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
+}
+
+const INPUT_MAX_LENGTH = 1000;
+
+const GENERIC_QUESTIONS = new Set([
+  "reflect on this verse",
+  "discuss this verse",
+  "daily guidance",
+]);
+
+function isGenericQuestion(question: string): boolean {
+  return GENERIC_QUESTIONS.has(question.toLowerCase().trim());
 }
 
 export default function ChatScreen() {
@@ -41,12 +52,10 @@ export default function ChatScreen() {
     explanation?: string;
   }>();
   const router = useRouter();
-  const flatListRef = useRef<FlatList>(null);
-  
-  // Get cache invalidation functions
+  const flatListRef = useRef<FlatList<Message>>(null);
+
   const { invalidateChats, invalidateStreak } = useDataCache();
 
-  const [chat, setChat] = useState<Chat | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -54,107 +63,110 @@ export default function ChatScreen() {
   const [chatId, setChatId] = useState<string | null>(params.chatId || null);
   const [context, setContext] = useState<ChatContext | null>(null);
 
-  // Initialize chat
   useEffect(() => {
     const initializeChat = async () => {
       setIsLoading(true);
 
       if (params.chatId) {
-        // Loading existing chat
         const existingChat = await getChat(params.chatId);
         if (existingChat) {
-          setChat(existingChat);
           setChatId(existingChat.id);
           setContext({
             verseText: existingChat.verse_text,
             verseReference: existingChat.verse_reference,
             userQuestion: existingChat.user_question,
-            reflectionPrompt: existingChat.user_question, // The reflection question if any
+            reflectionPrompt: existingChat.user_question,
             explanationData: existingChat.explanation_data,
           });
 
-          // Load existing messages
           const existingMessages = await getChatMessages(existingChat.id);
           if (existingMessages.length > 0) {
-            setMessages(existingMessages.map(m => ({
-              id: m.id,
-              role: m.role,
-              content: m.content,
-            })));
+            setMessages(
+              existingMessages.map((message) => ({
+                id: message.id,
+                role: message.role,
+                content: message.content,
+              }))
+            );
           } else {
-            // Add initial assistant message from explanation
             const initialMessage = formatInitialMessage(
               existingChat.explanation_data,
               existingChat.verse_text,
               existingChat.verse_reference
             );
-            setMessages([{
-              id: "initial",
-              role: "assistant",
-              content: initialMessage,
-            }]);
+            setMessages([
+              {
+                id: "initial",
+                role: "assistant",
+                content: initialMessage,
+              },
+            ]);
           }
         }
       } else if (params.verseText && params.explanation) {
-        // Creating new chat from verse with explanation
-        const explanationData = JSON.parse(params.explanation);
+        let explanationData: ChatContext["explanationData"] | null = null;
+        try {
+          explanationData = JSON.parse(params.explanation);
+        } catch (error) {
+          console.error("Error parsing chat explanation data:", error);
+        }
+
+        if (!explanationData) {
+          setIsLoading(false);
+          return;
+        }
+
         const originalQuestion = params.userQuestion?.trim() || "";
         const reflectionQuestion = params.reflectionPrompt?.trim() || "";
-        
+
         const newContext: ChatContext = {
           verseText: params.verseText,
           verseReference: params.verseReference || "",
-          userQuestion: originalQuestion, // Original question for chat title
-          reflectionPrompt: reflectionQuestion, // The "Reflect Deeper" question for AI context
+          userQuestion: originalQuestion,
+          reflectionPrompt: reflectionQuestion,
           explanationData,
         };
         setContext(newContext);
 
-        // Create the chat in database
         try {
           const newChatId = await createChat(
             newContext.verseText,
             newContext.verseReference,
-            originalQuestion, // Use original question for the chat title
+            originalQuestion,
             newContext.explanationData
           );
           setChatId(newChatId);
-          
-          // Invalidate cache so chats list refreshes when user goes back
+
           invalidateChats();
           invalidateStreak();
 
-          // Add initial assistant message with verse and explanation
           const initialMessage = formatInitialMessage(
             explanationData,
             newContext.verseText,
             newContext.verseReference
           );
-          
-          const initialMessages: Message[] = [{
-            id: "initial",
-            role: "assistant",
-            content: initialMessage,
-          }];
 
-          // Save initial message to database
+          const initialMessages: Message[] = [
+            {
+              id: "initial",
+              role: "assistant",
+              content: initialMessage,
+            },
+          ];
+
           if (newChatId) {
             await addChatMessage(newChatId, "assistant", initialMessage);
           }
 
-          // If there's a reflection prompt, add it as an ASSISTANT message (posing the question to the user)
           if (reflectionQuestion) {
-            // Format the reflection question as an assistant message
-            const reflectionMessage = `✨ **Reflect Deeper**\n\n${reflectionQuestion}`;
-            
-            // Add the reflection question as an assistant message
+            const reflectionMessage = `**Reflect Deeper**\n\n${reflectionQuestion}`;
+
             initialMessages.push({
               id: "reflection-prompt",
               role: "assistant",
               content: reflectionMessage,
             });
 
-            // Save reflection message to database
             if (newChatId) {
               await addChatMessage(newChatId, "assistant", reflectionMessage);
             }
@@ -165,16 +177,14 @@ export default function ChatScreen() {
           console.error("Error creating chat:", error);
         }
       } else if (params.verseText && !params.explanation) {
-        // Creating new chat from bookmark (no explanation data)
-        const originalQuestion = params.userQuestion?.trim() || "Discuss this verse";
-        
-        // Create a minimal explanation for bookmarked verses
+        const originalQuestion = params.userQuestion?.trim() || params.verseReference || "Discuss this verse";
+
         const minimalExplanation = {
           verse_explanation: "This verse from Scripture offers wisdom and guidance for your life.",
           connection_to_user_need: "Take a moment to reflect on how this verse speaks to your current situation.",
           guidance_application: "Consider how you might apply the wisdom of this verse in your daily life.",
         };
-        
+
         const newContext: ChatContext = {
           verseText: params.verseText,
           verseReference: params.verseReference || "",
@@ -183,7 +193,6 @@ export default function ChatScreen() {
         };
         setContext(newContext);
 
-        // Create the chat in database
         try {
           const newChatId = await createChat(
             newContext.verseText,
@@ -192,24 +201,20 @@ export default function ChatScreen() {
             minimalExplanation
           );
           setChatId(newChatId);
-          
-          // Invalidate cache so chats list refreshes when user goes back
+
           invalidateChats();
           invalidateStreak();
 
-          // Add initial assistant message for bookmarked verse
-          const initialMessage = formatBookmarkChatMessage(
-            newContext.verseText,
-            newContext.verseReference
-          );
-          
-          const initialMessages: Message[] = [{
-            id: "initial",
-            role: "assistant",
-            content: initialMessage,
-          }];
+          const initialMessage = formatBookmarkChatMessage(newContext.verseText, newContext.verseReference);
 
-          // Save initial message to database
+          const initialMessages: Message[] = [
+            {
+              id: "initial",
+              role: "assistant",
+              content: initialMessage,
+            },
+          ];
+
           if (newChatId) {
             await addChatMessage(newChatId, "assistant", initialMessage);
           }
@@ -224,43 +229,57 @@ export default function ChatScreen() {
     };
 
     initializeChat();
-  }, [params.chatId, params.verseText, params.explanation, invalidateChats, invalidateStreak]);
+  }, [
+    params.chatId,
+    params.verseText,
+    params.verseReference,
+    params.userQuestion,
+    params.reflectionPrompt,
+    params.explanation,
+    invalidateChats,
+    invalidateStreak,
+  ]);
 
-  const formatInitialMessage = (explanationData: ChatContext["explanationData"], verseText?: string, verseRef?: string): string => {
+  const formatInitialMessage = (
+    explanationData: ChatContext["explanationData"],
+    verseText?: string,
+    verseReference?: string
+  ): string => {
     let message = "";
-    
-    // Include the verse at the top of the first message
-    if (verseText && verseRef) {
-      message += `📖 "${verseText}"\n— ${verseRef}\n\n`;
+
+    if (verseText && verseReference) {
+      message += `"${verseText}"\n- ${verseReference}\n\n`;
     }
-    
-    message += `📚 Understanding This Verse:\n${explanationData.verse_explanation}\n\n`;
-    message += `💡 How This Speaks to You:\n${explanationData.connection_to_user_need}\n\n`;
-    message += `🙏 Living It Out:\n${explanationData.guidance_application}\n\n`;
-    message += `Feel free to ask me anything about this verse or how to apply it to your life!`;
-    
+
+    message += "**Understanding This Verse**\n";
+    message += `${explanationData.verse_explanation}\n\n`;
+    message += "**How This Speaks to You**\n";
+    message += `${explanationData.connection_to_user_need}\n\n`;
+    message += "**Living It Out**\n";
+    message += `${explanationData.guidance_application}\n\n`;
+    message += "Ask me anything about this verse and how to live it today.";
+
     return message;
   };
 
-  const formatBookmarkChatMessage = (verseText: string, verseRef: string): string => {
-    let message = `📖 "${verseText}"\n— ${verseRef}\n\n`;
-    message += `🍃 This verse is from your saved bookmarks. I'd love to help you explore its meaning and how it applies to your life.\n\n`;
-    message += `Here are some things we could discuss:\n`;
-    message += `• What this verse means in its original context\n`;
-    message += `• How it speaks to your current situation\n`;
-    message += `• Practical ways to apply its wisdom\n\n`;
-    message += `What would you like to explore about this verse?`;
-    
+  const formatBookmarkChatMessage = (verseText: string, verseReference: string): string => {
+    let message = `"${verseText}"\n- ${verseReference}\n\n`;
+    message += "This verse is from your saved bookmarks. We can explore it together.\n\n";
+    message += "Possible directions:\n";
+    message += "- The original context and meaning\n";
+    message += "- How it connects to your current season\n";
+    message += "- Practical steps to apply today\n\n";
+    message += "What would you like to explore first?";
+
     return message;
   };
 
-  // Reset the chat (keep initial messages only)
   const handleResetChat = useCallback(() => {
     if (!chatId) return;
 
     Alert.alert(
       "Reset Conversation",
-      "This will clear all your messages and start fresh with the original guidance. Continue?",
+      "This will clear your newer messages and keep the original guidance. Continue?",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -269,13 +288,10 @@ export default function ChatScreen() {
           onPress: async () => {
             mediumHaptic();
             try {
-              // Determine how many initial messages to keep (1 for explanation, optionally 2 if there's a reflection)
-              const keepCount = messages.length >= 2 && messages[1]?.content.includes("✨ **Reflect Deeper**") ? 2 : 1;
-              
+              const secondMessage = messages[1]?.content?.toLowerCase() || "";
+              const keepCount = secondMessage.includes("reflect deeper") ? 2 : 1;
               await resetChatMessages(chatId, keepCount);
-              
-              // Update local state to show only initial messages
-              setMessages(prev => prev.slice(0, keepCount));
+              setMessages((previous) => previous.slice(0, keepCount));
             } catch (error) {
               console.error("Error resetting chat:", error);
               Alert.alert("Error", "Failed to reset conversation. Please try again.");
@@ -294,154 +310,175 @@ export default function ChatScreen() {
     setInputText("");
     setIsSending(true);
 
-    // Add user message to UI immediately
-    const userMsgId = Date.now().toString();
+    const userMessageId = Date.now().toString();
     const newUserMessage: Message = {
-      id: userMsgId,
+      id: userMessageId,
       role: "user",
       content: userMessage,
     };
-    setMessages(prev => [...prev, newUserMessage]);
+    setMessages((previous) => [...previous, newUserMessage]);
 
     try {
-      // Save user message to database
       await addChatMessage(chatId, "user", userMessage);
 
-      // Get AI response
-      const previousMessages = messages.map(m => ({
-        role: m.role,
-        content: m.content,
+      const previousMessages = messages.map((message) => ({
+        role: message.role,
+        content: message.content,
       }));
-      
       const aiResponse = await sendChatMessage(context, previousMessages, userMessage);
 
-      // Add AI response to UI
-      const aiMsgId = (Date.now() + 1).toString();
-      const newAiMessage: Message = {
-        id: aiMsgId,
+      const aiMessageId = (Date.now() + 1).toString();
+      const assistantMessage: Message = {
+        id: aiMessageId,
         role: "assistant",
         content: aiResponse,
       };
-      setMessages(prev => [...prev, newAiMessage]);
+      setMessages((previous) => [...previous, assistantMessage]);
 
-      // Save AI response to database
       await addChatMessage(chatId, "assistant", aiResponse);
     } catch (error) {
       console.error("Error sending message:", error);
-      // Add error message
-      setMessages(prev => [...prev, {
-        id: Date.now().toString(),
-        role: "assistant",
-        content: "I'm sorry, I couldn't process your message. Please try again.",
-      }]);
+      setMessages((previous) => [
+        ...previous,
+        {
+          id: Date.now().toString(),
+          role: "assistant",
+          content: "I could not process that message. Please try again.",
+        },
+      ]);
     } finally {
       setIsSending(false);
     }
   }, [inputText, context, chatId, isSending, messages]);
 
-  const scrollToBottom = () => {
-    if (flatListRef.current && messages.length > 0) {
-      flatListRef.current.scrollToEnd({ animated: true });
-    }
-  };
+  const allQuickPrompts = useMemo(() => {
+    const prompts = [
+      context?.reflectionPrompt?.trim(),
+      "How can I apply this verse today?",
+      "What should I pray about from this?",
+      "What is the historical context?",
+      "How does this connect to other scriptures?",
+      "What does this mean for my relationships?",
+      "Can you break this verse down word by word?",
+      "What comfort does this verse offer?",
+      "How can this guide my decisions today?",
+    ].filter((prompt): prompt is string => Boolean(prompt && prompt.length > 0));
+
+    return Array.from(new Set(prompts));
+  }, [context?.reflectionPrompt]);
+
+  const PROMPTS_PER_PAGE = 2;
+  const totalPages = Math.max(1, Math.ceil(allQuickPrompts.length / PROMPTS_PER_PAGE));
+  const [promptPage] = useState(() => Math.floor(Math.random() * totalPages));
+
+  const hasUserMessage = useMemo(
+    () => messages.some((m) => m.role === "user"),
+    [messages]
+  );
+
+  const visiblePrompts = useMemo(() => {
+    const start = promptPage * PROMPTS_PER_PAGE;
+    return allQuickPrompts.slice(start, start + PROMPTS_PER_PAGE);
+  }, [allQuickPrompts, promptPage]);
+
+  const handleQuickPrompt = useCallback((prompt: string) => {
+    lightHaptic();
+    setInputText(prompt);
+  }, []);
+
+  const scrollToBottom = useCallback(() => {
+    if (!flatListRef.current || messages.length === 0) return;
+    flatListRef.current.scrollToEnd({ animated: true });
+  }, [messages.length]);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, scrollToBottom]);
 
-  // Simple markdown text renderer
   const renderFormattedText = (text: string, isUser: boolean) => {
-    // First, clean up HTML entities and tags
-    let cleanedText = text
-      // Handle line breaks
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<\/br>/gi, '\n')
-      // Handle paragraph tags
-      .replace(/<p>/gi, '')
-      .replace(/<\/p>/gi, '\n\n')
-      // Handle common HTML entities
-      .replace(/&nbsp;/gi, ' ')
-      .replace(/&amp;/gi, '&')
-      .replace(/&lt;/gi, '<')
-      .replace(/&gt;/gi, '>')
+    const cleanedText = text
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/br>/gi, "\n")
+      .replace(/<p>/gi, "")
+      .replace(/<\/p>/gi, "\n\n")
+      .replace(/&nbsp;/gi, " ")
+      .replace(/&amp;/gi, "&")
+      .replace(/&lt;/gi, "<")
+      .replace(/&gt;/gi, ">")
       .replace(/&quot;/gi, '"')
       .replace(/&#39;/gi, "'")
       .replace(/&apos;/gi, "'")
-      // Handle bullet points that might come as HTML
-      .replace(/<li>/gi, '• ')
-      .replace(/<\/li>/gi, '\n')
-      .replace(/<\/?ul>/gi, '\n')
-      .replace(/<\/?ol>/gi, '\n')
-      // Handle bold/strong tags
-      .replace(/<strong>/gi, '**')
-      .replace(/<\/strong>/gi, '**')
-      .replace(/<b>/gi, '**')
-      .replace(/<\/b>/gi, '**')
-      // Handle italic/em tags
-      .replace(/<em>/gi, '*')
-      .replace(/<\/em>/gi, '*')
-      .replace(/<i>/gi, '*')
-      .replace(/<\/i>/gi, '*')
-      // Remove any other HTML tags
-      .replace(/<[^>]*>/g, '')
-      // Clean up multiple newlines
-      .replace(/\n{3,}/g, '\n\n')
+      .replace(/<li>/gi, "- ")
+      .replace(/<\/li>/gi, "\n")
+      .replace(/<\/?ul>/gi, "\n")
+      .replace(/<\/?ol>/gi, "\n")
+      .replace(/<strong>/gi, "**")
+      .replace(/<\/strong>/gi, "**")
+      .replace(/<b>/gi, "**")
+      .replace(/<\/b>/gi, "**")
+      .replace(/<em>/gi, "*")
+      .replace(/<\/em>/gi, "*")
+      .replace(/<i>/gi, "*")
+      .replace(/<\/i>/gi, "*")
+      .replace(/<[^>]*>/g, "")
+      .replace(/\n{3,}/g, "\n\n")
       .trim();
 
-    // Split by paragraphs (double newlines)
     const paragraphs = cleanedText.split(/\n\n+/);
-    
-    return paragraphs.map((paragraph, pIndex) => {
-      // Split by single newlines within paragraph
+    return paragraphs.map((paragraph, paragraphIndex) => {
       const lines = paragraph.split(/\n/);
-      
       return (
-        <Text key={pIndex} style={[styles.messageText, isUser && styles.userText, pIndex > 0 && styles.paragraphSpacing]}>
-          {lines.map((line, lIndex) => {
-            // Parse the line for bold and italic
+        <Text
+          key={`paragraph-${paragraphIndex}`}
+          style={[
+            styles.messageText,
+            isUser && styles.userText,
+            paragraphIndex > 0 && styles.paragraphSpacing,
+          ]}
+        >
+          {lines.map((line, lineIndex) => {
             const parts: React.ReactNode[] = [];
-            let keyIndex = 0;
-            
-            // Pattern for **bold**, *italic*, and 📖📚💡🙏 emojis (already render fine)
             const regex = /(\*\*(.+?)\*\*|\*(.+?)\*)/g;
             let lastIndex = 0;
-            let match;
-            
-            while ((match = regex.exec(line)) !== null) {
-              // Add text before the match
-              if (match.index > lastIndex) {
-                parts.push(line.substring(lastIndex, match.index));
+            let token;
+            let partIndex = 0;
+
+            while ((token = regex.exec(line)) !== null) {
+              if (token.index > lastIndex) {
+                parts.push(line.substring(lastIndex, token.index));
               }
-              
-              if (match[2]) {
-                // Bold text (**text**)
+
+              if (token[2]) {
                 parts.push(
-                  <Text key={keyIndex++} style={styles.boldText}>{match[2]}</Text>
+                  <Text key={`bold-${lineIndex}-${partIndex}`} style={styles.boldText}>
+                    {token[2]}
+                  </Text>
                 );
-              } else if (match[3]) {
-                // Italic text (*text*)
+                partIndex += 1;
+              } else if (token[3]) {
                 parts.push(
-                  <Text key={keyIndex++} style={styles.italicText}>{match[3]}</Text>
+                  <Text key={`italic-${lineIndex}-${partIndex}`} style={styles.italicText}>
+                    {token[3]}
+                  </Text>
                 );
+                partIndex += 1;
               }
-              
+
               lastIndex = regex.lastIndex;
             }
-            
-            // Add remaining text
+
             if (lastIndex < line.length) {
               parts.push(line.substring(lastIndex));
             }
-            
-            // If no formatting found, just return the line
+
             if (parts.length === 0) {
               parts.push(line);
             }
-            
+
             return (
-              <React.Fragment key={lIndex}>
+              <React.Fragment key={`line-${lineIndex}`}>
                 {parts}
-                {lIndex < lines.length - 1 && '\n'}
+                {lineIndex < lines.length - 1 && "\n"}
               </React.Fragment>
             );
           })}
@@ -452,15 +489,34 @@ export default function ChatScreen() {
 
   const renderMessage = ({ item }: { item: Message }) => {
     const isUser = item.role === "user";
+
     return (
-      <View style={[styles.messageBubble, isUser ? styles.userBubble : styles.assistantBubble]}>
+      <View style={[styles.messageRow, isUser ? styles.userRow : styles.assistantRow]}>
         {!isUser && (
           <View style={styles.avatarContainer}>
             <Image source={appLogo} style={styles.avatarImage} resizeMode="contain" />
           </View>
         )}
-        <View style={[styles.messageContent, isUser ? styles.userContent : styles.assistantContent]}>
-          {renderFormattedText(item.content, isUser)}
+
+        <View style={[styles.messageColumn, isUser && styles.userMessageColumn]}>
+          <Text style={[styles.speakerLabel, isUser ? styles.userSpeakerLabel : styles.assistantSpeakerLabel]}>
+            {isUser ? "You" : "Guide"}
+          </Text>
+
+          {isUser ? (
+            <LinearGradient
+              colors={["#22c58b", "#10b981", "#059669"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[styles.messageBubble, styles.userBubble]}
+            >
+              {renderFormattedText(item.content, true)}
+            </LinearGradient>
+          ) : (
+            <View style={[styles.messageBubble, styles.assistantBubble]}>
+              {renderFormattedText(item.content, false)}
+            </View>
+          )}
         </View>
       </View>
     );
@@ -469,62 +525,56 @@ export default function ChatScreen() {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <EtherealBackground />
-        <View style={styles.loadingContent}>
-          <View style={styles.loadingIconContainer}>
-            <Image source={appLogo} style={styles.loadingBird} resizeMode="contain" />
-            <ActivityIndicator size="small" color="#10b981" style={styles.loadingSpinner} />
-          </View>
-          <Text style={styles.loadingText}>Loading conversation...</Text>
+        <EtherealBackground variant="chat" intensity="low" />
+        <View style={styles.loadingPanel}>
+          <Image source={appLogo} style={styles.loadingBird} resizeMode="contain" />
+          <ActivityIndicator size="small" color="#10b981" />
+          <Text style={styles.loadingText}>Preparing your conversation...</Text>
         </View>
       </View>
     );
   }
+
+  const canSend = inputText.trim().length > 0 && !isSending;
 
   return (
     <>
       <Stack.Screen
         options={{
           headerShown: true,
-          headerTitle: context?.verseReference || "Chat",
+          headerTitle: context?.verseReference || "Guided Chat",
           headerBackTitle: "Back",
-          headerTintColor: "#10b981",
-          headerStyle: { backgroundColor: "#fafaf6" },
-          headerTitleStyle: { fontWeight: "600", fontSize: 17 },
+          headerTintColor: "#0f766e",
+          headerStyle: { backgroundColor: "#f1fbf3" },
+          headerTitleStyle: { fontWeight: "600", fontSize: 16, color: "#065f46" },
           headerShadowVisible: false,
           headerRight: () => (
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+            <View style={styles.headerActions}>
               <Pressable
+                style={({ pressed }) => [styles.headerActionButton, pressed && styles.headerActionButtonPressed]}
                 onPress={handleResetChat}
-                style={({ pressed }) => ({
-                  opacity: pressed ? 0.6 : 1,
-                  padding: 8,
-                })}
               >
-                <Ionicons name="refresh" size={22} color="#10b981" />
+                <Ionicons name="refresh" size={18} color="#0f766e" />
               </Pressable>
               <Pressable
+                style={({ pressed }) => [styles.headerActionButton, pressed && styles.headerActionButtonPressed]}
                 onPress={() => router.replace("/(tabs)")}
-                style={({ pressed }) => ({
-                  opacity: pressed ? 0.6 : 1,
-                  padding: 8,
-                  marginRight: 4,
-                })}
               >
-                <Ionicons name="home-outline" size={22} color="#10b981" />
+                <Ionicons name="home-outline" size={18} color="#0f766e" />
               </Pressable>
             </View>
           ),
         }}
       />
+
       <View style={styles.container}>
-        <EtherealBackground />
+        <EtherealBackground variant="chat" intensity="low" />
+
         <KeyboardAvoidingView
           style={styles.keyboardView}
-          behavior={Platform.OS === "ios" ? "padding" : "padding"}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 60}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 16}
         >
-          {/* Messages */}
           <FlatList
             ref={flatListRef}
             data={messages}
@@ -533,13 +583,64 @@ export default function ChatScreen() {
             contentContainerStyle={styles.messagesList}
             showsVerticalScrollIndicator={false}
             onContentSizeChange={scrollToBottom}
-            ListFooterComponent={isSending ? <ChatLoadingBubble /> : null}
             keyboardShouldPersistTaps="handled"
+            ListHeaderComponent={
+              context ? (
+                <View style={styles.contextCard}>
+                  <LinearGradient
+                    colors={["rgba(214, 249, 228, 0.9)", "rgba(236, 253, 245, 0.95)", "rgba(255, 255, 255, 0.95)"]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.contextCardGradient}
+                  >
+                    <Text style={styles.contextLabel}>CONVERSATION FOCUS</Text>
+                    <Text style={styles.contextReference}>{context.verseReference}</Text>
+                    <Text style={styles.contextVerseText} numberOfLines={3}>
+                      "{context.verseText}"
+                    </Text>
+
+                    {!!context.userQuestion && !isGenericQuestion(context.userQuestion) && (
+                      <View style={styles.contextQuestionRow}>
+                        <Ionicons name="sparkles-outline" size={14} color="#0f766e" />
+                        <Text style={styles.contextQuestionText} numberOfLines={2}>
+                          {context.userQuestion}
+                        </Text>
+                      </View>
+                    )}
+                  </LinearGradient>
+                </View>
+              ) : null
+            }
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyTitle}>Start the conversation</Text>
+                <Text style={styles.emptySubtitle}>Ask what this verse means for your day.</Text>
+              </View>
+            }
+            ListFooterComponent={isSending ? <ChatLoadingBubble /> : <View style={styles.footerSpacer} />}
           />
 
-          {/* Input Area */}
-          <View style={styles.inputWrapper}>
-            <View style={styles.inputContainer}>
+          <View style={styles.composerSection}>
+            {!hasUserMessage && visiblePrompts.length > 0 && (
+              <View style={styles.quickPromptRow}>
+                {visiblePrompts.map((prompt) => (
+                  <Pressable
+                    key={prompt}
+                    style={({ pressed }) => [
+                      styles.quickPromptChip,
+                      pressed && styles.quickPromptChipPressed,
+                    ]}
+                    onPress={() => handleQuickPrompt(prompt)}
+                  >
+                    <Text style={styles.quickPromptText} numberOfLines={1}>
+                      {prompt}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+
+            <View style={styles.inputShell}>
               <TextInput
                 style={styles.input}
                 value={inputText}
@@ -547,26 +648,34 @@ export default function ChatScreen() {
                 placeholder="Ask about this verse..."
                 placeholderTextColor="#94a3b8"
                 multiline
-                maxLength={1000}
+                maxLength={INPUT_MAX_LENGTH}
                 editable={!isSending}
               />
+
               <Pressable
                 style={({ pressed }) => [
                   styles.sendButton,
-                  (!inputText.trim() || isSending) && styles.sendButtonDisabled,
-                  pressed && inputText.trim() && !isSending && styles.sendButtonPressed
+                  !canSend && styles.sendButtonDisabled,
+                  pressed && canSend && styles.sendButtonPressed,
                 ]}
                 onPress={handleSend}
-                disabled={!inputText.trim() || isSending}
+                disabled={!canSend}
               >
                 {isSending ? (
-                  <ActivityIndicator size="small" color="#10b981" />
+                  <View style={styles.sendButtonGradient}>
+                    <ActivityIndicator size="small" color="#ffffff" />
+                  </View>
+                ) : canSend ? (
+                  <LinearGradient
+                    colors={["#22c58b", "#10b981", "#059669"]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.sendButtonGradient}
+                  >
+                    <Ionicons name="arrow-up" size={18} color="#ffffff" />
+                  </LinearGradient>
                 ) : (
-                  <Ionicons 
-                    name="arrow-up" 
-                    size={20} 
-                    color={inputText.trim() ? "#ffffff" : "#94a3b8"} 
-                  />
+                  <Ionicons name="arrow-up" size={18} color="#94a3b8" />
                 )}
               </Pressable>
             </View>
@@ -580,144 +689,170 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fafaf6",
+    backgroundColor: "#f7fcf8",
   },
   keyboardView: {
     flex: 1,
   },
-  
-  // Loading
-  loadingContainer: {
-    flex: 1,
-    backgroundColor: "#fafaf6",
-  },
-  loadingContent: {
-    flex: 1,
-    justifyContent: "center",
+  headerActions: {
+    flexDirection: "row",
     alignItems: "center",
-    gap: 16,
+    gap: 8,
   },
-  loadingIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    justifyContent: "center",
+  headerActionButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.2)",
     alignItems: "center",
+    justifyContent: "center",
     ...Platform.select({
       ios: {
-        backgroundColor: "rgba(255, 255, 255, 0.8)",
-        shadowColor: "#10b981",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
+        backgroundColor: "rgba(255, 255, 255, 0.9)",
       },
       android: {
         backgroundColor: "#ffffff",
-        elevation: 3,
       },
       web: {
-        backgroundColor: "rgba(255, 255, 255, 0.8)",
-        boxShadow: "0 4px 12px rgba(16, 185, 129, 0.1)",
+        backgroundColor: "rgba(255, 255, 255, 0.9)",
       },
     }),
   },
-  loadingBird: {
-    width: 54,
-    height: 54,
+  headerActionButtonPressed: {
+    opacity: 0.78,
   },
-  loadingSpinner: {
-    position: "absolute",
-    bottom: 10,
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: "#f1fbf4",
+  },
+  loadingPanel: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+  },
+  loadingBird: {
+    width: 74,
+    height: 74,
   },
   loadingText: {
     fontSize: 15,
+    fontWeight: "500",
     color: "#64748b",
+  },
+  messagesList: {
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    paddingBottom: 10,
+  },
+  contextCard: {
+    borderRadius: 24,
+    overflow: "hidden",
+    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.12)",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#059669",
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.12,
+        shadowRadius: 16,
+      },
+      android: {
+        elevation: 3,
+      },
+      web: {
+        boxShadow: "0 6px 16px rgba(5, 150, 105, 0.12)",
+      },
+    }),
+  },
+  contextCardGradient: {
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+  },
+  contextLabel: {
+    fontSize: 11,
+    letterSpacing: 1.2,
+    fontWeight: "700",
+    color: "#0f766e",
+    marginBottom: 6,
+  },
+  contextReference: {
+    fontSize: 20,
+    lineHeight: 26,
+    fontWeight: "700",
+    color: "#14532d",
+    marginBottom: 8,
+    fontFamily: Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" }),
+  },
+  contextVerseText: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: "#065f46",
+    fontStyle: "italic",
+    fontFamily: Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" }),
+  },
+  contextQuestionRow: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(15, 118, 110, 0.15)",
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+  },
+  contextQuestionText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 19,
+    color: "#0f766e",
     fontWeight: "500",
   },
-  
-  // Messages
-  messagesList: {
-    padding: 16,
-    paddingBottom: 8,
+  emptyState: {
+    borderRadius: 18,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "rgba(148, 163, 184, 0.2)",
+    backgroundColor: "rgba(255, 255, 255, 0.8)",
   },
-  messageBubble: {
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#334155",
+    marginBottom: 6,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#64748b",
+  },
+  messageRow: {
     flexDirection: "row",
-    marginBottom: 16,
-    alignItems: "flex-start",
+    marginBottom: 14,
+    alignItems: "flex-end",
   },
-  userBubble: {
-    justifyContent: "flex-end",
-  },
-  assistantBubble: {
+  assistantRow: {
     justifyContent: "flex-start",
+  },
+  userRow: {
+    justifyContent: "flex-end",
   },
   avatarContainer: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    justifyContent: "center",
-    alignItems: "center",
     marginRight: 10,
-    borderWidth: 1,
-    borderColor: "rgba(167, 243, 208, 0.4)",
     overflow: "hidden",
-    ...Platform.select({
-      ios: {
-        backgroundColor: "rgba(255, 255, 255, 0.9)",
-        shadowColor: "#10b981",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 6,
-      },
-      android: {
-        backgroundColor: "#ffffff",
-        elevation: 2,
-      },
-      web: {
-        backgroundColor: "rgba(255, 255, 255, 0.9)",
-        boxShadow: "0 2px 6px rgba(16, 185, 129, 0.08)",
-      },
-    }),
-  },
-  avatarImage: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-  },
-  messageContent: {
-    maxWidth: "78%",
-    padding: 14,
-    borderRadius: 20,
-  },
-  userContent: {
-    backgroundColor: "#10b981",
-    borderBottomRightRadius: 6,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#10b981",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 3,
-      },
-      web: {
-        boxShadow: "0 2px 8px rgba(16, 185, 129, 0.2)",
-      },
-    }),
-  },
-  assistantContent: {
-    borderBottomLeftRadius: 6,
     borderWidth: 1,
-    borderColor: "rgba(236, 253, 245, 0.8)",
+    borderColor: "rgba(167, 243, 208, 0.5)",
     ...Platform.select({
       ios: {
         backgroundColor: "rgba(255, 255, 255, 0.95)",
-        shadowColor: "#000",
+        shadowColor: "#10b981",
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.04,
-        shadowRadius: 8,
+        shadowOpacity: 0.1,
+        shadowRadius: 6,
       },
       android: {
         backgroundColor: "#ffffff",
@@ -725,7 +860,76 @@ const styles = StyleSheet.create({
       },
       web: {
         backgroundColor: "rgba(255, 255, 255, 0.95)",
-        boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
+        boxShadow: "0 2px 6px rgba(16, 185, 129, 0.1)",
+      },
+    }),
+  },
+  avatarImage: {
+    width: 30,
+    height: 30,
+    margin: 3,
+  },
+  messageColumn: {
+    maxWidth: "84%",
+  },
+  userMessageColumn: {
+    alignItems: "flex-end",
+  },
+  speakerLabel: {
+    fontSize: 10,
+    letterSpacing: 1,
+    fontWeight: "700",
+    marginBottom: 6,
+    textTransform: "uppercase",
+  },
+  assistantSpeakerLabel: {
+    color: "#0f766e",
+    marginLeft: 2,
+  },
+  userSpeakerLabel: {
+    color: "#047857",
+    marginRight: 2,
+  },
+  messageBubble: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  assistantBubble: {
+    borderRadius: 22,
+    borderBottomLeftRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.14)",
+    backgroundColor: "rgba(255, 255, 255, 0.92)",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#0f172a",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 1,
+      },
+      web: {
+        boxShadow: "0 2px 8px rgba(15, 23, 42, 0.05)",
+      },
+    }),
+  },
+  userBubble: {
+    borderRadius: 22,
+    borderBottomRightRadius: 8,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#059669",
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 3,
+      },
+      web: {
+        boxShadow: "0 3px 8px rgba(5, 150, 105, 0.2)",
       },
     }),
   },
@@ -744,30 +948,57 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
   },
   paragraphSpacing: {
-    marginTop: 12,
+    marginTop: 10,
   },
-  
-  // Input area
-  inputWrapper: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: Platform.OS === "ios" ? 28 : 16,
+  footerSpacer: {
+    height: 18,
   },
-  inputContainer: {
+  composerSection: {
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: Platform.OS === "ios" ? 24 : 14,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(16, 185, 129, 0.12)",
+    backgroundColor: "rgba(247, 252, 248, 0.95)",
+  },
+  quickPromptRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 10,
+  },
+  quickPromptChip: {
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.2)",
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    maxWidth: "100%",
+  },
+  quickPromptChipPressed: {
+    backgroundColor: "rgba(220, 252, 231, 0.95)",
+  },
+  quickPromptText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#047857",
+  },
+  inputShell: {
     flexDirection: "row",
     alignItems: "flex-end",
-    borderRadius: 28,
-    paddingLeft: 18,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.2)",
+    paddingLeft: 16,
     paddingRight: 6,
     paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: "rgba(167, 243, 208, 0.3)",
     ...Platform.select({
       ios: {
-        backgroundColor: "rgba(255, 255, 255, 0.9)",
+        backgroundColor: "rgba(255, 255, 255, 0.95)",
         shadowColor: "#10b981",
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
+        shadowOpacity: 0.09,
         shadowRadius: 10,
       },
       android: {
@@ -775,35 +1006,41 @@ const styles = StyleSheet.create({
         elevation: 2,
       },
       web: {
-        backgroundColor: "rgba(255, 255, 255, 0.9)",
-        boxShadow: "0 2px 10px rgba(16, 185, 129, 0.06)",
+        backgroundColor: "rgba(255, 255, 255, 0.95)",
+        boxShadow: "0 2px 10px rgba(16, 185, 129, 0.09)",
       },
     }),
   },
   input: {
     flex: 1,
     minHeight: 40,
-    maxHeight: 100,
+    maxHeight: 112,
     fontSize: 16,
+    lineHeight: 22,
     color: "#1e293b",
     paddingTop: Platform.OS === "ios" ? 10 : 8,
     paddingBottom: Platform.OS === "ios" ? 10 : 8,
-    backgroundColor: "transparent",
   },
   sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#10b981",
-    justifyContent: "center",
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    overflow: "hidden",
     alignItems: "center",
+    justifyContent: "center",
     marginLeft: 8,
   },
+  sendButtonGradient: {
+    width: "100%",
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 21,
+  },
   sendButtonDisabled: {
-    backgroundColor: "transparent",
+    backgroundColor: "rgba(226, 232, 240, 0.8)",
   },
   sendButtonPressed: {
-    backgroundColor: "#059669",
     transform: [{ scale: 0.95 }],
   },
 });

@@ -10,6 +10,8 @@ import {
   Share,
   Modal,
   Alert,
+  Animated,
+  Image,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -18,7 +20,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Sharing from "expo-sharing";
 import { ShareableVerseCard } from "../src/components/ShareableVerseCard";
 import { getGuidance, getExplanation, type VerseData, type ExplanationData } from "../src/services/guidance";
-import { isBookmarked as checkIsBookmarked, addBookmark } from "../src/services/bookmarks";
+import { isBookmarked as checkIsBookmarked, addBookmark, removeBookmarkByReference } from "../src/services/bookmarks";
 import { updateStreak } from "../src/services/streak";
 import { useDataCache } from "../src/lib/DataCache";
 import { useAuth } from "../src/lib/AuthContext";
@@ -35,6 +37,7 @@ import { successHaptic, mediumHaptic, lightHaptic } from "../src/lib/haptics";
 import { playGuidanceLoadedSound } from "../src/lib/sounds";
 import { EtherealBackground } from "../src/components/EtherealBackground";
 import { useOnboarding, goalDisplayNames, styleDisplayNames } from "../src/lib/OnboardingContext";
+import { findTodaysChatByVerse } from "../src/services/chats";
 
 // Conditionally import ViewShot - it may not be available in dev builds
 let ViewShot: any = null;
@@ -43,6 +46,212 @@ try {
 } catch (e) {
   console.warn("react-native-view-shot not available:", e);
 }
+
+const appLogo = require("../assets/mascot/bird-reading.png");
+
+// ── Compact golden "Your Daily Guidance" header ─────────────────────────────
+function DailyGuidanceHeader({ theme }: { theme?: string }) {
+  const shimmerAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.timing(shimmerAnim, { toValue: 1, duration: 3000, useNativeDriver: false })
+    ).start();
+  }, [shimmerAnim]);
+
+  const shimmerOpacity = shimmerAnim.interpolate({
+    inputRange: [0, 0.4, 0.5, 0.6, 1],
+    outputRange: [0.7, 0.7, 1, 0.7, 0.7],
+  });
+
+  return (
+    <View style={dailyHeaderStyles.wrapper}>
+      <Animated.View style={[dailyHeaderStyles.row, { opacity: shimmerOpacity }]}>
+        <LinearGradient
+          colors={["transparent", "#10b981", "#6ee7b7", "#10b981", "transparent"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={dailyHeaderStyles.rule}
+        />
+        <Text style={dailyHeaderStyles.title}>Your Daily Guidance</Text>
+        <LinearGradient
+          colors={["transparent", "#10b981", "#6ee7b7", "#10b981", "transparent"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={dailyHeaderStyles.rule}
+        />
+      </Animated.View>
+      {theme ? <Text style={dailyHeaderStyles.theme}>{theme.toUpperCase()}</Text> : null}
+    </View>
+  );
+}
+
+const dailyHeaderStyles = StyleSheet.create({
+  wrapper: {
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  rule: {
+    flex: 1,
+    height: 1,
+    maxWidth: 40,
+    opacity: 0.5,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#059669",
+    letterSpacing: 0.3,
+    textShadowColor: "rgba(16, 185, 129, 0.25)",
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 6,
+  },
+  theme: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 2,
+    color: "#10b981",
+    marginTop: 4,
+    opacity: 0.7,
+  },
+});
+
+// ── Floating Chat FAB ──────────────────────────────────────────────────────────────
+function FloatingChatFAB({ onPress }: { onPress: () => void }) {
+  const scaleAnim = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    // Entrance: spring in
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      friction: 6,
+      tension: 120,
+      useNativeDriver: true,
+    }).start();
+
+    // Subtle pulse glow loop
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.06,
+          duration: 1800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1800,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, [scaleAnim, pulseAnim]);
+
+  return (
+    <Animated.View
+      style={[
+        fabStyles.wrapper,
+        {
+          transform: [
+            { scale: Animated.multiply(scaleAnim, pulseAnim) },
+          ],
+        },
+      ]}
+    >
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [
+          fabStyles.button,
+          pressed && fabStyles.buttonPressed,
+        ]}
+      >
+        <LinearGradient
+          colors={["#34d399", "#10b981", "#059669"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={fabStyles.gradient}
+        >
+          <Ionicons name="chatbubble-ellipses" size={24} color="#ffffff" />
+        </LinearGradient>
+      </Pressable>
+      <View style={fabStyles.label}>
+        <Text style={fabStyles.labelText}>Chat</Text>
+      </View>
+    </Animated.View>
+  );
+}
+
+const fabStyles = StyleSheet.create({
+  wrapper: {
+    position: "absolute",
+    right: 20,
+    bottom: Platform.select({ ios: 160, android: 150, web: 150 }),
+    alignItems: "center",
+    zIndex: 50,
+  },
+  button: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    overflow: "hidden",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#059669",
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.35,
+        shadowRadius: 14,
+      },
+      android: {
+        elevation: 10,
+      },
+      web: {
+        boxShadow: "0 6px 20px rgba(5, 150, 105, 0.35), 0 2px 6px rgba(5, 150, 105, 0.2)",
+      },
+    }),
+  },
+  buttonPressed: {
+    opacity: 0.88,
+    transform: [{ scale: 0.92 }],
+  },
+  gradient: {
+    width: "100%",
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  label: {
+    marginTop: 4,
+    backgroundColor: "rgba(255, 255, 255, 0.92)",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#0f172a",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+      web: {
+        boxShadow: "0 1px 4px rgba(15, 23, 42, 0.08)",
+      },
+    }),
+  },
+  labelText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#065f46",
+    letterSpacing: 0.3,
+  },
+});
 
 export default function GuidanceScreen() {
   const params = useLocalSearchParams<{
@@ -160,8 +369,8 @@ export default function GuidanceScreen() {
     }
   }, [verseData?.reference.passage]);
 
-  const handleSaveBookmark = async () => {
-    if (isBookmarking || bookmarked || !verseData) return;
+  const handleToggleBookmark = async () => {
+    if (isBookmarking || !verseData) return;
     if (!isAuthenticated) {
       Alert.alert(
         "Sign in required",
@@ -174,15 +383,22 @@ export default function GuidanceScreen() {
       return;
     }
 
+    const wasBookmarked = bookmarked;
+    // Optimistic update
+    setBookmarked(!wasBookmarked);
+    successHaptic();
     setIsBookmarking(true);
     try {
-      await addBookmark(verseData.text, verseData.reference.passage);
-      setBookmarked(true);
-      // Invalidate bookmarks cache so the bookmarks list refreshes
+      if (wasBookmarked) {
+        await removeBookmarkByReference(verseData.reference.passage);
+      } else {
+        await addBookmark(verseData.text, verseData.reference.passage);
+      }
       invalidateBookmarks();
-      successHaptic();
     } catch (error) {
-      console.error("Error bookmarking verse:", error);
+      // Revert on failure
+      setBookmarked(wasBookmarked);
+      console.error("Error toggling bookmark:", error);
     } finally {
       setIsBookmarking(false);
     }
@@ -360,7 +576,12 @@ export default function GuidanceScreen() {
       try {
         // Enhance the query with user's onboarding preferences
         const enhancedQuery = buildEnhancedQuery(searchQuery);
-        const data = await getGuidance(enhancedQuery);
+
+        // Gather recently shown verse references to avoid repetition
+        const history = await getGuidanceHistory();
+        const recentVerses = history.slice(0, 30).map((entry) => entry.passage);
+
+        const data = await getGuidance(enhancedQuery, recentVerses);
         setVerseData(data);
 
         // Persist daily guidance immediately so revisits return the same entry
@@ -437,7 +658,7 @@ export default function GuidanceScreen() {
     }
   };
 
-  const handleChatMore = () => {
+  const handleChatMore = async () => {
     if (!explanationData || !verseData) return;
     if (!isAuthenticated) {
       Alert.alert(
@@ -459,6 +680,16 @@ export default function GuidanceScreen() {
       });
       return;
     }
+
+    // Check if there's already a chat for this verse created today
+    const existingChatId = await findTodaysChatByVerse(verseData.reference.passage);
+    if (existingChatId) {
+      router.push({
+        pathname: "/chat",
+        params: { chatId: existingChatId },
+      });
+      return;
+    }
     
     router.push({
       pathname: "/chat",
@@ -477,7 +708,7 @@ export default function GuidanceScreen() {
     });
   };
 
-  const handleReflectionPrompt = (prompt: string) => {
+  const handleReflectionPrompt = async (prompt: string) => {
     if (!verseData) return;
     if (!isAuthenticated) {
       Alert.alert(
@@ -498,6 +729,16 @@ export default function GuidanceScreen() {
       router.push({
         pathname: "/chat",
         params: { chatId: params.existingChatId },
+      });
+      return;
+    }
+
+    // Check if there's already a chat for this verse created today
+    const existingChatId = await findTodaysChatByVerse(verseData.reference.passage);
+    if (existingChatId) {
+      router.push({
+        pathname: "/chat",
+        params: { chatId: existingChatId },
       });
       return;
     }
@@ -551,7 +792,7 @@ export default function GuidanceScreen() {
   return (
     <View style={styles.container}>
       {/* Ethereal background with floating leaves */}
-      <EtherealBackground />
+      <EtherealBackground variant="guidance" intensity="low" />
       
       <ScrollView
         contentContainerStyle={[
@@ -560,24 +801,30 @@ export default function GuidanceScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* User Query Display */}
-        {query && (
-          <View style={styles.userQueryContainer}>
-            <Text style={styles.userQueryLabel}>You shared:</Text>
-            <Text style={styles.userQueryText}>"{query}"</Text>
-          </View>
-        )}
+        {/* Daily Guidance Header OR User Query Display */}
+        {isDailyRequest ? (
+          <DailyGuidanceHeader theme={verseData.theme} />
+        ) : (
+          <>
+            {query && (
+              <View style={styles.userQueryContainer}>
+                <Text style={styles.userQueryLabel}>You shared:</Text>
+                <Text style={styles.userQueryText}>"{query}"</Text>
+              </View>
+            )}
 
-        {/* Header Label with Theme */}
-        <View style={styles.headerLabel}>
-          {verseData.theme && (
-            <View style={styles.themeBadge}>
-              <Text style={styles.themeBadgeText}>{verseData.theme.toUpperCase()}</Text>
+            {/* Header Label with Theme */}
+            <View style={styles.headerLabel}>
+              {verseData.theme && (
+                <View style={styles.themeBadge}>
+                  <Text style={styles.themeBadgeText}>{verseData.theme.toUpperCase()}</Text>
+                </View>
+              )}
+              <Text style={styles.headerLabelText}>TODAY'S GUIDANCE</Text>
+              <Text style={styles.headerSubtitle}>For you</Text>
             </View>
-          )}
-          <Text style={styles.headerLabelText}>TODAY'S GUIDANCE</Text>
-          <Text style={styles.headerSubtitle}>For you</Text>
-        </View>
+          </>
+        )}
 
         {/* Main Verse Card */}
         <View style={styles.verseCard}>
@@ -604,6 +851,13 @@ export default function GuidanceScreen() {
               <Text style={styles.guidanceLoadingText}>Preparing your guidance...</Text>
             </View>
           ) : null}
+
+          {/* Subtle mascot accent */}
+          <Image
+            source={appLogo}
+            style={styles.verseCardLogo}
+            resizeMode="contain"
+          />
         </View>
 
         {/* Full Explanation Section */}
@@ -686,32 +940,6 @@ export default function GuidanceScreen() {
               <Text style={styles.reflectButtonText}>Who can you share this peace with today?</Text>
               <Ionicons name="chevron-forward" size={20} color="#d1d5db" />
             </Pressable>
-
-            <Pressable
-              style={({ pressed }) => [
-                styles.chatMoreButton,
-                pressed && styles.chatMoreButtonPressed,
-              ]}
-              onPress={handleChatMore}
-            >
-              <LinearGradient
-                colors={["#10b981", "#059669"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.chatMoreGradient}
-              >
-                <View style={styles.chatMoreContent}>
-                  <View style={styles.chatMoreIconContainer}>
-                    <Ionicons name="chatbubbles" size={22} color="#ffffff" />
-                  </View>
-                  <View style={styles.chatMoreTextContainer}>
-                    <Text style={styles.chatMoreTitle}>Continue the Conversation</Text>
-                    <Text style={styles.chatMoreSubtitle}>Chat with your guide about this verse</Text>
-                  </View>
-                  <Ionicons name="arrow-forward-circle" size={28} color="rgba(255,255,255,0.9)" />
-                </View>
-              </LinearGradient>
-            </Pressable>
           </View>
         )}
 
@@ -732,6 +960,11 @@ export default function GuidanceScreen() {
         <BannerAdComponent style={styles.bannerAd} />
       </ScrollView>
 
+      {/* Floating Chat FAB */}
+      {explanationData && verseData && (
+        <FloatingChatFAB onPress={handleChatMore} />
+      )}
+
       {/* Footer Actions */}
       <View style={styles.footer}>
         <View style={styles.footerActions}>
@@ -741,8 +974,8 @@ export default function GuidanceScreen() {
               bookmarked && styles.saveButtonSaved,
               pressed && styles.saveButtonPressed,
             ]}
-            onPress={handleSaveBookmark}
-            disabled={isBookmarking || bookmarked}
+            onPress={handleToggleBookmark}
+            disabled={isBookmarking}
           >
             <Ionicons
               name={bookmarked ? "bookmark" : "bookmark-outline"}
@@ -1000,6 +1233,14 @@ const styles = StyleSheet.create({
     borderRadius: 60,
     backgroundColor: "rgba(16, 185, 129, 0.05)",
   },
+  verseCardLogo: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    width: 52,
+    height: 52,
+    opacity: 0.4,
+  },
   quoteIcon: {
     fontSize: 64,
     color: "rgba(16, 185, 129, 0.2)",
@@ -1136,50 +1377,6 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: "#065f46",
     fontStyle: "italic",
-  },
-  chatMoreButton: {
-    borderRadius: 20,
-    marginTop: 8,
-    shadowColor: "#10b981",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  chatMoreButtonPressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.98 }],
-  },
-  chatMoreGradient: {
-    borderRadius: 20,
-    padding: 16,
-  },
-  chatMoreContent: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  chatMoreIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-  chatMoreTextContainer: {
-    flex: 1,
-  },
-  chatMoreTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#ffffff",
-    marginBottom: 2,
-  },
-  chatMoreSubtitle: {
-    fontSize: 13,
-    color: "rgba(255, 255, 255, 0.85)",
-    fontWeight: "500",
   },
   anotherVerseButton: {
     flexDirection: "row",

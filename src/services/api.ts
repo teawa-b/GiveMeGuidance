@@ -57,8 +57,9 @@ interface ChatMessage {
 
 /**
  * Fetch guidance verse based on user's query
+ * @param recentVerses - Recently shown verse references to help the backend avoid repetition
  */
-export async function guidanceApi(query: string): Promise<VerseResponse> {
+export async function guidanceApi(query: string, recentVerses?: string[]): Promise<VerseResponse> {
   console.log("[API] guidanceApi called with query:", query);
   console.log("[API] Using base URL:", API_BASE_URL);
   
@@ -68,7 +69,7 @@ export async function guidanceApi(query: string): Promise<VerseResponse> {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ query }),
+      body: JSON.stringify({ query, recentVerses }),
     });
 
     console.log("[API] Response status:", response.status);

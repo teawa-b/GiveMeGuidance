@@ -17,6 +17,7 @@ import {
   PanResponder,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import LottieView from "lottie-react-native";
@@ -66,6 +67,14 @@ export default function ProfileScreen() {
   const editModalTranslateY = useRef(new Animated.Value(120)).current;
   const editModalDragY = useRef(new Animated.Value(0)).current;
   const isClosingModalRef = useRef(false);
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  // Scroll to top when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+    }, [])
+  );
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -389,6 +398,7 @@ export default function ProfileScreen() {
       <EtherealBackground />
 
       <ScrollView
+        ref={scrollViewRef}
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}

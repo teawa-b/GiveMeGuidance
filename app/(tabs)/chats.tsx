@@ -17,14 +17,13 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import LottieView from "lottie-react-native";
 import { deleteChat, deleteMultipleChats, type Chat } from "../../src/services/chats";
-import { getSpiritualPresence, getGuidanceHistory } from "../../src/services/dailyGuidance";
 import { useChats, useStreak, useActivityDates } from "../../src/lib/DataCache";
 import { useAuth } from "../../src/lib/AuthContext";
 import { CalendarModal } from "../../src/components/CalendarModal";
 import { lightHaptic, selectionHaptic, errorHaptic, mediumHaptic } from "../../src/lib/haptics";
 import { EtherealBackground } from "../../src/components/EtherealBackground";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // Group chats by date
 interface ChatSection {
@@ -32,8 +31,19 @@ interface ChatSection {
   data: Chat[];
 }
 
+const GENERIC_QUESTIONS = new Set([
+  "reflect on this verse",
+  "discuss this verse",
+  "daily guidance",
+]);
+
+function isGenericQuestion(question: string): boolean {
+  return GENERIC_QUESTIONS.has(question.toLowerCase().trim());
+}
+
 export default function ChatsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { isAuthenticated } = useAuth();
   const loadingBird = require("../../assets/mascot/bird-reading.png");
   
@@ -72,9 +82,23 @@ export default function ChatsScreen() {
   const [selectedChatIds, setSelectedChatIds] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
   const listOpacity = useRef(new Animated.Value(0)).current;
+  const hasAnimatedIn = useRef(false);
+  const sectionListRef = useRef<SectionList<Chat, ChatSection> | null>(null);
+  const headerTopPadding = Math.max(
+    insets.top + 6,
+    Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 10 : 16
+  );
 
   useFocusEffect(
     useCallback(() => {
+      // Scroll to top when screen comes into focus
+      try {
+        sectionListRef.current?.scrollToLocation({ sectionIndex: 0, itemIndex: 0, animated: false, viewOffset: 0 });
+      } catch {}
+      // Reset animation flag when screen comes into focus if data isn't loaded yet
+      if (chats === null) {
+        hasAnimatedIn.current = false;
+      }
       // Reset search query when screen comes into focus
       setSearchQuery("");
       // Fetch data - uses cache, refreshes in background if stale
@@ -82,12 +106,15 @@ export default function ChatsScreen() {
         fetchChats();
         fetchStreak();
       }
-    }, [fetchChats, fetchStreak, isAuthenticated])
+    }, [fetchChats, fetchStreak, isAuthenticated, chats])
   );
 
   useEffect(() => {
     if (!isAuthenticated) return;
     if (chats === null) return;
+    if (hasAnimatedIn.current) return;
+    
+    hasAnimatedIn.current = true;
     listOpacity.setValue(0);
     Animated.timing(listOpacity, {
       toValue: 1,
@@ -99,13 +126,12 @@ export default function ChatsScreen() {
   if (!isAuthenticated) {
     return (
       <View style={styles.container}>
-        <EtherealBackground />
-        <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <View>
-              <Text style={styles.headerTitle}>Conversations</Text>
-              <Text style={styles.headerSubtitle}>Past Reflections</Text>
-            </View>
+        <EtherealBackground variant="conversations" intensity="low" />
+        <View style={[styles.header, { paddingTop: headerTopPadding }]}>
+          <View style={styles.heroCard}>
+            <Text style={styles.headerSubtitle}>CONVERSATIONS</Text>
+            <Text style={styles.headerTitle}>Past Reflections</Text>
+            <Text style={styles.heroDescription}>Save and sync every guided conversation.</Text>
           </View>
         </View>
         <View style={styles.emptyContainer}>
@@ -117,7 +143,14 @@ export default function ChatsScreen() {
             You need an account to save and sync your chat history.
           </Text>
           <Pressable style={styles.authCtaButton} onPress={() => router.push("/(auth)")}>
-            <Text style={styles.authCtaButtonText}>Sign In</Text>
+            <LinearGradient
+              colors={["#22c58b", "#10b981", "#059669"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.authCtaGradient}
+            >
+              <Text style={styles.authCtaButtonText}>Sign In</Text>
+            </LinearGradient>
           </Pressable>
         </View>
       </View>
@@ -188,6 +221,11 @@ export default function ChatsScreen() {
 
     return sections;
   }, [chats, searchQuery]);
+
+  const visibleConversations = useMemo(
+    () => groupedChats.reduce((count, section) => count + section.data.length, 0),
+    [groupedChats]
+  );
 
   const handleChatPress = (chat: Chat) => {
     selectionHaptic();
@@ -330,15 +368,6 @@ export default function ChatsScreen() {
     }
   };
 
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString("en-US", { 
-      hour: "numeric", 
-      minute: "2-digit",
-      hour12: true 
-    });
-  };
-
   const formatDateTime = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -403,7 +432,6 @@ export default function ChatsScreen() {
         onLongPress={handleLongPress}
         delayLongPress={400}
       >
-        {/* Selection checkbox */}
         {selectMode && (
           <View style={styles.checkboxContainer}>
             <View style={[
@@ -416,14 +444,17 @@ export default function ChatsScreen() {
         )}
         
         <View style={selectMode ? styles.chatContentWithCheckbox : styles.chatContentFull}>
-          {/* Status indicator and time */}
           <View style={styles.chatHeader}>
             <View style={styles.statusRow}>
-              <View style={[
-                styles.statusDot,
-                isToday(item.updated_at) ? styles.statusDotActive : styles.statusDotInactive
-              ]} />
-              <Text style={styles.chatTime}>{formatDateTime(item.updated_at)}</Text>
+              <View
+                style={[
+                  styles.statusDot,
+                  isToday(item.updated_at) ? styles.statusDotActive : styles.statusDotInactive,
+                ]}
+              />
+              <Text style={[styles.chatTime, isToday(item.updated_at) && styles.chatTimeToday]}>
+                {formatDateTime(item.updated_at)}
+              </Text>
             </View>
             {!selectMode && (
               <Pressable
@@ -439,15 +470,24 @@ export default function ChatsScreen() {
             )}
           </View>
           
-          {/* Question */}
+          <Text style={styles.questionLabel}>You asked</Text>
           <Text style={styles.questionText} numberOfLines={2}>
-            "{item.user_question}"
+            "{isGenericQuestion(item.user_question) ? item.verse_reference : item.user_question}"
           </Text>
           
-          {/* Verse preview */}
-          <Text style={styles.versePreview} numberOfLines={2}>
-            "{item.verse_text}"
-          </Text>
+          <View style={styles.verseBlock}>
+            <Text style={styles.verseReference}>{item.verse_reference}</Text>
+            <Text style={styles.versePreview} numberOfLines={2}>
+              "{item.verse_text}"
+            </Text>
+          </View>
+
+          {!selectMode && (
+            <View style={styles.openHintRow}>
+              <Ionicons name="arrow-forward-circle-outline" size={14} color="#0f766e" />
+              <Text style={styles.openHintText}>Open conversation</Text>
+            </View>
+          )}
         </View>
       </Pressable>
     );
@@ -455,6 +495,7 @@ export default function ChatsScreen() {
 
   const renderSectionHeader = ({ section }: { section: ChatSection }) => (
     <View style={styles.sectionHeader}>
+      <View style={styles.sectionLine} />
       <Text style={styles.sectionTitle}>{section.title.toUpperCase()}</Text>
     </View>
   );
@@ -463,10 +504,11 @@ export default function ChatsScreen() {
   if (isInitialLoad && chats === null) {
     return (
       <View style={styles.container}>
-        <EtherealBackground />
+        <EtherealBackground variant="conversations" intensity="low" />
         <View style={styles.centerContent}>
           <Image source={loadingBird} style={styles.loadingBird} resizeMode="contain" />
           <ActivityIndicator size="small" color="#10b981" style={styles.loadingSpinner} />
+          <Text style={styles.loadingLabel}>Loading reflections...</Text>
         </View>
       </View>
     );
@@ -476,16 +518,28 @@ export default function ChatsScreen() {
   if (!chats || chats.length === 0) {
     return (
       <View style={styles.container}>
-        <EtherealBackground />
-        <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <View>
-              <Text style={styles.headerTitle}>Conversations</Text>
-              <Text style={styles.headerSubtitle}>Past Reflections</Text>
+        <EtherealBackground variant="conversations" intensity="low" />
+        <View style={[styles.header, { paddingTop: headerTopPadding }]}>
+          <View style={styles.heroCard}>
+            <View style={styles.headerTop}>
+              <View style={styles.headerTextBlock}>
+                <Text style={styles.headerSubtitle}>CONVERSATIONS</Text>
+                <Text style={styles.headerTitle}>Past Reflections</Text>
+              </View>
+              <Pressable style={styles.calendarButton} onPress={handleOpenCalendar}>
+                <Ionicons name="calendar-outline" size={20} color="#0f766e" />
+              </Pressable>
             </View>
-            <Pressable style={styles.calendarButton} onPress={handleOpenCalendar}>
-              <Ionicons name="calendar-outline" size={22} color="#10b981" />
-            </Pressable>
+            <View style={styles.heroMetaRow}>
+              <View style={styles.heroMetaPill}>
+                <Ionicons name="leaf-outline" size={13} color="#047857" />
+                <Text style={styles.heroMetaText}>{currentStreak} day streak</Text>
+              </View>
+              <View style={styles.heroMetaPill}>
+                <Ionicons name="chatbubble-ellipses-outline" size={13} color="#047857" />
+                <Text style={styles.heroMetaText}>0 conversations</Text>
+              </View>
+            </View>
           </View>
         </View>
         <View style={styles.emptyContainer}>
@@ -496,6 +550,16 @@ export default function ChatsScreen() {
           <Text style={styles.emptySubtitle}>
             Get guidance on a verse and tap "Chat more" to start your journey.
           </Text>
+          <Pressable style={styles.authCtaButton} onPress={() => router.push("/(tabs)")}>
+            <LinearGradient
+              colors={["#22c58b", "#10b981", "#059669"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.authCtaGradient}
+            >
+              <Text style={styles.authCtaButtonText}>Get Guidance</Text>
+            </LinearGradient>
+          </Pressable>
         </View>
         <CalendarModal
           visible={showCalendar}
@@ -511,78 +575,86 @@ export default function ChatsScreen() {
 
   return (
     <View style={styles.container}>
-      <EtherealBackground />
+      <EtherealBackground variant="conversations" intensity="low" />
       
       {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerTop}>
-          {selectMode ? (
-            // Select mode header
-            <>
-              <Pressable 
-                style={styles.cancelSelectButton} 
-                onPress={handleToggleSelectMode}
-              >
-                <Text style={styles.cancelSelectText}>Cancel</Text>
-              </Pressable>
-              <Text style={styles.selectedCountText}>
-                {selectedChatIds.size} selected
-              </Text>
-              <Pressable 
-                style={styles.selectAllButton} 
-                onPress={handleSelectAll}
-              >
-                <Text style={styles.selectAllText}>Select All</Text>
-              </Pressable>
-            </>
-          ) : (
-            // Normal header
-            <>
-              <View>
-                <Text style={styles.headerTitle}>Conversations</Text>
-                <Text style={styles.headerSubtitle}>Past Reflections</Text>
-              </View>
-              <View style={styles.headerButtons}>
-                {chats && chats.length > 0 && (
-                  <Pressable 
-                    style={styles.selectButton} 
-                    onPress={handleToggleSelectMode}
-                  >
-                    <Ionicons name="checkmark-circle-outline" size={22} color="#10b981" />
-                  </Pressable>
-                )}
-                <Pressable style={styles.calendarButton} onPress={handleOpenCalendar}>
-                  <Ionicons name="calendar-outline" size={22} color="#10b981" />
-                </Pressable>
-              </View>
-            </>
-          )}
-        </View>
-
-        {/* Search bar - hidden in select mode */}
-        {!selectMode && (
-          <View style={styles.searchContainer}>
-            <Ionicons name="search" size={20} color="#94a3b8" style={styles.searchIcon} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search your reflections..."
-              placeholderTextColor="#94a3b8"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-            {searchQuery.length > 0 && (
-              <Pressable onPress={() => setSearchQuery("")} hitSlop={8}>
-                <Ionicons name="close-circle" size={18} color="#94a3b8" />
-              </Pressable>
-            )}
+      <View style={[styles.header, { paddingTop: headerTopPadding }]}>
+        {selectMode ? (
+          <View style={styles.selectToolbar}>
+            <Pressable
+              style={styles.cancelSelectButton}
+              onPress={handleToggleSelectMode}
+            >
+              <Text style={styles.cancelSelectText}>Cancel</Text>
+            </Pressable>
+            <View style={styles.selectToolbarCenter}>
+              <Text style={styles.selectedCountText}>{selectedChatIds.size} selected</Text>
+            </View>
+            <Pressable
+              style={styles.selectAllButton}
+              onPress={handleSelectAll}
+            >
+              <Text style={styles.selectAllText}>Select all</Text>
+            </Pressable>
           </View>
+        ) : (
+          <>
+            <View style={styles.heroCard}>
+              <View style={styles.headerTop}>
+                <View style={styles.headerTextBlock}>
+                  <Text style={styles.headerSubtitle}>CONVERSATIONS</Text>
+                  <Text style={styles.headerTitle}>Past Reflections</Text>
+                  <Text style={styles.heroDescription}>Revisit guidance and continue where you left off.</Text>
+                </View>
+                <View style={styles.headerButtons}>
+                  {chats && chats.length > 0 && (
+                    <Pressable
+                      style={styles.selectButton}
+                      onPress={handleToggleSelectMode}
+                    >
+                      <Ionicons name="checkmark-circle-outline" size={20} color="#0f766e" />
+                    </Pressable>
+                  )}
+                  <Pressable style={styles.calendarButton} onPress={handleOpenCalendar}>
+                    <Ionicons name="calendar-outline" size={20} color="#0f766e" />
+                  </Pressable>
+                </View>
+              </View>
+              <View style={styles.heroMetaRow}>
+                <View style={styles.heroMetaPill}>
+                  <Ionicons name="leaf-outline" size={13} color="#047857" />
+                  <Text style={styles.heroMetaText}>{currentStreak} day streak</Text>
+                </View>
+                <View style={styles.heroMetaPill}>
+                  <Ionicons name="chatbubble-ellipses-outline" size={13} color="#047857" />
+                  <Text style={styles.heroMetaText}>{visibleConversations} shown</Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.searchContainer}>
+              <Ionicons name="search" size={18} color="#0f766e" style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search reflections, verses, or references..."
+                placeholderTextColor="#94a3b8"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+              {searchQuery.length > 0 && (
+                <Pressable style={styles.searchClearButton} onPress={() => setSearchQuery("")} hitSlop={8}>
+                  <Ionicons name="close" size={13} color="#64748b" />
+                </Pressable>
+              )}
+            </View>
+          </>
         )}
       </View>
 
       {loading && (
         <View style={styles.inlineLoading}>
           <Image source={loadingBird} style={styles.inlineLoadingBird} resizeMode="contain" />
-          <Text style={styles.inlineLoadingText}>Refreshing reflections...</Text>
+          <Text style={styles.inlineLoadingText}>Refreshing conversations...</Text>
         </View>
       )}
 
@@ -603,7 +675,8 @@ export default function ChatsScreen() {
           },
         ]}
       >
-        <SectionList
+        <SectionList<Chat, ChatSection>
+          ref={sectionListRef}
           sections={groupedChats}
           keyExtractor={(item) => item.id}
           renderItem={renderChatItem}
@@ -612,9 +685,18 @@ export default function ChatsScreen() {
             styles.listContent,
             selectMode && { paddingBottom: 120 }, // Extra space for delete button
           ]}
-          showsVerticalScrollIndicator={false}
+          showsVerticalScrollIndicator
+          indicatorStyle="black"
           stickySectionHeadersEnabled={false}
-          ListFooterComponent={<View style={{ height: 100 }} />}
+          ListEmptyComponent={
+            searchQuery.trim().length > 0 ? (
+              <View style={styles.searchEmptyContainer}>
+                <Text style={styles.searchEmptyTitle}>No matching conversations</Text>
+                <Text style={styles.searchEmptySubtitle}>Try a verse reference or fewer words.</Text>
+              </View>
+            ) : null
+          }
+          ListFooterComponent={<View style={styles.listFooterSpacer} />}
         />
       </Animated.View>
 
@@ -630,16 +712,23 @@ export default function ChatsScreen() {
             onPress={handleDeleteSelected}
             disabled={isDeleting}
           >
-            {isDeleting ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <>
-                <Ionicons name="trash-outline" size={20} color="#fff" />
-                <Text style={styles.floatingDeleteText}>
-                  Delete {selectedChatIds.size} {selectedChatIds.size === 1 ? "Chat" : "Chats"}
-                </Text>
-              </>
-            )}
+            <LinearGradient
+              colors={["#f87171", "#ef4444", "#dc2626"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.floatingDeleteGradient}
+            >
+              {isDeleting ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="trash-outline" size={20} color="#fff" />
+                  <Text style={styles.floatingDeleteText}>
+                    Delete {selectedChatIds.size} {selectedChatIds.size === 1 ? "Chat" : "Chats"}
+                  </Text>
+                </>
+              )}
+            </LinearGradient>
           </Pressable>
         </View>
       )}
@@ -657,13 +746,20 @@ export default function ChatsScreen() {
         >
           <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
             <View style={styles.modalHandle} />
-            
-            <Text style={styles.modalTitle}>
-              {selectedChat?.verse_reference}
-            </Text>
-            <Text style={styles.modalSubtitle} numberOfLines={2}>
-              "{selectedChat?.verse_text}"
-            </Text>
+
+            <LinearGradient
+              colors={["rgba(214, 249, 228, 0.9)", "rgba(236, 253, 245, 0.95)", "rgba(255, 255, 255, 0.98)"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.modalHeroCard}
+            >
+              <Text style={styles.modalTitle}>
+                {selectedChat?.verse_reference}
+              </Text>
+              <Text style={styles.modalSubtitle} numberOfLines={2}>
+                "{selectedChat?.verse_text}"
+              </Text>
+            </LinearGradient>
 
             <View style={styles.modalActions}>
               <Pressable 
@@ -671,13 +767,13 @@ export default function ChatsScreen() {
                 onPress={handleOpenVerse}
               >
                 <View style={styles.modalButtonIcon}>
-                  <Ionicons name="book" size={22} color="#10b981" />
+                  <Ionicons name="book-outline" size={22} color="#10b981" />
                 </View>
                 <View style={styles.modalButtonTextContainer}>
                   <Text style={styles.modalButtonText}>Open Verse</Text>
                   <Text style={styles.modalButtonHint}>Get fresh guidance</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color="#cbd5e1" />
+                <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
               </Pressable>
 
               <Pressable 
@@ -685,13 +781,13 @@ export default function ChatsScreen() {
                 onPress={handleContinueChat}
               >
                 <View style={styles.modalButtonIcon}>
-                  <Ionicons name="chatbubble" size={22} color="#10b981" />
+                  <Ionicons name="chatbubble-ellipses-outline" size={22} color="#10b981" />
                 </View>
                 <View style={styles.modalButtonTextContainer}>
                   <Text style={styles.modalButtonText}>Continue Chat</Text>
                   <Text style={styles.modalButtonHint}>Pick up where you left off</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color="#cbd5e1" />
+                <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
               </Pressable>
 
               <Pressable 
@@ -702,7 +798,7 @@ export default function ChatsScreen() {
                   <Ionicons name="trash-outline" size={22} color="#ef4444" />
                 </View>
                 <View style={styles.modalButtonTextContainer}>
-                  <Text style={[styles.modalButtonText, styles.deleteButtonText]}>Delete</Text>
+                  <Text style={[styles.modalButtonText, styles.deleteButtonText]}>Delete Conversation</Text>
                   <Text style={styles.modalButtonHint}>Remove this reflection</Text>
                 </View>
               </Pressable>
@@ -734,7 +830,7 @@ export default function ChatsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fafaf6",
+    backgroundColor: "#f7fcf8",
   },
   centerContent: {
     flex: 1,
@@ -749,12 +845,23 @@ const styles = StyleSheet.create({
   loadingSpinner: {
     marginTop: 2,
   },
+  loadingLabel: {
+    marginTop: 8,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#64748b",
+  },
   authCtaButton: {
     marginTop: 20,
-    backgroundColor: "#10b981",
-    borderRadius: 12,
+    borderRadius: 14,
+    overflow: "hidden",
+    minWidth: 160,
+  },
+  authCtaGradient: {
     paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingVertical: 13,
+    alignItems: "center",
+    justifyContent: "center",
   },
   authCtaButtonText: {
     fontSize: 15,
@@ -765,178 +872,218 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    paddingHorizontal: 24,
-    paddingBottom: 8,
+    marginHorizontal: 24,
+    marginBottom: 8,
+    alignSelf: "flex-start",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: "rgba(167, 243, 208, 0.4)",
+    backgroundColor: "rgba(255, 255, 255, 0.88)",
   },
   inlineLoadingBird: {
-    width: 24,
-    height: 24,
+    width: 20,
+    height: 20,
   },
   inlineLoadingText: {
-    fontSize: 13,
-    color: "#64748b",
+    fontSize: 12,
+    color: "#0f766e",
     fontWeight: "600",
   },
   listAnimatedContainer: {
     flex: 1,
   },
   
-  // Header
   header: {
-    paddingHorizontal: 24,
-    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 20 : 60,
-    paddingBottom: 16,
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+  },
+  heroCard: {
+    paddingHorizontal: 2,
+    paddingVertical: 2,
   },
   headerTop: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-end",
-    marginBottom: 20,
+    alignItems: "flex-start",
+  },
+  headerTextBlock: {
+    flex: 1,
+    paddingRight: 12,
   },
   headerTitle: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: "700",
-    color: "#1e293b",
-    letterSpacing: -0.5,
+    color: "#0f172a",
+    letterSpacing: -0.4,
   },
   headerSubtitle: {
-    fontSize: 15,
-    fontWeight: "500",
-    color: "#10b981",
-    marginTop: 2,
-  },
-  headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  streakBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fef3c7",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 14,
-    gap: 4,
-    borderWidth: 1,
-    borderColor: "#fde68a",
-  },
-  streakLottieContainer: {
-    width: 22,
-    height: 22,
-  },
-  streakLottie: {
-    width: 22,
-    height: 22,
-  },
-  streakCount: {
-    fontSize: 16,
+    fontSize: 11,
     fontWeight: "700",
-    color: "#d97706",
+    color: "#0f766e",
+    letterSpacing: 1.3,
+    marginBottom: 4,
+  },
+  heroDescription: {
+    marginTop: 6,
+    fontSize: 13,
+    lineHeight: 19,
+    color: "#0f766e",
+    fontWeight: "500",
+  },
+  heroMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 12,
+  },
+  heroMetaPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.16)",
+  },
+  heroMetaText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#047857",
   },
   calendarButton: {
-    padding: 12,
-    borderRadius: 14,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     borderWidth: 1,
-    borderColor: "rgba(167, 243, 208, 0.3)",
+    borderColor: "rgba(16, 185, 129, 0.24)",
+    alignItems: "center",
+    justifyContent: "center",
     ...Platform.select({
       ios: {
-        backgroundColor: "rgba(255, 255, 255, 0.9)",
-        shadowColor: "#10b981",
+        backgroundColor: "rgba(255, 255, 255, 0.88)",
+        shadowColor: "#059669",
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
+        shadowOpacity: 0.1,
         shadowRadius: 8,
       },
       android: {
         backgroundColor: "#ffffff",
-        elevation: 2,
+        elevation: 3,
       },
       web: {
-        backgroundColor: "rgba(255, 255, 255, 0.9)",
-        boxShadow: "0 2px 8px rgba(16, 185, 129, 0.08)",
+        backgroundColor: "rgba(255, 255, 255, 0.88)",
+        boxShadow: "0 2px 8px rgba(5, 150, 105, 0.1)",
       },
     }),
   },
   
-  // Search
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: Platform.OS === "ios" ? 14 : 10,
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: Platform.OS === "ios" ? 11 : 9,
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.16)",
+    marginTop: 12,
     ...Platform.select({
       ios: {
-        backgroundColor: "rgba(255, 255, 255, 0.85)",
-        shadowColor: "#000",
+        backgroundColor: "rgba(255, 255, 255, 0.9)",
+        shadowColor: "#0f172a",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.04,
-        shadowRadius: 8,
+        shadowRadius: 10,
       },
       android: {
         backgroundColor: "#ffffff",
         elevation: 1,
       },
       web: {
-        backgroundColor: "rgba(255, 255, 255, 0.85)",
-        boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
+        backgroundColor: "rgba(255, 255, 255, 0.9)",
+        boxShadow: "0 2px 10px rgba(15, 23, 42, 0.04)",
       },
     }),
   },
   searchIcon: {
-    marginRight: 12,
+    marginRight: 10,
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 15,
     color: "#334155",
     padding: 0,
+  },
+  searchClearButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(226, 232, 240, 0.75)",
   },
   
   // Section headers
   sectionHeader: {
-    paddingTop: 20,
-    paddingBottom: 12,
-    paddingHorizontal: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingTop: 16,
+    paddingBottom: 10,
+    paddingHorizontal: 2,
+  },
+  sectionLine: {
+    width: 16,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: "#6ee7b7",
   },
   sectionTitle: {
     fontSize: 11,
     fontWeight: "700",
-    color: "#94a3b8",
+    color: "#64748b",
     letterSpacing: 1.2,
   },
   
   // Chat cards
   listContent: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+  },
+  listFooterSpacer: {
+    height: 110,
   },
   chatCard: {
-    borderRadius: 20,
-    padding: 18,
+    borderRadius: 16,
+    padding: 16,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "rgba(236, 253, 245, 0.8)",
+    borderWidth: 2,
+    borderColor: "transparent",
     ...Platform.select({
       ios: {
-        backgroundColor: "rgba(255, 255, 255, 0.9)",
+        backgroundColor: "#ffffff",
         shadowColor: "#10b981",
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.06,
-        shadowRadius: 12,
+        shadowRadius: 8,
       },
       android: {
         backgroundColor: "#ffffff",
         elevation: 2,
       },
       web: {
-        backgroundColor: "rgba(255, 255, 255, 0.9)",
-        boxShadow: "0 4px 12px rgba(16, 185, 129, 0.06)",
+        backgroundColor: "#ffffff",
+        boxShadow: "0 2px 8px rgba(16, 185, 129, 0.06)",
       },
     }),
   },
   chatCardPressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.98 }],
+    opacity: 0.94,
+    transform: [{ scale: 0.99 }],
   },
   chatHeader: {
     flexDirection: "row",
@@ -950,55 +1097,117 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
   },
   statusDotActive: {
     backgroundColor: "#10b981",
   },
   statusDotInactive: {
-    backgroundColor: "#e2e8f0",
+    backgroundColor: "#cbd5e1",
   },
   chatTime: {
     fontSize: 14,
     fontWeight: "500",
     color: "#94a3b8",
   },
+  chatTimeToday: {
+    color: "#10b981",
+    fontWeight: "600",
+  },
   moreButton: {
-    padding: 4,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(241, 245, 249, 0.9)",
+  },
+  questionLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#047857",
+    marginBottom: 5,
   },
   questionText: {
     fontSize: 17,
-    fontWeight: "600",
+    fontWeight: "700",
     color: "#1e293b",
     lineHeight: 24,
-    marginBottom: 8,
+    marginBottom: 10,
+  },
+  verseBlock: {
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    backgroundColor: "rgba(16, 185, 129, 0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.1)",
+  },
+  verseReference: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#047857",
+    marginBottom: 4,
   },
   versePreview: {
-    fontSize: 14,
+    fontSize: 15,
     fontStyle: "italic",
-    color: "#64748b",
-    lineHeight: 20,
+    color: "#475569",
+    lineHeight: 22,
   },
-  
+  openHintRow: {
+    marginTop: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  openHintText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#0f766e",
+  },
+  searchEmptyContainer: {
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 18,
+    borderWidth: 1,
+    borderColor: "rgba(148, 163, 184, 0.22)",
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    marginTop: 16,
+  },
+  searchEmptyTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#334155",
+    marginBottom: 5,
+  },
+  searchEmptySubtitle: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#64748b",
+  },
   // Empty state
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 32,
+    paddingHorizontal: 32,
+    paddingBottom: 20,
   },
   emptyIconContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.12)",
     ...Platform.select({
       ios: {
-        backgroundColor: "rgba(255, 255, 255, 0.8)",
+        backgroundColor: "rgba(255, 255, 255, 0.86)",
         shadowColor: "#10b981",
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.1,
@@ -1015,90 +1224,101 @@ const styles = StyleSheet.create({
     }),
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#334155",
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#1e293b",
     marginBottom: 8,
+    textAlign: "center",
   },
   emptySubtitle: {
     fontSize: 15,
     color: "#64748b",
     textAlign: "center",
     lineHeight: 22,
-    maxWidth: 280,
+    maxWidth: 320,
   },
   
   // Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.6)",
+    backgroundColor: "rgba(15, 23, 42, 0.56)",
     justifyContent: "flex-end",
   },
   modalContent: {
     backgroundColor: "#ffffff",
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    padding: 24,
-    paddingBottom: Platform.OS === "ios" ? 40 : 24,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === "ios" ? 38 : 22,
   },
   modalHandle: {
-    width: 40,
+    width: 42,
     height: 4,
-    backgroundColor: "#e2e8f0",
+    backgroundColor: "#cbd5e1",
     borderRadius: 2,
     alignSelf: "center",
-    marginBottom: 20,
+    marginBottom: 14,
+  },
+  modalHeroCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.16)",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 14,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#1e293b",
+    color: "#0f172a",
     textAlign: "center",
   },
   modalSubtitle: {
     fontSize: 14,
     fontStyle: "italic",
-    color: "#64748b",
+    color: "#0f766e",
     textAlign: "center",
     marginTop: 8,
-    marginBottom: 24,
     lineHeight: 20,
   },
   modalActions: {
-    gap: 10,
+    gap: 9,
   },
   modalButton: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 16,
-    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 15,
     backgroundColor: "#f8fafc",
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: "#dbe7f2",
   },
   modalButtonPressed: {
-    backgroundColor: "#f1f5f9",
+    opacity: 0.93,
   },
   modalButtonIcon: {
-    width: 44,
-    height: 44,
+    width: 42,
+    height: 42,
     borderRadius: 12,
     backgroundColor: "#ecfdf5",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 14,
+    marginRight: 12,
   },
   modalButtonTextContainer: {
     flex: 1,
   },
   modalButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#1e293b",
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#0f172a",
   },
   modalButtonHint: {
-    fontSize: 13,
-    color: "#94a3b8",
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#64748b",
     marginTop: 2,
   },
   deleteModalButton: {
@@ -1112,16 +1332,17 @@ const styles = StyleSheet.create({
     color: "#ef4444",
   },
   cancelButton: {
-    marginTop: 16,
+    marginTop: 14,
     alignItems: "center",
-    padding: 16,
+    justifyContent: "center",
+    paddingVertical: 14,
     borderRadius: 14,
     backgroundColor: "#f1f5f9",
   },
   cancelButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#64748b",
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#475569",
   },
 
   // Multi-select mode styles
@@ -1129,53 +1350,72 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+    flexShrink: 0,
+    marginRight: 4,
+  },
+  selectToolbar: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 6,
+  },
+  selectToolbarCenter: {
+    flex: 1,
+    alignItems: "center",
   },
   selectButton: {
-    padding: 12,
-    borderRadius: 14,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     borderWidth: 1,
-    borderColor: "rgba(167, 243, 208, 0.3)",
+    borderColor: "rgba(16, 185, 129, 0.24)",
+    alignItems: "center",
+    justifyContent: "center",
     ...Platform.select({
       ios: {
-        backgroundColor: "rgba(255, 255, 255, 0.9)",
-        shadowColor: "#10b981",
+        backgroundColor: "rgba(255, 255, 255, 0.88)",
+        shadowColor: "#059669",
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
+        shadowOpacity: 0.1,
         shadowRadius: 8,
       },
       android: {
         backgroundColor: "#ffffff",
-        elevation: 2,
+        elevation: 3,
       },
       web: {
-        backgroundColor: "rgba(255, 255, 255, 0.9)",
-        boxShadow: "0 2px 8px rgba(16, 185, 129, 0.08)",
+        backgroundColor: "rgba(255, 255, 255, 0.88)",
+        boxShadow: "0 2px 8px rgba(5, 150, 105, 0.1)",
       } as any,
     }),
   },
   cancelSelectButton: {
-    padding: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
   },
   cancelSelectText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "600",
-    color: "#64748b",
+    color: "#0f766e",
   },
   selectedCountText: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: "#1e293b",
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#14532d",
   },
   selectAllButton: {
-    padding: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    marginRight: 2,
   },
   selectAllText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "600",
-    color: "#10b981",
+    color: "#0f766e",
   },
   chatCardSelected: {
-    backgroundColor: "rgba(236, 253, 245, 0.95)",
+    backgroundColor: "rgba(16, 185, 129, 0.05)",
     borderColor: "#10b981",
   },
   chatCardSelectMode: {
@@ -1183,7 +1423,8 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
   },
   checkboxContainer: {
-    marginRight: 12,
+    marginRight: 10,
+    marginTop: 10,
     justifyContent: "center",
   },
   checkbox: {
@@ -1208,44 +1449,47 @@ const styles = StyleSheet.create({
   },
   floatingDeleteContainer: {
     position: "absolute",
-    bottom: 100,
+    bottom: 96,
     left: 24,
     right: 24,
   },
   floatingDeleteButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#ef4444",
-    paddingVertical: 16,
-    paddingHorizontal: 24,
     borderRadius: 16,
-    gap: 10,
+    overflow: "hidden",
     ...Platform.select({
       ios: {
         shadowColor: "#ef4444",
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0, height: 5 },
         shadowOpacity: 0.3,
-        shadowRadius: 12,
+        shadowRadius: 14,
       },
       android: {
-        elevation: 6,
+        elevation: 7,
       },
       web: {
-        boxShadow: "0 4px 12px rgba(239, 68, 68, 0.3)",
+        boxShadow: "0 5px 14px rgba(239, 68, 68, 0.3)",
       } as any,
     }),
   },
+  floatingDeleteGradient: {
+    minHeight: 54,
+    borderRadius: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingHorizontal: 14,
+  },
   floatingDeleteButtonPressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.98 }],
+    opacity: 0.94,
+    transform: [{ scale: 0.985 }],
   },
   floatingDeleteButtonDisabled: {
     opacity: 0.7,
   },
   floatingDeleteText: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
     color: "#fff",
   },
 });

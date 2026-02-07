@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -73,6 +73,8 @@ export default function HomeScreen() {
     reflectionPreview: LOADING_DAILY_GUIDANCE.reflectionPreview,
   });
 
+  const scrollViewRef = useRef<ScrollView>(null);
+
   const clampPreview = (text: string): string => {
     const trimmed = text.trim();
     if (trimmed.length <= 120) return trimmed;
@@ -92,6 +94,13 @@ export default function HomeScreen() {
     }
     return progress;
   };
+
+  // Scroll to top when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+    }, [])
+  );
 
   // Fetch streak and saved data
   useFocusEffect(
@@ -268,6 +277,7 @@ export default function HomeScreen() {
         </View>
 
         <ScrollView
+          ref={scrollViewRef}
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}

@@ -97,6 +97,32 @@ export async function getChat(chatId: string): Promise<Chat | null> {
   return data;
 }
 
+// Find an existing chat for a given verse reference created today
+export async function findTodaysChatByVerse(verseReference: string): Promise<string | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const { data, error } = await supabase
+    .from("chats")
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("verse_reference", verseReference)
+    .gte("created_at", todayStart.toISOString())
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Error finding today's chat:", error);
+    return null;
+  }
+
+  return data?.id || null;
+}
+
 // Create a new chat
 export async function createChat(
   verseText: string,
