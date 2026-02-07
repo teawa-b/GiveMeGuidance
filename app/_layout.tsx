@@ -12,8 +12,8 @@ import { DataCacheProvider } from "../src/lib/DataCache";
 import { OnboardingProvider } from "../src/lib/OnboardingContext";
 // Note: react-native-get-random-values is already imported in polyfills.ts
 
-// App logo for loading screen
-const appLogo = require("../assets/NewLogo.png");
+// Bird icon for loading screen
+const appLogo = require("../assets/mascot/bird-reading.png");
 
 function RootLayoutNav() {
   const { isLoading, isAuthenticated } = useAuth();

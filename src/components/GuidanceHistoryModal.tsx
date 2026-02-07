@@ -18,7 +18,7 @@ import { getGuidancePathEntries } from "../services/chats";
 import { lightHaptic, selectionHaptic } from "../lib/haptics";
 
 // App logo
-const appLogo = require("../../assets/NewLogo.png");
+const appLogo = require("../../assets/mascot/bird-reading.png");
 
 interface GuidanceHistoryModalProps {
   visible: boolean;

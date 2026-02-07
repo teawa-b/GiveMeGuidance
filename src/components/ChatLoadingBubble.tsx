@@ -1,8 +1,8 @@
 import React, { useEffect, useRef } from "react";
 import { View, StyleSheet, Platform, Animated, Easing, Image } from "react-native";
 
-// App logo for chat avatar
-const appLogo = require("../../assets/NewLogo.png");
+// Bird icon for chat avatar
+const appLogo = require("../../assets/mascot/bird-reading.png");
 
 interface ChatLoadingBubbleProps {
   size?: "small" | "medium" | "large";

@@ -93,9 +93,6 @@ export const ShareableVerseCard = forwardRef<View, ShareableVerseCardProps>(
             <View style={styles.dividerDot} />
             <View style={styles.dividerLine} />
           </View>
-          
-          {/* Reference */}
-          <Text style={styles.reference}>{verseReference}</Text>
         </View>
         
         {/* Branding footer - improved visibility */}
@@ -103,6 +100,7 @@ export const ShareableVerseCard = forwardRef<View, ShareableVerseCardProps>(
           colors={["#e7f8ee", "#f0fdf4"]}
           style={styles.brandingGradient}
         >
+          <Text style={styles.footerReference}>{verseReference}</Text>
           <View style={styles.brandingContent}>
             <Image source={appLogo} style={styles.brandingLogo} resizeMode="contain" />
             <View>
@@ -165,7 +163,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 26,
     paddingTop: 26,
-    paddingBottom: 62,
+    paddingBottom: 86,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -196,7 +194,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginTop: 14,
-    marginBottom: 10,
+    marginBottom: 0,
     gap: 10,
   },
   dividerLine: {
@@ -210,14 +208,6 @@ const styles = StyleSheet.create({
     borderRadius: 2.5,
     backgroundColor: "#10b981",
   },
-  reference: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#059669",
-    textAlign: "center",
-    letterSpacing: 1,
-    textTransform: "uppercase",
-  },
   brandingGradient: {
     position: "absolute",
     bottom: 0,
@@ -228,6 +218,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     borderTopWidth: 1,
     borderTopColor: "rgba(16, 185, 129, 0.16)",
+  },
+  footerReference: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#059669",
+    textAlign: "center",
+    letterSpacing: 0.9,
+    textTransform: "uppercase",
+    marginBottom: 8,
   },
   brandingContent: {
     flexDirection: "row",

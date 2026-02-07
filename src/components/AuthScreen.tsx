@@ -222,7 +222,7 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
           <View style={styles.header}>
             <View style={styles.logoContainer}>
               <Image
-                source={require("../../assets/NewLogo.png")}
+                source={require("../../assets/mascot/bird-reading.png")}
                 style={styles.logoImage}
                 resizeMode="contain"
               />

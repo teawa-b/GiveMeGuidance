@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   TextInput,
   Animated,
   StatusBar,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
@@ -20,6 +21,7 @@ import LottieView from "lottie-react-native";
 import { deleteChat, deleteMultipleChats, type Chat } from "../../src/services/chats";
 import { getSpiritualPresence, getGuidanceHistory } from "../../src/services/dailyGuidance";
 import { useChats, useStreak, useActivityDates } from "../../src/lib/DataCache";
+import { useAuth } from "../../src/lib/AuthContext";
 import { CalendarModal } from "../../src/components/CalendarModal";
 import { lightHaptic, selectionHaptic, errorHaptic, mediumHaptic } from "../../src/lib/haptics";
 import { EtherealBackground } from "../../src/components/EtherealBackground";
@@ -32,6 +34,8 @@ interface ChatSection {
 
 export default function ChatsScreen() {
   const router = useRouter();
+  const { isAuthenticated } = useAuth();
+  const loadingBird = require("../../assets/mascot/bird-reading.png");
   
   // Use cached data
   const { 
@@ -67,16 +71,58 @@ export default function ChatsScreen() {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedChatIds, setSelectedChatIds] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
+  const listOpacity = useRef(new Animated.Value(0)).current;
 
   useFocusEffect(
     useCallback(() => {
       // Reset search query when screen comes into focus
       setSearchQuery("");
       // Fetch data - uses cache, refreshes in background if stale
-      fetchChats();
-      fetchStreak();
-    }, [fetchChats, fetchStreak])
+      if (isAuthenticated) {
+        fetchChats();
+        fetchStreak();
+      }
+    }, [fetchChats, fetchStreak, isAuthenticated])
   );
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    if (chats === null) return;
+    listOpacity.setValue(0);
+    Animated.timing(listOpacity, {
+      toValue: 1,
+      duration: 220,
+      useNativeDriver: true,
+    }).start();
+  }, [chats, isAuthenticated, listOpacity]);
+
+  if (!isAuthenticated) {
+    return (
+      <View style={styles.container}>
+        <EtherealBackground />
+        <View style={styles.header}>
+          <View style={styles.headerTop}>
+            <View>
+              <Text style={styles.headerTitle}>Conversations</Text>
+              <Text style={styles.headerSubtitle}>Past Reflections</Text>
+            </View>
+          </View>
+        </View>
+        <View style={styles.emptyContainer}>
+          <View style={styles.emptyIconContainer}>
+            <Ionicons name="chatbubbles-outline" size={48} color="#a7f3d0" />
+          </View>
+          <Text style={styles.emptyTitle}>Sign in to save reflections</Text>
+          <Text style={styles.emptySubtitle}>
+            You need an account to save and sync your chat history.
+          </Text>
+          <Pressable style={styles.authCtaButton} onPress={() => router.push("/(auth)")}>
+            <Text style={styles.authCtaButtonText}>Sign In</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
 
   const handleOpenCalendar = () => {
     lightHaptic();
@@ -419,7 +465,8 @@ export default function ChatsScreen() {
       <View style={styles.container}>
         <EtherealBackground />
         <View style={styles.centerContent}>
-          <ActivityIndicator size="large" color="#10b981" />
+          <Image source={loadingBird} style={styles.loadingBird} resizeMode="contain" />
+          <ActivityIndicator size="small" color="#10b981" style={styles.loadingSpinner} />
         </View>
       </View>
     );
@@ -532,20 +579,44 @@ export default function ChatsScreen() {
         )}
       </View>
 
+      {loading && (
+        <View style={styles.inlineLoading}>
+          <Image source={loadingBird} style={styles.inlineLoadingBird} resizeMode="contain" />
+          <Text style={styles.inlineLoadingText}>Refreshing reflections...</Text>
+        </View>
+      )}
+
       {/* Chat list */}
-      <SectionList
-        sections={groupedChats}
-        keyExtractor={(item) => item.id}
-        renderItem={renderChatItem}
-        renderSectionHeader={renderSectionHeader}
-        contentContainerStyle={[
-          styles.listContent,
-          selectMode && { paddingBottom: 120 }, // Extra space for delete button
+      <Animated.View
+        style={[
+          styles.listAnimatedContainer,
+          {
+            opacity: listOpacity,
+            transform: [
+              {
+                translateY: listOpacity.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [10, 0],
+                }),
+              },
+            ],
+          },
         ]}
-        showsVerticalScrollIndicator={false}
-        stickySectionHeadersEnabled={false}
-        ListFooterComponent={<View style={{ height: 100 }} />}
-      />
+      >
+        <SectionList
+          sections={groupedChats}
+          keyExtractor={(item) => item.id}
+          renderItem={renderChatItem}
+          renderSectionHeader={renderSectionHeader}
+          contentContainerStyle={[
+            styles.listContent,
+            selectMode && { paddingBottom: 120 }, // Extra space for delete button
+          ]}
+          showsVerticalScrollIndicator={false}
+          stickySectionHeadersEnabled={false}
+          ListFooterComponent={<View style={{ height: 100 }} />}
+        />
+      </Animated.View>
 
       {/* Floating Delete Button - shown in select mode */}
       {selectMode && selectedChatIds.size > 0 && (
@@ -669,6 +740,45 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  loadingBird: {
+    width: 68,
+    height: 68,
+    marginBottom: 10,
+  },
+  loadingSpinner: {
+    marginTop: 2,
+  },
+  authCtaButton: {
+    marginTop: 20,
+    backgroundColor: "#10b981",
+    borderRadius: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  authCtaButtonText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#ffffff",
+  },
+  inlineLoading: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 24,
+    paddingBottom: 8,
+  },
+  inlineLoadingBird: {
+    width: 24,
+    height: 24,
+  },
+  inlineLoadingText: {
+    fontSize: 13,
+    color: "#64748b",
+    fontWeight: "600",
+  },
+  listAnimatedContainer: {
+    flex: 1,
   },
   
   // Header

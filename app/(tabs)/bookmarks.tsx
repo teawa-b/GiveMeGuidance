@@ -1,25 +1,30 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   ActivityIndicator,
+  Animated,
   Platform,
   StatusBar,
   Pressable,
   Alert,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import { removeBookmark, removeMultipleBookmarks, type Bookmark } from "../../src/services/bookmarks";
 import { useBookmarks } from "../../src/lib/DataCache";
+import { useAuth } from "../../src/lib/AuthContext";
 import { BookmarkCard } from "../../src/components/BookmarkCard";
 import { EtherealBackground } from "../../src/components/EtherealBackground";
 import { lightHaptic, selectionHaptic, errorHaptic, mediumHaptic } from "../../src/lib/haptics";
 
 export default function BookmarksScreen() {
   const router = useRouter();
+  const { isAuthenticated } = useAuth();
+  const loadingBird = require("../../assets/mascot/bird-reading.png");
   
   // Use cached bookmarks data
   const { 
@@ -35,18 +40,58 @@ export default function BookmarksScreen() {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
+  const listOpacity = useRef(new Animated.Value(0)).current;
 
   // Fetch bookmarks when screen comes into focus (uses cache, refreshes in background if stale)
   useFocusEffect(
     useCallback(() => {
-      fetchBookmarks();
+      if (isAuthenticated) {
+        fetchBookmarks();
+      }
       // Exit select mode when screen loses focus
       return () => {
         setSelectMode(false);
         setSelectedIds(new Set());
       };
-    }, [fetchBookmarks])
+    }, [fetchBookmarks, isAuthenticated])
   );
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    if (bookmarks === null) return;
+    listOpacity.setValue(0);
+    Animated.timing(listOpacity, {
+      toValue: 1,
+      duration: 220,
+      useNativeDriver: true,
+    }).start();
+  }, [bookmarks, isAuthenticated, listOpacity]);
+
+  if (!isAuthenticated) {
+    return (
+      <View style={styles.container}>
+        <EtherealBackground />
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.headerTitle}>Bookmarks</Text>
+            <Text style={styles.headerSubtitle}>Saved Verses</Text>
+          </View>
+        </View>
+        <View style={styles.emptyContainer}>
+          <View style={styles.emptyIconContainer}>
+            <Ionicons name="bookmark-outline" size={48} color="#a7f3d0" />
+          </View>
+          <Text style={styles.emptyTitle}>Sign in to save bookmarks</Text>
+          <Text style={styles.emptySubtitle}>
+            You need an account to save verses and sync them across devices.
+          </Text>
+          <Pressable style={styles.authCtaButton} onPress={() => router.push("/(auth)")}>
+            <Text style={styles.authCtaButtonText}>Sign In</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
 
   const handleRemoveBookmark = async (bookmarkId: string) => {
     try {
@@ -165,7 +210,8 @@ export default function BookmarksScreen() {
       <View style={styles.container}>
         <EtherealBackground />
         <View style={styles.centerContent}>
-          <ActivityIndicator size="large" color="#10b981" />
+          <Image source={loadingBird} style={styles.loadingBird} resizeMode="contain" />
+          <ActivityIndicator size="small" color="#10b981" style={styles.loadingSpinner} />
         </View>
       </View>
     );
@@ -241,63 +287,87 @@ export default function BookmarksScreen() {
         </View>
       </View>
 
-      <FlatList
-        data={bookmarks}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        ListFooterComponent={<View style={{ height: selectMode ? 120 : 100 }} />}
-        renderItem={({ item }) => {
-          const isSelected = selectedIds.has(item.id);
-          
-          if (selectMode) {
+      {isLoading && (
+        <View style={styles.inlineLoading}>
+          <Image source={loadingBird} style={styles.inlineLoadingBird} resizeMode="contain" />
+          <Text style={styles.inlineLoadingText}>Refreshing bookmarks...</Text>
+        </View>
+      )}
+
+      <Animated.View
+        style={[
+          styles.listAnimatedContainer,
+          {
+            opacity: listOpacity,
+            transform: [
+              {
+                translateY: listOpacity.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [10, 0],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
+        <FlatList
+          data={bookmarks}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          ListFooterComponent={<View style={{ height: selectMode ? 120 : 100 }} />}
+          renderItem={({ item }) => {
+            const isSelected = selectedIds.has(item.id);
+            
+            if (selectMode) {
+              return (
+                <Pressable
+                  style={[
+                    styles.selectableCard,
+                    isSelected && styles.selectableCardSelected,
+                  ]}
+                  onPress={() => handleToggleSelection(item.id)}
+                >
+                  <View style={styles.checkboxContainer}>
+                    <View style={[
+                      styles.checkbox,
+                      isSelected && styles.checkboxSelected,
+                    ]}>
+                      {isSelected && <Ionicons name="checkmark" size={14} color="#fff" />}
+                    </View>
+                  </View>
+                  <View style={styles.cardContent}>
+                    <Text style={styles.verseReference}>{item.verse_reference}</Text>
+                    <Text style={styles.verseText} numberOfLines={2}>
+                      "{item.verse_text}"
+                    </Text>
+                  </View>
+                </Pressable>
+              );
+            }
+
             return (
               <Pressable
-                style={[
-                  styles.selectableCard,
-                  isSelected && styles.selectableCardSelected,
-                ]}
-                onPress={() => handleToggleSelection(item.id)}
+                onLongPress={() => {
+                  mediumHaptic();
+                  setSelectMode(true);
+                  setSelectedIds(new Set([item.id]));
+                }}
+                delayLongPress={400}
               >
-                <View style={styles.checkboxContainer}>
-                  <View style={[
-                    styles.checkbox,
-                    isSelected && styles.checkboxSelected,
-                  ]}>
-                    {isSelected && <Ionicons name="checkmark" size={14} color="#fff" />}
-                  </View>
-                </View>
-                <View style={styles.cardContent}>
-                  <Text style={styles.verseReference}>{item.verse_reference}</Text>
-                  <Text style={styles.verseText} numberOfLines={2}>
-                    "{item.verse_text}"
-                  </Text>
-                </View>
+                <BookmarkCard
+                  verseText={item.verse_text}
+                  verseReference={item.verse_reference}
+                  timestamp={new Date(item.created_at).getTime()}
+                  onRemove={() => handleRemoveBookmark(item.id)}
+                  onOpenVerse={() => handleOpenVerse(item)}
+                  onChat={() => handleChatVerse(item)}
+                />
               </Pressable>
             );
-          }
-
-          return (
-            <Pressable
-              onLongPress={() => {
-                mediumHaptic();
-                setSelectMode(true);
-                setSelectedIds(new Set([item.id]));
-              }}
-              delayLongPress={400}
-            >
-              <BookmarkCard
-                verseText={item.verse_text}
-                verseReference={item.verse_reference}
-                timestamp={new Date(item.created_at).getTime()}
-                onRemove={() => handleRemoveBookmark(item.id)}
-                onOpenVerse={() => handleOpenVerse(item)}
-                onChat={() => handleChatVerse(item)}
-              />
-            </Pressable>
-          );
-        }}
-      />
+          }}
+        />
+      </Animated.View>
 
       {/* Delete button when in select mode */}
       {selectMode && selectedIds.size > 0 && (
@@ -333,6 +403,45 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  loadingBird: {
+    width: 68,
+    height: 68,
+    marginBottom: 10,
+  },
+  loadingSpinner: {
+    marginTop: 2,
+  },
+  authCtaButton: {
+    marginTop: 20,
+    backgroundColor: "#10b981",
+    borderRadius: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  authCtaButtonText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#ffffff",
+  },
+  inlineLoading: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 24,
+    paddingBottom: 8,
+  },
+  inlineLoadingBird: {
+    width: 24,
+    height: 24,
+  },
+  inlineLoadingText: {
+    fontSize: 13,
+    color: "#64748b",
+    fontWeight: "600",
+  },
+  listAnimatedContainer: {
+    flex: 1,
   },
   
   // Header

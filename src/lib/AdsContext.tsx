@@ -73,6 +73,30 @@ const PRODUCTION_REWARDED_AD_UNIT_ID = Platform.select({
 const FORCE_TEST_ADS = process.env.EXPO_PUBLIC_FORCE_TEST_ADS === "1";
 const USE_TEST_ADS = __DEV__ || FORCE_TEST_ADS;
 
+const ENV_BANNER_AD_UNIT_ID = Platform.select({
+  ios: process.env.EXPO_PUBLIC_ADMOB_IOS_BANNER_AD_UNIT_ID,
+  android: process.env.EXPO_PUBLIC_ADMOB_ANDROID_BANNER_AD_UNIT_ID,
+  default: "",
+});
+
+const ENV_NATIVE_AD_UNIT_ID = Platform.select({
+  ios: process.env.EXPO_PUBLIC_ADMOB_IOS_NATIVE_AD_UNIT_ID,
+  android: process.env.EXPO_PUBLIC_ADMOB_ANDROID_NATIVE_AD_UNIT_ID,
+  default: "",
+});
+
+const ENV_INTERSTITIAL_AD_UNIT_ID = Platform.select({
+  ios: process.env.EXPO_PUBLIC_ADMOB_IOS_INTERSTITIAL_AD_UNIT_ID,
+  android: process.env.EXPO_PUBLIC_ADMOB_ANDROID_INTERSTITIAL_AD_UNIT_ID,
+  default: "",
+});
+
+const ENV_REWARDED_AD_UNIT_ID = Platform.select({
+  ios: process.env.EXPO_PUBLIC_ADMOB_IOS_REWARDED_AD_UNIT_ID,
+  android: process.env.EXPO_PUBLIC_ADMOB_ANDROID_REWARDED_AD_UNIT_ID,
+  default: "",
+});
+
 interface AdsContextType {
   // State
   isAdsInitialized: boolean;
@@ -103,10 +127,18 @@ export function AdsProvider({ children }: { children: ReactNode }) {
   const [adsModule, setAdsModule] = useState<any>(null);
 
   // Get the appropriate ad unit IDs
-  const bannerAdUnitId = USE_TEST_ADS ? TEST_BANNER_AD_UNIT_ID : PRODUCTION_BANNER_AD_UNIT_ID;
-  const interstitialAdUnitId = USE_TEST_ADS ? TEST_INTERSTITIAL_AD_UNIT_ID : PRODUCTION_INTERSTITIAL_AD_UNIT_ID;
-  const rewardedAdUnitId = USE_TEST_ADS ? TEST_REWARDED_AD_UNIT_ID : PRODUCTION_REWARDED_AD_UNIT_ID;
-  const nativeAdUnitId = USE_TEST_ADS ? TEST_NATIVE_AD_UNIT_ID : PRODUCTION_NATIVE_AD_UNIT_ID;
+  const bannerAdUnitId = USE_TEST_ADS
+    ? TEST_BANNER_AD_UNIT_ID
+    : ENV_BANNER_AD_UNIT_ID || PRODUCTION_BANNER_AD_UNIT_ID;
+  const interstitialAdUnitId = USE_TEST_ADS
+    ? TEST_INTERSTITIAL_AD_UNIT_ID
+    : ENV_INTERSTITIAL_AD_UNIT_ID || PRODUCTION_INTERSTITIAL_AD_UNIT_ID;
+  const rewardedAdUnitId = USE_TEST_ADS
+    ? TEST_REWARDED_AD_UNIT_ID
+    : ENV_REWARDED_AD_UNIT_ID || PRODUCTION_REWARDED_AD_UNIT_ID;
+  const nativeAdUnitId = USE_TEST_ADS
+    ? TEST_NATIVE_AD_UNIT_ID
+    : ENV_NATIVE_AD_UNIT_ID || PRODUCTION_NATIVE_AD_UNIT_ID;
 
   // Initialize Google Mobile Ads
   useEffect(() => {

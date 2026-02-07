@@ -87,18 +87,6 @@ export function DailyWalkScreen({
               <Text style={styles.reflectionText}>{data.reflection}</Text>
             </View>
 
-            {/* Step */}
-            <View style={styles.stepSection}>
-              <View style={styles.sectionHeader}>
-                <MaterialCommunityIcons name="shoe-print" size={18} color={OB_COLORS.primary} />
-                <Text style={styles.sectionTitle}>One step for today</Text>
-              </View>
-              <View style={[styles.stepCard, stepCompleted && styles.stepCardCompleted]}>
-                <Text style={[styles.stepText, stepCompleted && styles.stepTextCompleted]}>{data.step}</Text>
-                {stepCompleted && <Ionicons name="checkmark-circle" size={24} color={OB_COLORS.primary} />}
-              </View>
-            </View>
-
             {/* Prayer */}
             {showPrayerPrompt && data.prayerPrompt && (
               <View style={styles.section}>
@@ -135,13 +123,13 @@ export function DailyWalkScreen({
                   style={styles.primaryGradient}
                 >
                   <Ionicons name="checkmark-circle-outline" size={20} color="#ffffff" />
-                  <Text style={styles.primaryButtonText}>Mark step as done</Text>
+                  <Text style={styles.primaryButtonText}>Continue</Text>
                 </LinearGradient>
               </Pressable>
             ) : (
               <View style={styles.completedButton}>
                 <Ionicons name="checkmark-circle" size={20} color={OB_COLORS.primary} />
-                <Text style={styles.completedButtonText}>Step completed!</Text>
+                <Text style={styles.completedButtonText}>Moving forward...</Text>
               </View>
             )}
 
@@ -205,16 +193,6 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 },
   sectionTitle: { fontSize: 13, fontWeight: "800", color: OB_COLORS.primary, textTransform: "uppercase", letterSpacing: 0.5 },
   reflectionText: { fontSize: 16, color: OB_COLORS.textBody, lineHeight: 26 },
-
-  stepSection: { marginBottom: 24 },
-  stepCard: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    backgroundColor: OB_COLORS.primaryLight, padding: 16, borderRadius: 18,
-    borderWidth: 2, borderColor: "rgba(91, 140, 90, 0.2)",
-  },
-  stepCardCompleted: { backgroundColor: "#dcfce7", borderColor: OB_COLORS.primary },
-  stepText: { fontSize: 15, color: OB_COLORS.textDark, lineHeight: 22, flex: 1, fontWeight: "500" },
-  stepTextCompleted: { textDecorationLine: "line-through", color: OB_COLORS.textMuted },
 
   prayerText: { fontSize: 16, color: OB_COLORS.textBody, lineHeight: 26, fontStyle: "italic" },
 

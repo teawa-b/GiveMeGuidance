@@ -2,8 +2,8 @@ import { Redirect } from "expo-router";
 import { useAuth } from "../src/lib/AuthContext";
 import { View, ActivityIndicator, StyleSheet, Image } from "react-native";
 
-// App logo for loading screen
-const appLogo = require("../assets/NewLogo.png");
+// Bird icon for loading screen
+const appLogo = require("../assets/mascot/bird-reading.png");
 
 export default function Index() {
   const { isLoading, isAuthenticated } = useAuth();

@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, StyleSheet, Platform, Text, Animated } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { View, StyleSheet, Platform, Text, Animated, Image, ActivityIndicator } from "react-native";
 import Constants from "expo-constants";
 import { useAds } from "../lib/AdsContext";
 import { usePremium } from "../lib/PremiumContext";
@@ -17,6 +16,7 @@ interface NativeAdLoadingProps {
 export function NativeAdLoading({ isVisible, loadingMessage = "Finding guidance...", hideAds = false }: NativeAdLoadingProps) {
   const { shouldShowAds, nativeAdUnitId, isAdsInitialized, BannerAd, BannerAdSize } = useAds();
   const { isPremium } = usePremium();
+  const loadingBird = require("../../assets/mascot/bird-reading.png");
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const [adLoaded, setAdLoaded] = useState(false);
@@ -65,8 +65,9 @@ export function NativeAdLoading({ isVisible, loadingMessage = "Finding guidance.
       <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
         <View style={styles.loadingSection}>
           <Animated.View style={{ opacity: pulseAnim }}>
-            <Ionicons name="book-outline" size={32} color="#10b981" />
+            <Image source={loadingBird} style={styles.loadingBird} resizeMode="contain" />
           </Animated.View>
+          <ActivityIndicator size="small" color="#10b981" style={styles.loadingSpinner} />
           <Text style={styles.loadingText}>{loadingMessage}</Text>
         </View>
       </Animated.View>
@@ -81,8 +82,9 @@ export function NativeAdLoading({ isVisible, loadingMessage = "Finding guidance.
       {/* Loading indicator */}
       <View style={styles.loadingSection}>
         <Animated.View style={{ opacity: pulseAnim }}>
-          <Ionicons name="book-outline" size={32} color="#10b981" />
+          <Image source={loadingBird} style={styles.loadingBird} resizeMode="contain" />
         </Animated.View>
+        <ActivityIndicator size="small" color="#10b981" style={styles.loadingSpinner} />
         <Text style={styles.loadingText}>{loadingMessage}</Text>
       </View>
 
@@ -93,9 +95,7 @@ export function NativeAdLoading({ isVisible, loadingMessage = "Finding guidance.
           <BannerAd
             unitId={nativeAdUnitId}
             size={BannerAdSize.MEDIUM_RECTANGLE}
-            requestOptions={{
-              requestNonPersonalizedAdsOnly: true,
-            }}
+            requestOptions={{}}
             onAdLoaded={() => {
               console.log("[AdMob] Loading screen ad loaded");
               setAdLoaded(true);
@@ -119,6 +119,13 @@ const styles = StyleSheet.create({
   loadingSection: {
     alignItems: "center",
     marginBottom: 24,
+  },
+  loadingBird: {
+    width: 48,
+    height: 48,
+  },
+  loadingSpinner: {
+    marginTop: 8,
   },
   loadingText: {
     marginTop: 12,

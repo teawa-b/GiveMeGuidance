@@ -9,6 +9,7 @@ const isExpoGo = Constants.appOwnership === "expo";
 
 // Get screen width for adaptive banner
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const MAX_RETRIES = 3;
 
 interface BannerAdComponentProps {
   style?: object;
@@ -18,7 +19,6 @@ export function BannerAdComponent({ style }: BannerAdComponentProps) {
   const { shouldShowAds, bannerAdUnitId, isAdsInitialized, BannerAd, BannerAdSize } = useAds();
   const { isPremium } = usePremium();
   const [adLoaded, setAdLoaded] = useState(false);
-  const [adError, setAdError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [adRequestKey, setAdRequestKey] = useState(0);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -54,6 +54,11 @@ export function BannerAdComponent({ style }: BannerAdComponentProps) {
     return null;
   }
 
+  if (!bannerAdUnitId) {
+    console.log("[BannerAd] Missing banner ad unit ID");
+    return null;
+  }
+
   // Native ads module not available - show placeholder
   if (!BannerAd || !isAdsInitialized) {
     console.log("[BannerAd] Waiting for initialization...", { BannerAd: !!BannerAd, isAdsInitialized });
@@ -68,20 +73,27 @@ export function BannerAdComponent({ style }: BannerAdComponentProps) {
     );
   }
 
+  // Avoid leaving permanent empty ad gaps when no-fill persists on a device.
+  if (!adLoaded && retryCount >= MAX_RETRIES) {
+    console.log("[BannerAd] Max retries reached, hiding banner for this session");
+    return null;
+  }
+
+  const bannerSize =
+    Platform.OS === "ios"
+      ? (BannerAdSize.BANNER || BannerAdSize.ANCHORED_ADAPTIVE_BANNER)
+      : (BannerAdSize.ANCHORED_ADAPTIVE_BANNER || BannerAdSize.BANNER);
+
   return (
     <View style={[styles.container, style, !adLoaded && styles.loading]}>
       <BannerAd
         key={`${bannerAdUnitId}-${adRequestKey}`}
         unitId={bannerAdUnitId}
-        size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER || BannerAdSize.BANNER}
-        requestOptions={{
-          // More reliable across ATT/consent states.
-          requestNonPersonalizedAdsOnly: Platform.OS === "ios",
-        }}
+        size={bannerSize}
+        requestOptions={{}}
         onAdLoaded={() => {
           console.log("[BannerAd] Ad loaded successfully");
           setAdLoaded(true);
-          setAdError(null);
           setRetryCount(0);
         }}
         onAdFailedToLoad={(error: any) => {
@@ -92,7 +104,6 @@ export function BannerAdComponent({ style }: BannerAdComponentProps) {
             retryCount,
           });
           setAdLoaded(false);
-          setAdError(error?.message || "Unknown error");
           setRetryCount((prev) => {
             const next = prev + 1;
             const retryDelayMs = Math.min(30000, 2000 * next);
@@ -121,6 +132,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     minHeight: 50,
+    maxWidth: Math.max(320, SCREEN_WIDTH),
     width: "100%",
   },
   loading: {

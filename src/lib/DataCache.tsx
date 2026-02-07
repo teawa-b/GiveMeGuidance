@@ -92,7 +92,11 @@ const DataCacheContext = createContext<DataCacheContextType | null>(null);
 // Cache configuration
 const CACHE_TTL = 60 * 1000; // 1 minute - data is considered "fresh" for this long
 const STALE_TTL = 5 * 60 * 1000; // 5 minutes - data is "stale but usable" for this long
-const STORAGE_KEY_PREFIX = "data_cache_";
+const STORAGE_KEY_PREFIX = "data_cache_v2_";
+const CACHE_KEYS = ["bookmarks", "chats", "streak", "activityDates"] as const;
+const LEGACY_STORAGE_KEYS = ["bookmarks", "chats", "streak", "activityDates"].map(
+  (k) => `data_cache_${k}`
+);
 
 export function DataCacheProvider({ children }: { children: React.ReactNode }) {
   // In-memory cache
@@ -135,64 +139,163 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
 
   // User ID ref for quick access
   const userIdRef = useRef<string | null>(null);
+  const authResolvedRef = useRef(false);
+
+  const getStorageKey = useCallback((userId: string, key: keyof CacheData) => {
+    return `${STORAGE_KEY_PREFIX}${userId}_${key}`;
+  }, []);
+
+  const resetPendingRequests = useCallback(() => {
+    pendingRequests.current = {
+      bookmarks: null,
+      chats: null,
+      streak: null,
+      activityDates: null,
+    };
+  }, []);
 
   // Get user ID (cached)
   const getUserId = useCallback(async (): Promise<string | null> => {
-    if (userIdRef.current) return userIdRef.current;
-    
-    const { data: { user } } = await supabase.auth.getUser();
-    userIdRef.current = user?.id || null;
+    if (authResolvedRef.current) {
+      return userIdRef.current;
+    }
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    userIdRef.current = session?.user?.id ?? null;
+    authResolvedRef.current = true;
     return userIdRef.current;
   }, []);
 
-  // Load cache from AsyncStorage on mount
+  // Clear old unscoped cache keys once.
   useEffect(() => {
-    const loadFromStorage = async () => {
-      try {
-        const keys = ["bookmarks", "chats", "streak", "activityDates"] as const;
-        const results = await AsyncStorage.multiGet(
-          keys.map(k => `${STORAGE_KEY_PREFIX}${k}`)
-        );
-        
-        const newCache: Partial<CacheData> = {};
-        const newTimestamps: Partial<CacheTimestamps> = {};
-        
-        results.forEach(([key, value], index) => {
-          if (value) {
-            try {
-              const parsed = JSON.parse(value);
-              const cacheKey = keys[index];
-              newCache[cacheKey] = parsed.data;
-              newTimestamps[cacheKey] = parsed.timestamp || 0;
-            } catch {
-              // Invalid cache, ignore
-            }
-          }
-        });
-        
-        if (Object.keys(newCache).length > 0) {
-          setCache(prev => ({ ...prev, ...newCache }));
-          setTimestamps(prev => ({ ...prev, ...newTimestamps }));
-        }
-      } catch (error) {
-        console.warn("[DataCache] Error loading from storage:", error);
-      }
-    };
-    
-    loadFromStorage();
+    AsyncStorage.multiRemove(LEGACY_STORAGE_KEYS).catch((error) => {
+      console.warn("[DataCache] Error clearing legacy storage keys:", error);
+    });
   }, []);
 
+  // Keep cache scoped to the authenticated user. Guests should never see persisted user data.
+  useEffect(() => {
+    let isMounted = true;
+
+    const applyUserState = async (userId: string | null) => {
+      userIdRef.current = userId;
+      authResolvedRef.current = true;
+      resetPendingRequests();
+
+      if (!isMounted) return;
+
+      if (!userId) {
+        setCache({
+          bookmarks: [],
+          chats: [],
+          streak: null,
+          activityDates: [],
+        });
+        setTimestamps({
+          bookmarks: 0,
+          chats: 0,
+          streak: 0,
+          activityDates: 0,
+        });
+        setIsInitialLoadBookmarks(false);
+        setIsInitialLoadChats(false);
+        return;
+      }
+
+      // Reset in-memory cache when switching users before loading this user's persisted cache.
+      setCache({
+        bookmarks: null,
+        chats: null,
+        streak: null,
+        activityDates: null,
+      });
+      setTimestamps({
+        bookmarks: 0,
+        chats: 0,
+        streak: 0,
+        activityDates: 0,
+      });
+      setIsInitialLoadBookmarks(true);
+      setIsInitialLoadChats(true);
+
+      try {
+        const keys = CACHE_KEYS.map((k) => getStorageKey(userId, k));
+        const results = await AsyncStorage.multiGet(keys);
+
+        if (!isMounted || userIdRef.current !== userId) return;
+
+        const newCache: Partial<CacheData> = {};
+        const newTimestamps: Partial<CacheTimestamps> = {};
+
+        results.forEach(([, value], index) => {
+          if (!value) return;
+          try {
+            const parsed = JSON.parse(value);
+            const cacheKey = CACHE_KEYS[index];
+            newCache[cacheKey] = parsed.data;
+            newTimestamps[cacheKey] = parsed.timestamp || 0;
+          } catch {
+            // Invalid cache, ignore
+          }
+        });
+
+        if (Object.keys(newCache).length > 0) {
+          setCache((prev) => ({ ...prev, ...newCache }));
+          setTimestamps((prev) => ({ ...prev, ...newTimestamps }));
+        }
+
+        setIsInitialLoadBookmarks(newCache.bookmarks === undefined);
+        setIsInitialLoadChats(newCache.chats === undefined);
+      } catch (error) {
+        console.warn("[DataCache] Error loading from storage:", error);
+        setIsInitialLoadBookmarks(true);
+        setIsInitialLoadChats(true);
+      }
+    };
+
+    const init = async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        await applyUserState(session?.user?.id ?? null);
+      } catch (error) {
+        console.warn("[DataCache] Failed to resolve initial auth state:", error);
+        await applyUserState(null);
+      }
+    };
+
+    init();
+
+    const { data } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+      await applyUserState(newSession?.user?.id ?? null);
+    });
+
+    return () => {
+      isMounted = false;
+      data.subscription.unsubscribe();
+    };
+  }, [getStorageKey, resetPendingRequests]);
+
   // Save to AsyncStorage helper
-  const saveToStorage = useCallback(async (key: keyof CacheData, data: any, timestamp: number) => {
+  const saveToStorage = useCallback(async (
+    key: keyof CacheData,
+    data: any,
+    timestamp: number,
+    userId: string | null
+  ) => {
+    if (!userId) return;
     try {
       await AsyncStorage.setItem(
-        `${STORAGE_KEY_PREFIX}${key}`,
+        getStorageKey(userId, key),
         JSON.stringify({ data, timestamp })
       );
     } catch (error) {
       console.warn("[DataCache] Error saving to storage:", error);
     }
-  }, []);
+  }, [getStorageKey]);
 
   // Check if cache is fresh
   const isFresh = useCallback((key: keyof CacheTimestamps): boolean => {
@@ -221,13 +324,17 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
     const hasUsableCache = cache.bookmarks !== null && isUsable("bookmarks");
     
     const fetchPromise = (async (): Promise<Bookmark[]> => {
-      if (!hasUsableCache) {
-        setIsLoadingBookmarks(true);
-      }
+      setIsLoadingBookmarks(true);
       
       try {
         const userId = await getUserId();
-        if (!userId) return [];
+        if (!userId) {
+          const now = Date.now();
+          setCache(prev => ({ ...prev, bookmarks: [] }));
+          setTimestamps(prev => ({ ...prev, bookmarks: now }));
+          setIsInitialLoadBookmarks(false);
+          return [];
+        }
 
         const { data, error } = await supabase
           .from("bookmarks")
@@ -246,7 +353,7 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
         setCache(prev => ({ ...prev, bookmarks }));
         setTimestamps(prev => ({ ...prev, bookmarks: now }));
         setIsInitialLoadBookmarks(false);
-        saveToStorage("bookmarks", bookmarks, now);
+        saveToStorage("bookmarks", bookmarks, now, userId);
         
         return bookmarks;
       } finally {
@@ -279,13 +386,17 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
     const hasUsableCache = cache.chats !== null && isUsable("chats");
     
     const fetchPromise = (async (): Promise<Chat[]> => {
-      if (!hasUsableCache) {
-        setIsLoadingChats(true);
-      }
+      setIsLoadingChats(true);
       
       try {
         const userId = await getUserId();
-        if (!userId) return [];
+        if (!userId) {
+          const now = Date.now();
+          setCache(prev => ({ ...prev, chats: [] }));
+          setTimestamps(prev => ({ ...prev, chats: now }));
+          setIsInitialLoadChats(false);
+          return [];
+        }
 
         const { data, error } = await supabase
           .from("chats")
@@ -304,7 +415,7 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
         setCache(prev => ({ ...prev, chats }));
         setTimestamps(prev => ({ ...prev, chats: now }));
         setIsInitialLoadChats(false);
-        saveToStorage("chats", chats, now);
+        saveToStorage("chats", chats, now, userId);
         
         return chats;
       } finally {
@@ -335,13 +446,16 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
     const hasUsableCache = cache.streak !== null && isUsable("streak");
     
     const fetchPromise = (async (): Promise<UserStreak | null> => {
-      if (!hasUsableCache) {
-        setIsLoadingStreak(true);
-      }
+      setIsLoadingStreak(true);
       
       try {
         const userId = await getUserId();
-        if (!userId) return null;
+        if (!userId) {
+          const now = Date.now();
+          setCache(prev => ({ ...prev, streak: null }));
+          setTimestamps(prev => ({ ...prev, streak: now }));
+          return null;
+        }
 
         const { data, error } = await supabase
           .from("user_streaks")
@@ -359,7 +473,7 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
         
         setCache(prev => ({ ...prev, streak }));
         setTimestamps(prev => ({ ...prev, streak: now }));
-        saveToStorage("streak", streak, now);
+        saveToStorage("streak", streak, now, userId);
         
         return streak;
       } finally {
@@ -390,13 +504,16 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
     const hasUsableCache = cache.activityDates !== null && isUsable("activityDates");
     
     const fetchPromise = (async (): Promise<string[]> => {
-      if (!hasUsableCache) {
-        setIsLoadingActivityDates(true);
-      }
+      setIsLoadingActivityDates(true);
       
       try {
         const userId = await getUserId();
-        if (!userId) return [];
+        if (!userId) {
+          const now = Date.now();
+          setCache(prev => ({ ...prev, activityDates: [] }));
+          setTimestamps(prev => ({ ...prev, activityDates: now }));
+          return [];
+        }
 
         const { data, error } = await supabase
           .from("chats")
@@ -424,7 +541,7 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
         
         setCache(prev => ({ ...prev, activityDates }));
         setTimestamps(prev => ({ ...prev, activityDates: now }));
-        saveToStorage("activityDates", activityDates, now);
+        saveToStorage("activityDates", activityDates, now, userId);
         
         return activityDates;
       } finally {
@@ -541,12 +658,15 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
   }, [fetchBookmarks, fetchChats, fetchStreak]);
 
   const clearCache = useCallback(async () => {
+    const previousUserId = userIdRef.current;
     userIdRef.current = null;
+    authResolvedRef.current = true;
+    resetPendingRequests();
     setCache({
-      bookmarks: null,
-      chats: null,
+      bookmarks: [],
+      chats: [],
       streak: null,
-      activityDates: null,
+      activityDates: [],
     });
     setTimestamps({
       bookmarks: 0,
@@ -554,21 +674,19 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
       streak: 0,
       activityDates: 0,
     });
-    setIsInitialLoadBookmarks(true);
-    setIsInitialLoadChats(true);
+    setIsInitialLoadBookmarks(false);
+    setIsInitialLoadChats(false);
     
     // Clear AsyncStorage
     try {
-      await AsyncStorage.multiRemove([
-        `${STORAGE_KEY_PREFIX}bookmarks`,
-        `${STORAGE_KEY_PREFIX}chats`,
-        `${STORAGE_KEY_PREFIX}streak`,
-        `${STORAGE_KEY_PREFIX}activityDates`,
-      ]);
+      const userScopedKeys = previousUserId
+        ? CACHE_KEYS.map((k) => getStorageKey(previousUserId, k))
+        : [];
+      await AsyncStorage.multiRemove([...userScopedKeys, ...LEGACY_STORAGE_KEYS]);
     } catch (error) {
       console.warn("[DataCache] Error clearing storage:", error);
     }
-  }, []);
+  }, [getStorageKey, resetPendingRequests]);
 
   const value: DataCacheContextType = {
     bookmarks: cache.bookmarks,

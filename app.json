@@ -207,8 +207,7 @@
           "delayAppMeasurementInit": true
         }
       ],
-      "./plugins/withFirebaseIOS",
-      "@react-native-google-signin/google-signin"
+      "./plugins/withFirebaseIOS"
     ],
     "experiments": {
       "typedRoutes": true

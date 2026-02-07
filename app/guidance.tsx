@@ -9,6 +9,7 @@ import {
   Platform,
   Share,
   Modal,
+  Alert,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -20,6 +21,7 @@ import { getGuidance, getExplanation, type VerseData, type ExplanationData } fro
 import { isBookmarked as checkIsBookmarked, addBookmark } from "../src/services/bookmarks";
 import { updateStreak } from "../src/services/streak";
 import { useDataCache } from "../src/lib/DataCache";
+import { useAuth } from "../src/lib/AuthContext";
 import { 
   getTodaysGuidance, 
   type DailyGuidance,
@@ -62,6 +64,7 @@ export default function GuidanceScreen() {
   
   // Get cache invalidation function
   const { invalidateBookmarks } = useDataCache();
+  const { isAuthenticated } = useAuth();
 
   // Build enhanced query with user preferences
   const buildEnhancedQuery = useCallback((baseQuery: string): string => {
@@ -159,6 +162,17 @@ export default function GuidanceScreen() {
 
   const handleSaveBookmark = async () => {
     if (isBookmarking || bookmarked || !verseData) return;
+    if (!isAuthenticated) {
+      Alert.alert(
+        "Sign in required",
+        "You need to sign in to save bookmarks.",
+        [
+          { text: "Not now", style: "cancel" },
+          { text: "Sign in", onPress: () => router.push("/(auth)") },
+        ]
+      );
+      return;
+    }
 
     setIsBookmarking(true);
     try {
@@ -425,6 +439,17 @@ export default function GuidanceScreen() {
 
   const handleChatMore = () => {
     if (!explanationData || !verseData) return;
+    if (!isAuthenticated) {
+      Alert.alert(
+        "Sign in required",
+        "You need to sign in to save and continue chats.",
+        [
+          { text: "Not now", style: "cancel" },
+          { text: "Sign in", onPress: () => router.push("/(auth)") },
+        ]
+      );
+      return;
+    }
     
     // If we have an existing chat ID from history, use it instead of creating a new chat
     if (params.existingChatId) {
@@ -454,6 +479,17 @@ export default function GuidanceScreen() {
 
   const handleReflectionPrompt = (prompt: string) => {
     if (!verseData) return;
+    if (!isAuthenticated) {
+      Alert.alert(
+        "Sign in required",
+        "You need to sign in to save and continue chats.",
+        [
+          { text: "Not now", style: "cancel" },
+          { text: "Sign in", onPress: () => router.push("/(auth)") },
+        ]
+      );
+      return;
+    }
 
     const normalizedPrompt = normalizeSecondPerson(prompt);
     

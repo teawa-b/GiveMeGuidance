@@ -28,9 +28,11 @@ import { GuidanceHistoryModal } from "../../src/components/GuidanceHistoryModal"
 import { lightHaptic, mediumHaptic, warningHaptic } from "../../src/lib/haptics";
 import { EtherealBackground } from "../../src/components/EtherealBackground";
 import { supabase } from "../../src/lib/supabase";
+import { deleteMyAccount } from "../../src/services/account";
 
 type EditProfileView = "main" | "changeEmail" | "changePassword" | "dangerZone";
 const profileBird = require("../../assets/mascot/bird-pointing-right.png");
+const loadingBird = require("../../assets/mascot/bird-reading.png");
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -123,7 +125,35 @@ export default function ProfileScreen() {
 
   const handleDeleteAccount = () => {
     warningHaptic();
-    
+
+    const performDelete = async () => {
+      setEditProfileLoading(true);
+      setEditProfileMessage(null);
+
+      try {
+        // Backend delete must succeed first; account is removed in auth.users.
+        await deleteMyAccount();
+
+        // Then clear local auth/session state.
+        try {
+          await signOut();
+        } catch (signOutError) {
+          console.warn("Sign out after deletion failed:", signOutError);
+        }
+
+        if (Platform.OS === "web") {
+          window.location.href = "/";
+        } else {
+          router.replace("/(auth)");
+        }
+      } catch (error: any) {
+        console.error("Delete account error:", error);
+        Alert.alert("Error", error?.message || "Failed to delete account. Please try again.");
+      } finally {
+        setEditProfileLoading(false);
+      }
+    };
+
     const confirmDelete = () => {
       Alert.alert(
         "Final Confirmation",
@@ -133,20 +163,7 @@ export default function ProfileScreen() {
           { 
             text: "Delete Forever", 
             style: "destructive", 
-            onPress: async () => {
-              try {
-                // For now, just sign out - actual deletion would require backend support
-                await signOut();
-                if (Platform.OS === "web") {
-                  window.location.href = "/";
-                } else {
-                  router.replace("/(auth)");
-                }
-              } catch (error) {
-                console.error("Delete account error:", error);
-                Alert.alert("Error", "Failed to delete account. Please try again.");
-              }
-            }
+            onPress: performDelete
           },
         ]
       );
@@ -360,7 +377,8 @@ export default function ProfileScreen() {
       <View style={styles.container}>
         <EtherealBackground />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#10b981" />
+          <Image source={loadingBird} style={styles.loadingBird} resizeMode="contain" />
+          <ActivityIndicator size="small" color="#10b981" style={styles.loadingSpinner} />
         </View>
       </View>
     );
@@ -927,6 +945,14 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  loadingBird: {
+    width: 70,
+    height: 70,
+    marginBottom: 10,
+  },
+  loadingSpinner: {
+    marginTop: 2,
   },
   scrollView: {
     flex: 1,

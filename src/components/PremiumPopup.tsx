@@ -16,7 +16,7 @@ import { usePremium, PremiumPackage } from "../lib/PremiumContext";
 import { lightHaptic, successHaptic } from "../lib/haptics";
 
 // App logo
-const appLogo = require("../../assets/NewLogo.png");
+const appLogo = require("../../assets/mascot/bird-reading.png");
 
 interface PremiumPopupProps {
   visible: boolean;

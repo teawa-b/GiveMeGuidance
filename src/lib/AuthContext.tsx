@@ -23,16 +23,30 @@ if (Platform.OS !== "web") {
 
 // ⚠️ IMPORTANT: Replace these with your actual Google OAuth Client IDs from Google Cloud Console
 // Get these from: https://console.cloud.google.com/apis/credentials
-const GOOGLE_WEB_CLIENT_ID = "YOUR_WEB_CLIENT_ID.apps.googleusercontent.com";
-const GOOGLE_IOS_CLIENT_ID = "YOUR_IOS_CLIENT_ID.apps.googleusercontent.com";
+const GOOGLE_WEB_CLIENT_ID = (process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || "").trim();
+const GOOGLE_IOS_CLIENT_ID = (process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || "").trim();
+
+const isInvalidGoogleClientId = (value: string) => {
+  if (!value) return true;
+  if (value.includes("YOUR_")) return true;
+  return !value.endsWith(".apps.googleusercontent.com");
+};
+
+const hasValidGoogleWebClientId = !isInvalidGoogleClientId(GOOGLE_WEB_CLIENT_ID);
+const hasValidGoogleIosClientId = !isInvalidGoogleClientId(GOOGLE_IOS_CLIENT_ID);
+const hasNativeGoogleConfig = hasValidGoogleWebClientId || hasValidGoogleIosClientId;
 
 // Configure Google Sign In (only on native platforms)
 if (Platform.OS !== "web" && GoogleSignin) {
-  GoogleSignin.configure({
-    webClientId: GOOGLE_WEB_CLIENT_ID, // Required for getting idToken
-    iosClientId: GOOGLE_IOS_CLIENT_ID, // iOS client ID
-    offlineAccess: true,
-  });
+  try {
+    GoogleSignin.configure({
+      webClientId: hasValidGoogleWebClientId ? GOOGLE_WEB_CLIENT_ID : undefined,
+      iosClientId: hasValidGoogleIosClientId ? GOOGLE_IOS_CLIENT_ID : undefined,
+      offlineAccess: hasValidGoogleWebClientId,
+    });
+  } catch (e) {
+    console.warn("[Auth] Failed to configure Google Sign-In:", e);
+  }
 }
 
 interface AppleFullName {
@@ -168,15 +182,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithGoogle = useCallback(async () => {
     // Use native Google Sign In on iOS
     if (Platform.OS === "ios" && GoogleSignin) {
-      try {
-        // Check if Google Play Services are available (always true on iOS)
-        await GoogleSignin.hasPlayServices();
+      if (!hasNativeGoogleConfig) {
+        return {
+          error:
+            "Google sign in is not configured for iOS. Set EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID and EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID.",
+        };
+      }
 
+      try {
         // Sign in with Google natively
         const response = await GoogleSignin.signIn();
 
-        if (isSuccessResponse(response)) {
-          const idToken = response.data.idToken;
+        const isSuccess =
+          isSuccessResponse(response) ||
+          response?.type === "success" ||
+          !!response?.data?.idToken ||
+          !!response?.idToken;
+
+        if (isSuccess) {
+          const idToken = response?.data?.idToken || response?.idToken;
 
           if (!idToken) {
             console.error("[Auth] No ID token received from Google");
@@ -207,8 +231,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           switch (e.code) {
             case statusCodes.IN_PROGRESS:
               return { error: "Sign in already in progress" };
-            case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
-              return { error: "Google Play Services not available" };
             case statusCodes.SIGN_IN_CANCELLED:
               // User cancelled - don't show error
               return {};
@@ -222,7 +244,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Fallback to OAuth flow for web
+    if (Platform.OS === "ios" && !GoogleSignin) {
+      return { error: "Google Sign-In native module is not available in this build." };
+    }
+
+    // Fallback to OAuth flow for web/other platforms
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",

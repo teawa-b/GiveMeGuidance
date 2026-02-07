@@ -19,6 +19,7 @@ import { usePremium } from "../lib/PremiumContext";
 import { PremiumPopup } from "./PremiumPopup";
 import { supabase } from "../lib/supabase";
 import { getCurrentStreakDisplay } from "../services/streak";
+import { deleteMyAccount } from "../services/account";
 import { lightHaptic, mediumHaptic, warningHaptic, successHaptic } from "../lib/haptics";
 
 interface ProfileModalProps {
@@ -195,19 +196,22 @@ export function ProfileModal({ visible, onClose, onSignOut, onViewHistory, onVie
       return;
     }
 
-    const confirmDelete = () => {
+    const confirmDelete = async () => {
       setLoading(true);
       setMessage(null);
-      
-      // Note: Account deletion typically requires a server-side function
-      // This is a placeholder - implement proper deletion in your backend
-      setTimeout(() => {
-        setLoading(false);
-        setMessage({ 
-          type: "error", 
-          text: "Account deletion requires contacting support. Please email support@givemeguidance.app" 
+
+      try {
+        await deleteMyAccount();
+        successHaptic();
+        await onSignOut();
+      } catch (error: any) {
+        setMessage({
+          type: "error",
+          text: error?.message || "Failed to delete account. Please try again.",
         });
-      }, 1000);
+      } finally {
+        setLoading(false);
+      }
     };
 
     if (Platform.OS === "web") {

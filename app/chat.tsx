@@ -22,8 +22,8 @@ import { ChatLoadingBubble } from "../src/components/ChatLoadingBubble";
 import { lightHaptic, mediumHaptic } from "../src/lib/haptics";
 import { EtherealBackground } from "../src/components/EtherealBackground";
 
-// App logo for chat avatar
-const appLogo = require("../assets/NewLogo.png");
+// Bird icon for chat avatar
+const appLogo = require("../assets/mascot/bird-reading.png");
 
 interface Message {
   id: string;
@@ -472,7 +472,8 @@ export default function ChatScreen() {
         <EtherealBackground />
         <View style={styles.loadingContent}>
           <View style={styles.loadingIconContainer}>
-            <ActivityIndicator size="large" color="#10b981" />
+            <Image source={appLogo} style={styles.loadingBird} resizeMode="contain" />
+            <ActivityIndicator size="small" color="#10b981" style={styles.loadingSpinner} />
           </View>
           <Text style={styles.loadingText}>Loading conversation...</Text>
         </View>
@@ -619,6 +620,14 @@ const styles = StyleSheet.create({
         boxShadow: "0 4px 12px rgba(16, 185, 129, 0.1)",
       },
     }),
+  },
+  loadingBird: {
+    width: 54,
+    height: 54,
+  },
+  loadingSpinner: {
+    position: "absolute",
+    bottom: 10,
   },
   loadingText: {
     fontSize: 15,
