@@ -15,6 +15,7 @@ import {
   KeyboardAvoidingView,
   Animated,
   PanResponder,
+  Linking,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
@@ -30,15 +31,25 @@ import { lightHaptic, mediumHaptic, warningHaptic } from "../../src/lib/haptics"
 import { EtherealBackground } from "../../src/components/EtherealBackground";
 import { supabase } from "../../src/lib/supabase";
 import { deleteMyAccount } from "../../src/services/account";
+import { useOnboarding } from "../../src/lib/OnboardingContext";
+import {
+  cancelAllReminderNotifications,
+  getReminderScheduleSnapshot,
+  requestAndScheduleDailyAndStreakReminders,
+  scheduleReminderTestNotification,
+  type ReminderScheduleSnapshot,
+} from "../../src/services/notifications";
 
-type EditProfileView = "main" | "changeEmail" | "changePassword" | "dangerZone";
+type EditProfileView = "main" | "changeEmail" | "changePassword" | "dangerZone" | "reminders";
 const profileBird = require("../../assets/mascot/bird-pointing-right.png");
 const loadingBird = require("../../assets/mascot/bird-reading.png");
+const REMINDER_PRESET_TIMES = ["08:00", "12:00", "18:00", "21:00"] as const;
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, signOut } = useAuth();
   const { isPremium, restorePurchases, presentCustomerCenter } = usePremium();
+  const { data: onboardingData, saveOnboarding } = useOnboarding();
   const isGuest = !user;
 
   const [loading, setLoading] = useState(true);
@@ -64,6 +75,9 @@ export default function ProfileScreen() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [reminderTimeInput, setReminderTimeInput] = useState("08:00");
+  const [reminderEnabled, setReminderEnabled] = useState(false);
+  const [reminderSnapshot, setReminderSnapshot] = useState<ReminderScheduleSnapshot | null>(null);
   const editModalTranslateY = useRef(new Animated.Value(120)).current;
   const editModalDragY = useRef(new Animated.Value(0)).current;
   const isClosingModalRef = useRef(false);
@@ -91,6 +105,260 @@ export default function ProfileScreen() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const resolveReminderTimeFromPreferences = useCallback((): string => {
+    if (onboardingData.preferredTimeOfDay === "custom" && onboardingData.customTime) {
+      const normalizedCustomTime = onboardingData.customTime.trim();
+      if (/^([01]\d|2[0-3]):([0-5]\d)$/.test(normalizedCustomTime)) {
+        return normalizedCustomTime;
+      }
+    }
+
+    switch (onboardingData.preferredTimeOfDay) {
+      case "afternoon":
+        return "12:00";
+      case "evening":
+        return "18:00";
+      case "morning":
+      default:
+        return "08:00";
+    }
+  }, [onboardingData.customTime, onboardingData.preferredTimeOfDay]);
+
+  const isValidTimeInput = useCallback((value: string) => {
+    return /^([01]\d|2[0-3]):([0-5]\d)$/.test(value.trim());
+  }, []);
+
+  const sanitizeReminderInput = useCallback((value: string) => {
+    return value.replace(/[^0-9:]/g, "").slice(0, 5);
+  }, []);
+
+  const formatTimeForDisplay = useCallback((value: string) => {
+    if (!isValidTimeInput(value)) return value;
+    const [hour, minute] = value.split(":").map(Number);
+    const period = hour >= 12 ? "PM" : "AM";
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${minute.toString().padStart(2, "0")} ${period}`;
+  }, [isValidTimeInput]);
+
+  const refreshReminderSnapshot = useCallback(async () => {
+    try {
+      const snapshot = await getReminderScheduleSnapshot();
+      setReminderSnapshot(snapshot);
+      return snapshot;
+    } catch (error) {
+      console.error("Failed to fetch reminder schedule snapshot:", error);
+      return null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!editProfileVisible) return;
+
+    setReminderTimeInput(resolveReminderTimeFromPreferences());
+    setReminderEnabled(onboardingData.notificationEnabled);
+    void refreshReminderSnapshot();
+  }, [
+    editProfileVisible,
+    onboardingData.notificationEnabled,
+    refreshReminderSnapshot,
+    resolveReminderTimeFromPreferences,
+  ]);
+
+  const buildOnboardingTimeOverrides = useCallback((hour: number, minute: number) => {
+    if (hour === 8 && minute === 0) {
+      return { preferredTimeOfDay: "morning" as const, customTime: undefined };
+    }
+
+    if (hour === 12 && minute === 0) {
+      return { preferredTimeOfDay: "afternoon" as const, customTime: undefined };
+    }
+
+    if (hour === 18 && minute === 0) {
+      return { preferredTimeOfDay: "evening" as const, customTime: undefined };
+    }
+
+    return {
+      preferredTimeOfDay: "custom" as const,
+      customTime: `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`,
+    };
+  }, []);
+
+  const handleSaveReminderSettings = useCallback(async () => {
+    if (Platform.OS === "web") {
+      setEditProfileMessage({
+        type: "error",
+        text: "Reminders are available on iOS and Android builds only.",
+      });
+      return;
+    }
+
+    const normalizedInput = reminderTimeInput.trim();
+    if (!isValidTimeInput(normalizedInput)) {
+      setEditProfileMessage({
+        type: "error",
+        text: "Enter time as HH:MM in 24-hour format (for example, 21:00).",
+      });
+      return;
+    }
+
+    const [hour, minute] = normalizedInput.split(":").map(Number);
+
+    setEditProfileLoading(true);
+    setEditProfileMessage(null);
+
+    try {
+      const scheduled = await requestAndScheduleDailyAndStreakReminders(
+        { hour, minute },
+        { streakTime: { hour: 23, minute: 30 } }
+      );
+
+      if (!scheduled) {
+        setEditProfileMessage({
+          type: "error",
+          text: "Could not schedule reminders. Enable notifications in system Settings and try again.",
+        });
+        return;
+      }
+
+      await saveOnboarding({
+        ...buildOnboardingTimeOverrides(hour, minute),
+        notificationEnabled: true,
+      });
+
+      setReminderEnabled(true);
+      await refreshReminderSnapshot();
+      setEditProfileMessage({
+        type: "success",
+        text: `Reminders are active. Daily at ${formatTimeForDisplay(normalizedInput)} and streak at 11:30 PM.`,
+      });
+    } catch (error: any) {
+      console.error("Failed to save reminder settings:", error);
+      setEditProfileMessage({
+        type: "error",
+        text: error?.message || "Unable to update reminders right now.",
+      });
+    } finally {
+      setEditProfileLoading(false);
+    }
+  }, [
+    buildOnboardingTimeOverrides,
+    formatTimeForDisplay,
+    isValidTimeInput,
+    reminderTimeInput,
+    refreshReminderSnapshot,
+    saveOnboarding,
+  ]);
+
+  const handleDisableReminders = useCallback(async () => {
+    if (Platform.OS === "web") {
+      setEditProfileMessage({
+        type: "error",
+        text: "No local reminder schedules are available on web.",
+      });
+      return;
+    }
+
+    setEditProfileLoading(true);
+    setEditProfileMessage(null);
+
+    try {
+      await cancelAllReminderNotifications();
+      await saveOnboarding({ notificationEnabled: false });
+      setReminderEnabled(false);
+      await refreshReminderSnapshot();
+      setEditProfileMessage({
+        type: "success",
+        text: "Reminders are now turned off.",
+      });
+    } catch (error: any) {
+      console.error("Failed to disable reminders:", error);
+      setEditProfileMessage({
+        type: "error",
+        text: error?.message || "Unable to disable reminders right now.",
+      });
+    } finally {
+      setEditProfileLoading(false);
+    }
+  }, [refreshReminderSnapshot, saveOnboarding]);
+
+  const handleVerifyReminderSetup = useCallback(async () => {
+    if (Platform.OS === "web") {
+      setEditProfileMessage({
+        type: "error",
+        text: "Verification is only available on iOS and Android builds.",
+      });
+      return;
+    }
+
+    setEditProfileLoading(true);
+    setEditProfileMessage(null);
+
+    try {
+      const snapshot = await refreshReminderSnapshot();
+      if (!snapshot) {
+        setEditProfileMessage({
+          type: "error",
+          text: "Could not verify reminder status.",
+        });
+        return;
+      }
+
+      if (!snapshot.permissionGranted) {
+        setEditProfileMessage({
+          type: "error",
+          text: "Notification permission is not granted.",
+        });
+        return;
+      }
+
+      if (snapshot.dailyReminderScheduled && snapshot.streakReminderScheduled) {
+        setEditProfileMessage({
+          type: "success",
+          text: "Verification passed: daily and streak reminders are scheduled.",
+        });
+      } else {
+        setEditProfileMessage({
+          type: "error",
+          text: "Verification failed: one or more reminders are missing. Re-save reminder settings.",
+        });
+      }
+    } finally {
+      setEditProfileLoading(false);
+    }
+  }, [refreshReminderSnapshot]);
+
+  const handleSendTestReminder = useCallback(async () => {
+    if (Platform.OS === "web") {
+      setEditProfileMessage({
+        type: "error",
+        text: "Test reminders are only available on iOS and Android builds.",
+      });
+      return;
+    }
+
+    setEditProfileLoading(true);
+    setEditProfileMessage(null);
+
+    try {
+      const scheduled = await scheduleReminderTestNotification(15);
+      if (!scheduled) {
+        setEditProfileMessage({
+          type: "error",
+          text: "Could not schedule the test reminder. Check notification permission.",
+        });
+        return;
+      }
+
+      setEditProfileMessage({
+        type: "success",
+        text: "Test reminder scheduled for ~15 seconds from now.",
+      });
+      await refreshReminderSnapshot();
+    } finally {
+      setEditProfileLoading(false);
+    }
+  }, [refreshReminderSnapshot]);
 
   const handleSignOut = async () => {
     const doSignOut = async () => {
@@ -676,6 +944,8 @@ export default function ProfileScreen() {
                     ? "Change Email"
                     : editProfileView === "changePassword"
                     ? "Change Password"
+                    : editProfileView === "reminders"
+                    ? "Reminder Settings"
                     : "Danger Zone"}
                 </Text>
                 <Pressable onPress={closeEditProfile} style={styles.editModalCloseButton}>
@@ -734,25 +1004,24 @@ export default function ProfileScreen() {
                     </Pressable>
 
                     <Pressable
-                      style={({ pressed }) => [
-                        styles.editActionItem,
-                        styles.editActionDanger,
-                        pressed && styles.menuItemPressed,
-                      ]}
+                      style={({ pressed }) => [styles.editActionItem, pressed && styles.menuItemPressed]}
                       onPress={() => {
-                        warningHaptic();
+                        lightHaptic();
                         setEditProfileMessage(null);
-                        setEditProfileView("dangerZone");
+                        setReminderTimeInput(resolveReminderTimeFromPreferences());
+                        setReminderEnabled(onboardingData.notificationEnabled);
+                        setEditProfileView("reminders");
+                        void refreshReminderSnapshot();
                       }}
-                      >
-                        <View style={styles.editActionItemLeft}>
-                          <View style={[styles.menuItemIcon, { backgroundColor: "rgba(239, 68, 68, 0.1)" }]}>
-                            <Ionicons name="warning-outline" size={18} color="#ef4444" />
-                          </View>
-                          <Text style={[styles.editActionItemText, { color: "#ef4444" }]}>Danger Zone</Text>
+                    >
+                      <View style={styles.editActionItemLeft}>
+                        <View style={[styles.menuItemIcon, { backgroundColor: "rgba(16, 185, 129, 0.1)" }]}>
+                          <Ionicons name="notifications-outline" size={18} color="#10b981" />
                         </View>
-                        <Ionicons name="chevron-forward" size={18} color="#ef4444" />
-                      </Pressable>
+                        <Text style={styles.editActionItemText}>Reminder Settings</Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
+                    </Pressable>
 
                     <Pressable
                       style={({ pressed }) => [styles.editActionItem, pressed && styles.menuItemPressed]}
@@ -769,6 +1038,28 @@ export default function ProfileScreen() {
                         <Text style={styles.editActionItemText}>Sign Out</Text>
                       </View>
                       <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
+                    </Pressable>
+
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.editActionItem,
+                        styles.editActionDanger,
+                        pressed && styles.menuItemPressed,
+                        { paddingVertical: 10 }
+                      ]}
+                      onPress={() => {
+                        warningHaptic();
+                        setEditProfileMessage(null);
+                        setEditProfileView("dangerZone");
+                      }}
+                    >
+                      <View style={styles.editActionItemLeft}>
+                        <View style={[styles.menuItemIcon, { backgroundColor: "rgba(239, 68, 68, 0.05)", width: 28, height: 28 }]}>
+                          <Ionicons name="warning-outline" size={12} color="#ef4444" opacity={0.5} />
+                        </View>
+                        <Text style={[styles.editActionItemText, { color: "#ef4444", fontSize: 12, opacity: 0.6 }]}>Danger Zone</Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={12} color="#ef4444" opacity={0.4} />
                     </Pressable>
                   </>
                 )}
@@ -869,6 +1160,165 @@ export default function ProfileScreen() {
                         <Text style={styles.editPrimaryButtonText}>Update Password</Text>
                       )}
                     </Pressable>
+                  </>
+                )}
+
+                {editProfileView === "reminders" && (
+                  <>
+                    <Pressable
+                      style={styles.editBackButton}
+                      onPress={() => {
+                        lightHaptic();
+                        setEditProfileMessage(null);
+                        setEditProfileView("main");
+                      }}
+                    >
+                      <Ionicons name="arrow-back" size={18} color="#64748b" />
+                      <Text style={styles.editBackButtonText}>Back</Text>
+                    </Pressable>
+
+                    <View style={styles.reminderSummaryCard}>
+                      <Text style={styles.reminderSummaryTitle}>Reminder Status</Text>
+                      <Text style={styles.reminderSummaryText}>
+                        Daily reminder: {reminderEnabled ? "On" : "Off"}
+                      </Text>
+                      <Text style={styles.reminderSummarySubtext}>
+                        Daily: {formatTimeForDisplay(reminderTimeInput)} • Streak: 11:30 PM
+                      </Text>
+                    </View>
+
+                    <Text style={styles.editFieldLabel}>Reminder time (24-hour)</Text>
+                    <TextInput
+                      style={styles.editInput}
+                      value={reminderTimeInput}
+                      onChangeText={(value) => {
+                        setEditProfileMessage(null);
+                        setReminderTimeInput(sanitizeReminderInput(value));
+                      }}
+                      placeholder="HH:MM"
+                      placeholderTextColor="#94a3b8"
+                      keyboardType={Platform.OS === "ios" ? "numbers-and-punctuation" : "numeric"}
+                      autoCapitalize="none"
+                      maxLength={5}
+                    />
+
+                    <View style={styles.reminderPresetRow}>
+                      {REMINDER_PRESET_TIMES.map((time) => {
+                        const isSelected = reminderTimeInput === time;
+                        return (
+                          <Pressable
+                            key={time}
+                            style={({ pressed }) => [
+                              styles.reminderPresetButton,
+                              isSelected && styles.reminderPresetButtonSelected,
+                              pressed && styles.menuItemPressed,
+                            ]}
+                            onPress={() => {
+                              lightHaptic();
+                              setEditProfileMessage(null);
+                              setReminderTimeInput(time);
+                            }}
+                          >
+                            <Text
+                              style={[
+                                styles.reminderPresetText,
+                                isSelected && styles.reminderPresetTextSelected,
+                              ]}
+                            >
+                              {formatTimeForDisplay(time)}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+
+                    {reminderSnapshot && (
+                      <View style={styles.reminderDebugCard}>
+                        <Text style={styles.reminderDebugTitle}>Verification</Text>
+                        <Text style={styles.reminderDebugItem}>
+                          Permission: {reminderSnapshot.permissionGranted ? "Granted" : "Not granted"}
+                        </Text>
+                        <Text style={styles.reminderDebugItem}>
+                          Daily scheduled: {reminderSnapshot.dailyReminderScheduled ? "Yes" : "No"}
+                        </Text>
+                        <Text style={styles.reminderDebugItem}>
+                          Streak scheduled: {reminderSnapshot.streakReminderScheduled ? "Yes" : "No"}
+                        </Text>
+                        <Text style={styles.reminderDebugItem}>
+                          Total scheduled notifications: {reminderSnapshot.scheduledCount}
+                        </Text>
+                      </View>
+                    )}
+
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.editPrimaryButton,
+                        pressed && styles.menuItemPressed,
+                        editProfileLoading && styles.buttonDisabled,
+                      ]}
+                      disabled={editProfileLoading}
+                      onPress={handleSaveReminderSettings}
+                    >
+                      {editProfileLoading ? (
+                        <ActivityIndicator color="#ffffff" size="small" />
+                      ) : (
+                        <Text style={styles.editPrimaryButtonText}>Save Reminder Settings</Text>
+                      )}
+                    </Pressable>
+
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.reminderSecondaryButton,
+                        pressed && styles.menuItemPressed,
+                        editProfileLoading && styles.buttonDisabled,
+                      ]}
+                      disabled={editProfileLoading}
+                      onPress={handleDisableReminders}
+                    >
+                      <Text style={styles.reminderSecondaryButtonText}>Turn Off Reminders</Text>
+                    </Pressable>
+
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.reminderGhostButton,
+                        pressed && styles.menuItemPressed,
+                        editProfileLoading && styles.buttonDisabled,
+                      ]}
+                      disabled={editProfileLoading}
+                      onPress={handleVerifyReminderSetup}
+                    >
+                      <Text style={styles.reminderGhostButtonText}>Verify Reminder Setup</Text>
+                    </Pressable>
+
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.reminderGhostButton,
+                        pressed && styles.menuItemPressed,
+                        editProfileLoading && styles.buttonDisabled,
+                      ]}
+                      disabled={editProfileLoading}
+                      onPress={handleSendTestReminder}
+                    >
+                      <Text style={styles.reminderGhostButtonText}>Send 15s Test Reminder</Text>
+                    </Pressable>
+
+                    {reminderSnapshot && !reminderSnapshot.permissionGranted && Platform.OS !== "web" && (
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.reminderGhostButton,
+                          pressed && styles.menuItemPressed,
+                          editProfileLoading && styles.buttonDisabled,
+                        ]}
+                        disabled={editProfileLoading}
+                        onPress={() => {
+                          Linking.openSettings().catch((error) => {
+                            console.error("Failed to open settings:", error);
+                          });
+                        }}
+                      >
+                        <Text style={styles.reminderGhostButtonText}>Open Notification Settings</Text>
+                      </Pressable>
+                    )}
                   </>
                 )}
 
@@ -1436,6 +1886,73 @@ const styles = StyleSheet.create({
     color: "#0f172a",
     backgroundColor: "#ffffff",
   },
+  reminderSummaryCard: {
+    backgroundColor: "#ecfdf5",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+    padding: 14,
+    gap: 4,
+  },
+  reminderSummaryTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#166534",
+  },
+  reminderSummaryText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#166534",
+  },
+  reminderSummarySubtext: {
+    fontSize: 12,
+    color: "#166534",
+  },
+  reminderPresetRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  reminderPresetButton: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: "#ffffff",
+  },
+  reminderPresetButtonSelected: {
+    backgroundColor: "#ecfdf5",
+    borderColor: "#10b981",
+  },
+  reminderPresetText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#64748b",
+  },
+  reminderPresetTextSelected: {
+    color: "#047857",
+  },
+  reminderDebugCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#dbe2ea",
+    backgroundColor: "#f8fafc",
+    padding: 12,
+    gap: 2,
+  },
+  reminderDebugTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#0f172a",
+    marginBottom: 4,
+  },
+  reminderDebugItem: {
+    fontSize: 12,
+    color: "#475569",
+  },
   editDangerInput: {
     borderColor: "#fecaca",
     backgroundColor: "#fffaf9",
@@ -1455,6 +1972,36 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.55,
+  },
+  reminderSecondaryButton: {
+    marginTop: 8,
+    backgroundColor: "#ffffff",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#fca5a5",
+    paddingVertical: 13,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  reminderSecondaryButtonText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#b91c1c",
+  },
+  reminderGhostButton: {
+    marginTop: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+    paddingVertical: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ffffff",
+  },
+  reminderGhostButtonText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#334155",
   },
   editDangerButton: {
     marginTop: 10,

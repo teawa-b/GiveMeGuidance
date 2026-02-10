@@ -38,6 +38,14 @@ import { playGuidanceLoadedSound } from "../src/lib/sounds";
 import { EtherealBackground } from "../src/components/EtherealBackground";
 import { useOnboarding, goalDisplayNames, styleDisplayNames } from "../src/lib/OnboardingContext";
 import { findTodaysChatByVerse } from "../src/services/chats";
+import { usePremium } from "../src/lib/PremiumContext";
+import { PremiumPopup } from "../src/components/PremiumPopup";
+import {
+  canRefreshVerse,
+  recordVerseRefresh,
+  getVerseRefreshUsage,
+  FREE_VERSE_REFRESH_LIMIT,
+} from "../src/lib/premiumLimits";
 
 // Conditionally import ViewShot - it may not be available in dev builds
 let ViewShot: any = null;
@@ -274,6 +282,9 @@ export default function GuidanceScreen() {
   // Get cache invalidation function
   const { invalidateBookmarks } = useDataCache();
   const { isAuthenticated } = useAuth();
+  const { isPremium } = usePremium();
+  const [premiumPopupVisible, setPremiumPopupVisible] = useState(false);
+  const [verseRefreshCount, setVerseRefreshCount] = useState(0);
 
   // Build enhanced query with user preferences
   const buildEnhancedQuery = useCallback((baseQuery: string): string => {
@@ -652,10 +663,24 @@ export default function GuidanceScreen() {
     };
   }, [query, router, fetchGuidance, restoredVerseData, isDailyRequest, fetchExplanation]);
 
-  const handleGetAnotherVerse = () => {
-    if (query) {
-      fetchGuidance(query);
+  // Load verse-refresh count on mount
+  useEffect(() => {
+    getVerseRefreshUsage().then(({ used }) => setVerseRefreshCount(used));
+  }, []);
+
+  const handleGetAnotherVerse = async () => {
+    if (!query) return;
+
+    const allowed = await canRefreshVerse(isPremium);
+    if (!allowed) {
+      mediumHaptic();
+      setPremiumPopupVisible(true);
+      return;
     }
+
+    const newCount = await recordVerseRefresh();
+    setVerseRefreshCount(newCount);
+    fetchGuidance(query);
   };
 
   const handleChatMore = async () => {
@@ -954,7 +979,17 @@ export default function GuidanceScreen() {
         >
           <Ionicons name="refresh" size={18} color="#10b981" />
           <Text style={styles.anotherVerseText}>Give me another verse</Text>
+          {!isPremium && (
+            <Text style={styles.anotherVerseCounter}>
+              {Math.max(0, FREE_VERSE_REFRESH_LIMIT - verseRefreshCount)}/{FREE_VERSE_REFRESH_LIMIT}
+            </Text>
+          )}
         </Pressable>
+
+        <PremiumPopup
+          visible={premiumPopupVisible}
+          onClose={() => setPremiumPopupVisible(false)}
+        />
 
         {/* Banner Ad */}
         <BannerAdComponent style={styles.bannerAd} />
@@ -1397,6 +1432,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "500",
     color: "#10b981",
+  },
+  anotherVerseCounter: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#94a3b8",
+    marginLeft: 4,
   },
   bannerAd: {
     width: "100%",

@@ -16,6 +16,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { type GuidanceHistoryEntry } from "../services/dailyGuidance";
 import { getGuidancePathEntries } from "../services/chats";
 import { lightHaptic, selectionHaptic } from "../lib/haptics";
+import { usePremium } from "../lib/PremiumContext";
+import { FREE_HISTORY_DAYS } from "../lib/premiumLimits";
+import { PremiumPopup } from "./PremiumPopup";
 
 // App logo
 const appLogo = require("../../assets/mascot/bird-reading.png");
@@ -29,7 +32,13 @@ export function GuidanceHistoryModal({ visible, onClose }: GuidanceHistoryModalP
   const slideAnim = useRef(new Animated.Value(300)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const [history, setHistory] = useState<GuidanceHistoryEntry[]>([]);
+  const [allHistory, setAllHistory] = useState<GuidanceHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [premiumPopupVisible, setPremiumPopupVisible] = useState(false);
+  const { isPremium } = usePremium();
+
+  // Number of entries hidden behind premium gate
+  const hiddenCount = allHistory.length - history.length;
 
   useEffect(() => {
     if (visible) {
@@ -67,7 +76,18 @@ export function GuidanceHistoryModal({ visible, onClose }: GuidanceHistoryModalP
     setLoading(true);
     try {
       const data = await getGuidancePathEntries();
-      setHistory(data);
+      setAllHistory(data);
+
+      if (isPremium) {
+        setHistory(data);
+      } else {
+        // Free users: only show last FREE_HISTORY_DAYS days
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - FREE_HISTORY_DAYS);
+        cutoff.setHours(0, 0, 0, 0);
+        const filtered = data.filter((entry) => new Date(entry.date) >= cutoff);
+        setHistory(filtered);
+      }
     } catch (error) {
       console.error("Error fetching history:", error);
     } finally {
@@ -186,11 +206,40 @@ export function GuidanceHistoryModal({ visible, onClose }: GuidanceHistoryModalP
                 keyExtractor={(item) => item.date}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.listContent}
+                ListFooterComponent={
+                  !isPremium && hiddenCount > 0 ? (
+                    <Pressable
+                      style={styles.lockedFooter}
+                      onPress={() => {
+                        selectionHaptic();
+                        setPremiumPopupVisible(true);
+                      }}
+                    >
+                      <View style={styles.lockedIconRow}>
+                        <Ionicons name="lock-closed" size={20} color="#5B8C5A" />
+                        <Text style={styles.lockedTitle}>
+                          {hiddenCount} more {hiddenCount === 1 ? "entry" : "entries"} hidden
+                        </Text>
+                      </View>
+                      <Text style={styles.lockedSubtitle}>
+                        Free accounts show the last {FREE_HISTORY_DAYS} days. Upgrade to Premium for your complete spiritual journey.
+                      </Text>
+                      <View style={styles.lockedButton}>
+                        <Text style={styles.lockedButtonText}>Unlock Full History</Text>
+                      </View>
+                    </Pressable>
+                  ) : null
+                }
               />
             )}
           </View>
         </Animated.View>
       </Animated.View>
+
+      <PremiumPopup
+        visible={premiumPopupVisible}
+        onClose={() => setPremiumPopupVisible(false)}
+      />
     </Modal>
   );
 }
@@ -363,5 +412,44 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 8,
     lineHeight: 20,
+  },
+  lockedFooter: {
+    marginTop: 8,
+    marginBottom: 20,
+    backgroundColor: "#f0fdf4",
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+    alignItems: "center",
+  },
+  lockedIconRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+    gap: 8,
+  },
+  lockedTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#1f2937",
+  },
+  lockedSubtitle: {
+    fontSize: 13,
+    color: "#6b7280",
+    textAlign: "center",
+    lineHeight: 18,
+    marginBottom: 14,
+  },
+  lockedButton: {
+    backgroundColor: "#5B8C5A",
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  lockedButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "700",
   },
 });

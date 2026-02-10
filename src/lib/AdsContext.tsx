@@ -16,6 +16,16 @@ if (Platform.OS !== "web") {
 
 // Check if running in Expo Go (where native modules aren't available)
 const isExpoGo = Constants.appOwnership === "expo";
+const FORCE_TEST_ADS = process.env.EXPO_PUBLIC_ADS_TEST_MODE === "true";
+
+const PROD_BANNER_IOS = process.env.EXPO_PUBLIC_ADMOB_IOS_BANNER_AD_UNIT_ID || "ca-app-pub-7517928309502563/2412770562";
+const PROD_BANNER_ANDROID = process.env.EXPO_PUBLIC_ADMOB_ANDROID_BANNER_AD_UNIT_ID || "ca-app-pub-7517928309502563/2825811525";
+const PROD_NATIVE_IOS = process.env.EXPO_PUBLIC_ADMOB_IOS_NATIVE_AD_UNIT_ID || "ca-app-pub-7517928309502563/2412770562";
+const PROD_NATIVE_ANDROID = process.env.EXPO_PUBLIC_ADMOB_ANDROID_NATIVE_AD_UNIT_ID || "ca-app-pub-7517928309502563/1010182889";
+const PROD_INTERSTITIAL_IOS = process.env.EXPO_PUBLIC_ADMOB_IOS_INTERSTITIAL_AD_UNIT_ID || "ca-app-pub-7517928309502563/1832325875";
+const PROD_INTERSTITIAL_ANDROID = process.env.EXPO_PUBLIC_ADMOB_ANDROID_INTERSTITIAL_AD_UNIT_ID || "ca-app-pub-7517928309502563/5627907139";
+const PROD_REWARDED_IOS = process.env.EXPO_PUBLIC_ADMOB_IOS_REWARDED_AD_UNIT_ID || PROD_BANNER_IOS;
+const PROD_REWARDED_ANDROID = process.env.EXPO_PUBLIC_ADMOB_ANDROID_REWARDED_AD_UNIT_ID || PROD_BANNER_ANDROID;
 
 // Ad Unit IDs - Replace with your actual ad unit IDs from AdMob
 const TEST_BANNER_AD_UNIT_ID = Platform.select({
@@ -44,31 +54,31 @@ const TEST_NATIVE_AD_UNIT_ID = Platform.select({
 
 // Production Ad Unit IDs
 const PRODUCTION_BANNER_AD_UNIT_ID = Platform.select({
-  ios: "ca-app-pub-7517928309502563/9718522937", // Home Banner iOS
-  android: "ca-app-pub-7517928309502563/2825811525", // Home Banner Android
+  ios: PROD_BANNER_IOS, // Home Banner iOS
+  android: PROD_BANNER_ANDROID, // Home Banner Android
   default: "",
 });
 
 const PRODUCTION_NATIVE_AD_UNIT_ID = Platform.select({
-  ios: "ca-app-pub-7517928309502563/2039343464", // Loading Native Ad iOS
-  android: "ca-app-pub-7517928309502563/1010182889", // Loading Native Ad Android
+  ios: PROD_NATIVE_IOS, // Loading (MREC) iOS
+  android: PROD_NATIVE_ANDROID, // Loading (MREC) Android
   default: "",
 });
 
 const PRODUCTION_INTERSTITIAL_AD_UNIT_ID = Platform.select({
-  ios: "ca-app-pub-7517928309502563/1832325875", // Interstitial iOS
-  android: "ca-app-pub-7517928309502563/5627907139", // Interstitial Android
+  ios: PROD_INTERSTITIAL_IOS, // Interstitial iOS
+  android: PROD_INTERSTITIAL_ANDROID, // Interstitial Android
   default: "",
 });
 
 const PRODUCTION_REWARDED_AD_UNIT_ID = Platform.select({
-  ios: "ca-app-pub-7517928309502563/9718522937", // Using banner as placeholder - create rewarded ad unit if needed
-  android: "ca-app-pub-7517928309502563/2825811525", // Using banner as placeholder - create rewarded ad unit if needed
+  ios: PROD_REWARDED_IOS, // Replace with dedicated rewarded unit when available
+  android: PROD_REWARDED_ANDROID, // Replace with dedicated rewarded unit when available
   default: "",
 });
 
-// Use test ads in development
-const USE_TEST_ADS = __DEV__;
+// Use test ads in development or when explicitly forced (useful for TestFlight verification)
+const USE_TEST_ADS = __DEV__ || FORCE_TEST_ADS;
 
 interface AdsContextType {
   // State
@@ -144,6 +154,17 @@ export function AdsProvider({ children }: { children: ReactNode }) {
         // Try to import and initialize the ads SDK
         const adsModuleImport = require("react-native-google-mobile-ads");
         const mobileAds = adsModuleImport.default;
+
+        const testDeviceIdentifiers = ["EMULATOR"];
+        const iosTestDeviceIds = process.env.EXPO_PUBLIC_ADMOB_TEST_DEVICE_IOS_IDS;
+        if (iosTestDeviceIds) {
+          testDeviceIdentifiers.push(
+            ...iosTestDeviceIds
+              .split(",")
+              .map((id) => id.trim())
+              .filter(Boolean)
+          );
+        }
         
         // Configure request settings before initialization
         await mobileAds().setRequestConfiguration({
@@ -151,10 +172,18 @@ export function AdsProvider({ children }: { children: ReactNode }) {
           tagForChildDirectedTreatment: false,
           // Set to true to indicate that you want to treat ads as under age
           tagForUnderAgeOfConsent: false,
+          testDeviceIdentifiers: USE_TEST_ADS ? testDeviceIdentifiers : [],
         });
         
         await mobileAds().initialize();
-        console.log("[Ads] Google Mobile Ads initialized successfully");
+        console.log("[Ads] Google Mobile Ads initialized successfully", {
+          platform: Platform.OS,
+          useTestAds: USE_TEST_ADS,
+          bannerAdUnitId,
+          nativeAdUnitId,
+          interstitialAdUnitId,
+          rewardedAdUnitId,
+        });
         setAdsModule(adsModuleImport);
         setIsAdsInitialized(true);
       } catch (error) {

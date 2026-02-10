@@ -9,115 +9,139 @@ import {
   Platform,
   ActivityIndicator,
   Image,
+  ScrollView,
+  StatusBar,
+  Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { usePremium, PremiumPackage } from "../lib/PremiumContext";
-import { lightHaptic, successHaptic } from "../lib/haptics";
+import { lightHaptic, mediumHaptic, successHaptic } from "../lib/haptics";
+import {
+  FREE_VERSE_REFRESH_LIMIT,
+  FREE_CHAT_MESSAGE_LIMIT,
+  FREE_HISTORY_DAYS,
+} from "../lib/premiumLimits";
 
-// App logo
 const appLogo = require("../../assets/mascot/bird-reading.png");
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+
+const FEATURES = [
+  {
+    icon: "book-outline" as const,
+    label: "Unlimited Verses",
+    detail: `Free: ${FREE_VERSE_REFRESH_LIMIT}/day`,
+  },
+  {
+    icon: "chatbubble-outline" as const,
+    label: "Unlimited Chat",
+    detail: `Free: ${FREE_CHAT_MESSAGE_LIMIT}/day`,
+  },
+  {
+    icon: "time-outline" as const,
+    label: "Full History",
+    detail: `Free: ${FREE_HISTORY_DAYS} days`,
+  },
+  {
+    icon: "eye-off-outline" as const,
+    label: "Ad-Free",
+    detail: "No interruptions",
+  },
+  {
+    icon: "heart-outline" as const,
+    label: "Support Us",
+    detail: "Fund our mission",
+  },
+] as const;
 
 interface PremiumPopupProps {
   visible: boolean;
   onClose: () => void;
-  useRevenueCatPaywall?: boolean; // If true, use RevenueCat's built-in paywall
+  useRevenueCatPaywall?: boolean;
 }
 
-export function PremiumPopup({ 
-  visible, 
-  onClose, 
-  useRevenueCatPaywall = true // Default to RevenueCat paywall
+export function PremiumPopup({
+  visible,
+  onClose,
+  useRevenueCatPaywall = false,
 }: PremiumPopupProps) {
-  const { 
-    packages, 
-    purchasePackage, 
-    restorePurchases, 
+  const {
+    packages,
+    purchasePackage,
+    restorePurchases,
     isPremium,
     presentPaywall,
     isLoading,
   } = usePremium();
-  
+
   const [selectedPackage, setSelectedPackage] = useState<PremiumPackage | null>(null);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
-  
-  const scaleAnim = useRef(new Animated.Value(0.9)).current;
+
+  const slideAnim = useRef(new Animated.Value(1)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  // Check if we should use RevenueCat's native paywall
   const shouldUseNativePaywall = useRevenueCatPaywall && Platform.OS !== "web";
 
-  // Use RevenueCat's native paywall
+  // RevenueCat native paywall fallback
   useEffect(() => {
     if (visible && shouldUseNativePaywall) {
-      // Present RevenueCat's paywall and close our modal
       const showPaywall = async () => {
         const purchased = await presentPaywall();
-        if (purchased) {
-          successHaptic();
-        }
+        if (purchased) successHaptic();
         onClose();
       };
       showPaywall();
     }
   }, [visible, shouldUseNativePaywall, presentPaywall, onClose]);
 
-  // Animation setup for custom popup
+  // Animate in/out
   useEffect(() => {
-    // Only animate if not using native paywall
     if (shouldUseNativePaywall) return;
-    
+
     if (visible) {
-      // Default to yearly (better value)
-      const yearlyPackage = packages.find(p => p.period === "yearly");
-      const lifetimePackage = packages.find(p => p.period === "lifetime");
-      setSelectedPackage(yearlyPackage || lifetimePackage || packages[0] || null);
-      
+      const yearly = packages.find((p) => p.period === "yearly");
+      const lifetime = packages.find((p) => p.period === "lifetime");
+      setSelectedPackage(yearly || lifetime || packages[0] || null);
+
       Animated.parallel([
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          tension: 65,
-          friction: 10,
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          damping: 22,
+          stiffness: 220,
+          mass: 0.9,
           useNativeDriver: true,
         }),
         Animated.timing(fadeAnim, {
           toValue: 1,
-          duration: 200,
+          duration: 250,
           useNativeDriver: true,
         }),
       ]).start();
     } else {
       Animated.parallel([
-        Animated.timing(scaleAnim, {
-          toValue: 0.9,
-          duration: 150,
+        Animated.timing(slideAnim, {
+          toValue: 1,
+          duration: 180,
           useNativeDriver: true,
         }),
         Animated.timing(fadeAnim, {
           toValue: 0,
-          duration: 150,
+          duration: 180,
           useNativeDriver: true,
         }),
       ]).start();
     }
   }, [visible, packages, shouldUseNativePaywall]);
 
-  // All hooks have been called - now we can do early returns
-  // Don't show if already premium
   if (isPremium) return null;
-  
-  // If using RevenueCat paywall on native, don't render our custom UI
-  if (shouldUseNativePaywall && visible) {
-    return null;
-  }
+  if (shouldUseNativePaywall && visible) return null;
 
+  // ── Handlers ──────────────────────────────────────────────
   const handlePurchase = async () => {
     if (!selectedPackage || isPurchasing) return;
-    
-    lightHaptic();
+    mediumHaptic();
     setIsPurchasing(true);
-    
     try {
       const success = await purchasePackage(selectedPackage);
       if (success) {
@@ -131,10 +155,8 @@ export function PremiumPopup({
 
   const handleRestore = async () => {
     if (isRestoring) return;
-    
     lightHaptic();
     setIsRestoring(true);
-    
     try {
       const success = await restorePurchases();
       if (success) {
@@ -151,265 +173,413 @@ export function PremiumPopup({
     onClose();
   };
 
-  // Find packages by period
-  const monthlyPackage = packages.find(p => p.period === "monthly");
-  const yearlyPackage = packages.find(p => p.period === "yearly");
-  const lifetimePackage = packages.find(p => p.period === "lifetime");
+  // ── Package helpers ───────────────────────────────────────
+  const monthlyPackage = packages.find((p) => p.period === "monthly");
+  const yearlyPackage = packages.find((p) => p.period === "yearly");
+  const lifetimePackage = packages.find((p) => p.period === "lifetime");
 
+  const isSelected = (pkg: PremiumPackage | undefined) =>
+    pkg && selectedPackage?.identifier === pkg.identifier;
+
+  const periodLabel = (pkg: PremiumPackage) => {
+    switch (pkg.period) {
+      case "yearly":
+        return "/ year";
+      case "monthly":
+        return "/ month";
+      case "lifetime":
+        return "once";
+      default:
+        return "";
+    }
+  };
+
+  const periodSubtitle = (pkg: PremiumPackage) => {
+    switch (pkg.period) {
+      case "yearly":
+        return "Save 33% per year";
+      case "monthly":
+        return "Full flexibility";
+      case "lifetime":
+        return "One-time purchase";
+      default:
+        return "";
+    }
+  };
+
+  // ── Render ────────────────────────────────────────────────
   return (
     <Modal
       visible={visible}
-      transparent
+      transparent={false}
       animationType="none"
+      statusBarTranslucent
       onRequestClose={handleClose}
     >
-      <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
-        <Pressable style={styles.backdrop} onPress={handleClose} />
-        
-        <Animated.View 
-          style={[
-            styles.container,
-            {
-              opacity: fadeAnim,
-              transform: [{ scale: scaleAnim }],
-            },
-          ]}
-        >
-          {/* Close button */}
-          <Pressable style={styles.closeButton} onPress={handleClose}>
-            <Ionicons name="close" size={24} color="#9ca3af" />
-          </Pressable>
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
 
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.iconContainer}>
-              <Image source={appLogo} style={styles.logoImage} resizeMode="contain" />
-            </View>
-            <Text style={styles.title}>Support Give Me Guidance</Text>
-            <Text style={styles.subtitle}>
-              Remove ads and help us continue providing spiritual guidance
-            </Text>
+      <Animated.View
+        style={[
+          styles.screen,
+          {
+            opacity: fadeAnim,
+            transform: [
+              {
+                translateY: slideAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 400],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
+        <LinearGradient
+          colors={["#f0fdf4", "#f8fafc"]}
+          start={{ x: 1, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+
+        {/* Decorative leaf shapes */}
+        <View style={[styles.leafShape, styles.leaf1]} />
+        <View style={[styles.leafShape, styles.leaf2]} />
+        <View style={[styles.leafShape, styles.leaf3]} />
+
+        {/* Close button */}
+        <View style={styles.headerBar}>
+          <Pressable
+            style={({ pressed }) => [styles.closeButton, pressed && { opacity: 0.6 }]}
+            onPress={handleClose}
+            hitSlop={12}
+          >
+            <Ionicons name="close" size={22} color="#64748b" />
+          </Pressable>
+        </View>
+
+        {/* Scrollable content */}
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
+          {/* Mascot */}
+          <View style={styles.mascotContainer}>
+            <View style={styles.mascotGlow} />
+            <Image source={appLogo} style={styles.mascotImage} resizeMode="contain" />
           </View>
 
-          {/* Benefits */}
-          <View style={styles.benefits}>
-            {[
-              "Remove all advertisements",
-              "Support continued development",
-              "Priority feature requests",
-            ].map((benefit, index) => (
-              <View key={index} style={styles.benefitRow}>
-                <Ionicons name="checkmark-circle" size={20} color="#10b981" />
-                <Text style={styles.benefitText}>{benefit}</Text>
+          {/* Title */}
+          <Text style={styles.title}>
+            Support Your{"\n"}Spiritual Growth
+          </Text>
+          <Text style={styles.subtitle}>
+            Deepen your journey with full access.
+          </Text>
+
+          {/* Feature cards */}
+          <View style={styles.featureRow}>
+            {FEATURES.map((feat) => (
+              <View key={feat.label} style={styles.featureCard}>
+                <View style={styles.featureIconWrap}>
+                  <Ionicons name={feat.icon} size={17} color="#10b981" />
+                </View>
+                <Text style={styles.featureCardLabel}>{feat.label}</Text>
               </View>
             ))}
           </View>
 
-          {/* Loading state */}
+          {/* Pricing cards */}
           {isLoading ? (
-            <View style={styles.loadingContainer}>
+            <View style={styles.loadingWrap}>
               <ActivityIndicator size="large" color="#10b981" />
-              <Text style={styles.loadingText}>Loading options...</Text>
+              <Text style={styles.loadingText}>Loading options…</Text>
             </View>
           ) : packages.length === 0 ? (
-            <View style={styles.loadingContainer}>
-              <Ionicons name="alert-circle-outline" size={48} color="#9ca3af" />
+            <View style={styles.loadingWrap}>
+              <Ionicons name="alert-circle-outline" size={44} color="#9ca3af" />
               <Text style={styles.loadingText}>
-                {Platform.OS === "web" 
-                  ? "In-app purchases are only available on iOS and Android"
-                  : "Unable to load subscription options"}
+                {Platform.OS === "web"
+                  ? "In-app purchases are only available on iOS and Android."
+                  : "Unable to load subscription options."}
               </Text>
             </View>
           ) : (
-            <>
-              {/* Package options */}
-              <View style={styles.packagesContainer}>
-                {monthlyPackage && (
-                  <Pressable
-                    style={[
-                      styles.packageCard,
-                      selectedPackage?.identifier === monthlyPackage.identifier && styles.packageCardSelected,
-                    ]}
-                    onPress={() => {
-                      lightHaptic();
-                      setSelectedPackage(monthlyPackage);
-                    }}
-                  >
-                    <Text style={styles.packageTitle}>Monthly</Text>
-                    <Text style={styles.packagePrice}>{monthlyPackage.priceString}</Text>
-                    <Text style={styles.packagePeriod}>per month</Text>
-                  </Pressable>
-                )}
-
-                {yearlyPackage && (
-                  <Pressable
-                    style={[
-                      styles.packageCard,
-                      selectedPackage?.identifier === yearlyPackage.identifier && styles.packageCardSelected,
-                    ]}
-                    onPress={() => {
-                      lightHaptic();
-                      setSelectedPackage(yearlyPackage);
-                    }}
-                  >
-                    <View style={styles.saveBadge}>
-                      <Text style={styles.saveBadgeText}>BEST VALUE</Text>
-                    </View>
-                    <Text style={styles.packageTitle}>Yearly</Text>
-                    <Text style={styles.packagePrice}>{yearlyPackage.priceString}</Text>
-                    <Text style={styles.packagePeriod}>per year</Text>
-                  </Pressable>
-                )}
-
-                {lifetimePackage && (
-                  <Pressable
-                    style={[
-                      styles.packageCard,
-                      styles.packageCardLifetime,
-                      selectedPackage?.identifier === lifetimePackage.identifier && styles.packageCardSelected,
-                    ]}
-                    onPress={() => {
-                      lightHaptic();
-                      setSelectedPackage(lifetimePackage);
-                    }}
-                  >
-                    <View style={[styles.saveBadge, styles.lifetimeBadge]}>
-                      <Text style={styles.saveBadgeText}>FOREVER</Text>
-                    </View>
-                    <Text style={styles.packageTitle}>Lifetime</Text>
-                    <Text style={styles.packagePrice}>{lifetimePackage.priceString}</Text>
-                    <Text style={styles.packagePeriod}>one-time</Text>
-                  </Pressable>
-                )}
-              </View>
-
-              {/* Purchase button */}
-              <Pressable
-                style={[styles.purchaseButton, (isPurchasing || !selectedPackage) && styles.purchaseButtonDisabled]}
-                onPress={handlePurchase}
-                disabled={isPurchasing || !selectedPackage}
-              >
-                <LinearGradient
-                  colors={["#10b981", "#059669"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.purchaseGradient}
+            <View style={styles.cardsContainer}>
+              {/* Yearly – Best Value */}
+              {yearlyPackage && (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.pricingCard,
+                    isSelected(yearlyPackage) && styles.pricingCardSelected,
+                    pressed && styles.pricingCardPressed,
+                  ]}
+                  onPress={() => {
+                    lightHaptic();
+                    setSelectedPackage(yearlyPackage);
+                  }}
                 >
-                  {isPurchasing ? (
-                    <ActivityIndicator color="#ffffff" />
-                  ) : (
-                    <Text style={styles.purchaseButtonText}>
-                      {selectedPackage?.period === "lifetime" ? "Purchase Now" : "Subscribe Now"}
-                    </Text>
+                  {isSelected(yearlyPackage) && (
+                    <View style={styles.bestValueBadge}>
+                      <Text style={styles.bestValueText}>BEST VALUE</Text>
+                    </View>
                   )}
-                </LinearGradient>
-              </Pressable>
-            </>
-          )}
+                  <View style={styles.cardRow}>
+                    <View>
+                      <Text style={styles.cardTitle}>Yearly</Text>
+                      <Text style={styles.cardSubtitle}>{periodSubtitle(yearlyPackage)}</Text>
+                    </View>
+                    <View style={styles.cardPriceWrap}>
+                      <Text style={styles.cardPrice}>{yearlyPackage.priceString}</Text>
+                      <Text style={styles.cardPeriod}>{periodLabel(yearlyPackage)}</Text>
+                    </View>
+                  </View>
+                </Pressable>
+              )}
 
-          {/* Restore purchases */}
-          <Pressable style={styles.restoreButton} onPress={handleRestore} disabled={isRestoring}>
+              {/* Lifetime */}
+              {lifetimePackage && (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.pricingCard,
+                    isSelected(lifetimePackage) && styles.pricingCardSelected,
+                    pressed && styles.pricingCardPressed,
+                  ]}
+                  onPress={() => {
+                    lightHaptic();
+                    setSelectedPackage(lifetimePackage);
+                  }}
+                >
+                  <View style={styles.cardRow}>
+                    <View>
+                      <Text style={styles.cardTitle}>Lifetime</Text>
+                      <Text style={styles.cardSubtitle}>{periodSubtitle(lifetimePackage)}</Text>
+                    </View>
+                    <View style={styles.cardPriceWrap}>
+                      <Text style={styles.cardPrice}>{lifetimePackage.priceString}</Text>
+                      <Text style={styles.cardPeriod}>{periodLabel(lifetimePackage)}</Text>
+                    </View>
+                  </View>
+                </Pressable>
+              )}
+
+              {/* Monthly */}
+              {monthlyPackage && (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.pricingCard,
+                    isSelected(monthlyPackage) && styles.pricingCardSelected,
+                    pressed && styles.pricingCardPressed,
+                  ]}
+                  onPress={() => {
+                    lightHaptic();
+                    setSelectedPackage(monthlyPackage);
+                  }}
+                >
+                  <View style={styles.cardRow}>
+                    <View>
+                      <Text style={styles.cardTitle}>Monthly</Text>
+                      <Text style={styles.cardSubtitle}>{periodSubtitle(monthlyPackage)}</Text>
+                    </View>
+                    <View style={styles.cardPriceWrap}>
+                      <Text style={styles.cardPrice}>{monthlyPackage.priceString}</Text>
+                      <Text style={styles.cardPeriod}>{periodLabel(monthlyPackage)}</Text>
+                    </View>
+                  </View>
+                </Pressable>
+              )}
+            </View>
+          )}
+        </ScrollView>
+
+        {/* Sticky bottom CTA */}
+        <View style={styles.bottomBar}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.continueButton,
+              pressed && styles.continueButtonPressed,
+              (isPurchasing || !selectedPackage) && styles.continueButtonDisabled,
+            ]}
+            onPress={handlePurchase}
+            disabled={isPurchasing || !selectedPackage}
+          >
+            <LinearGradient
+              colors={["#5B8C5A", "#4A7A49"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.continueGradient}
+            >
+              {isPurchasing ? (
+                <ActivityIndicator color="#ffffff" size="small" />
+              ) : (
+                <Text style={styles.continueText}>Continue</Text>
+              )}
+            </LinearGradient>
+          </Pressable>
+
+          <Pressable
+            style={styles.restoreButton}
+            onPress={handleRestore}
+            disabled={isRestoring}
+          >
             {isRestoring ? (
-              <ActivityIndicator size="small" color="#6b7280" />
+              <ActivityIndicator size="small" color="#94a3b8" />
             ) : (
-              <Text style={styles.restoreText}>Restore Purchases</Text>
+              <Text style={styles.restoreText}>RESTORE PURCHASES</Text>
             )}
           </Pressable>
 
           {/* Terms */}
           <Text style={styles.terms}>
-            {Platform.OS !== "web" 
+            {Platform.OS !== "web"
               ? "Subscription automatically renews. Cancel anytime in App Store settings."
               : "Subscriptions are managed through the App Store on your device."}
           </Text>
-        </Animated.View>
+        </View>
       </Animated.View>
     </Modal>
   );
 }
 
+// ── Styles ──────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  overlay: {
+  screen: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: "#f8fafc",
   },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
+
+  // Decorative leaf shapes
+  leafShape: {
+    position: "absolute",
+    backgroundColor: "#10b981",
+    opacity: 0.05,
+    borderTopLeftRadius: 999,
+    borderTopRightRadius: 0,
+    borderBottomLeftRadius: 999,
+    borderBottomRightRadius: 0,
+    zIndex: 0,
   },
-  container: {
-    width: "90%",
-    maxWidth: 400,
-    backgroundColor: "#ffffff",
-    borderRadius: 24,
-    padding: 24,
-    maxHeight: "85%",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.25,
-        shadowRadius: 20,
-      },
-      android: {
-        elevation: 10,
-      },
-    }),
+  leaf1: {
+    width: 180,
+    height: 180,
+    top: -20,
+    left: -40,
+    transform: [{ rotate: "-15deg" }],
+  },
+  leaf2: {
+    width: 220,
+    height: 220,
+    top: "20%",
+    right: -80,
+    opacity: 0.06,
+    transform: [{ rotate: "45deg" }],
+  },
+  leaf3: {
+    width: 140,
+    height: 140,
+    bottom: "15%",
+    left: -20,
+    transform: [{ rotate: "-45deg" }],
+  },
+
+  // Header bar with close
+  headerBar: {
+    paddingTop: Platform.OS === "ios" ? 56 : (StatusBar.currentHeight ?? 32) + 12,
+    paddingHorizontal: 24,
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    zIndex: 10,
   },
   closeButton: {
-    position: "absolute",
-    top: 16,
-    right: 16,
-    zIndex: 10,
-    padding: 4,
-  },
-  header: {
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  iconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: "rgba(16, 185, 129, 0.1)",
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(100, 116, 139, 0.12)",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 16,
-    overflow: "hidden",
   },
-  logoImage: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+
+  // Scrollable area
+  scrollView: {
+    flex: 1,
+    zIndex: 10,
   },
-  title: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#1f2937",
+  scrollContent: {
+    paddingHorizontal: 24,
+    paddingBottom: 8,
+    alignItems: "center",
+  },
+
+  // Mascot
+  mascotContainer: {
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 8,
+    marginTop: 4,
+  },
+  mascotGlow: {
+    position: "absolute",
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: "rgba(16, 185, 129, 0.08)",
+  },
+  mascotImage: {
+    width: 80,
+    height: 80,
+  },
+
+  // Typography
+  title: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#0f172a",
     textAlign: "center",
+    lineHeight: 32,
+    letterSpacing: -0.3,
+    marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
-    color: "#6b7280",
+    fontWeight: "500",
+    color: "#64748b",
     textAlign: "center",
-    lineHeight: 20,
+    marginBottom: 20,
   },
-  benefits: {
-    marginBottom: 24,
-    gap: 12,
-  },
-  benefitRow: {
+
+  // Feature cards row
+  featureRow: {
+    width: "100%",
     flexDirection: "row",
+    justifyContent: "center",
+    gap: 8,
+    marginBottom: 24,
+    flexWrap: "wrap",
+  },
+  featureCard: {
     alignItems: "center",
-    gap: 10,
+    gap: 6,
+    width: 60,
   },
-  benefitText: {
-    fontSize: 14,
-    color: "#374151",
+  featureIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "rgba(16, 185, 129, 0.1)",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  loadingContainer: {
+  featureCardLabel: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#475569",
+    textAlign: "center",
+    lineHeight: 13,
+  },
+
+  // Loading
+  loadingWrap: {
     alignItems: "center",
     paddingVertical: 32,
     gap: 12,
@@ -419,97 +589,155 @@ const styles = StyleSheet.create({
     color: "#9ca3af",
     textAlign: "center",
   },
-  packagesContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+
+  // Pricing cards
+  cardsContainer: {
+    width: "100%",
     gap: 12,
-    marginBottom: 20,
-    justifyContent: "center",
+    marginBottom: 8,
   },
-  packageCard: {
-    flex: 1,
-    minWidth: 100,
-    maxWidth: 140,
+  pricingCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.8)",
+    borderRadius: 20,
     padding: 16,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: "#e5e7eb",
-    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "rgba(255, 255, 255, 0.5)",
     position: "relative",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+      },
+      android: { elevation: 2 },
+    }),
   },
-  packageCardLifetime: {
-    flex: 1,
-    minWidth: "100%",
-    maxWidth: "100%",
-    marginTop: 4,
-  },
-  packageCardSelected: {
+  pricingCardSelected: {
     borderColor: "#10b981",
-    backgroundColor: "rgba(16, 185, 129, 0.05)",
+    backgroundColor: "#ffffff",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#10b981",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.12,
+        shadowRadius: 10,
+      },
+      android: { elevation: 4 },
+    }),
   },
-  saveBadge: {
+  pricingCardPressed: {
+    opacity: 0.85,
+  },
+  bestValueBadge: {
     position: "absolute",
     top: -10,
+    right: 24,
     backgroundColor: "#10b981",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 999,
+    zIndex: 10,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#10b981",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+      },
+      android: { elevation: 3 },
+    }),
   },
-  lifetimeBadge: {
-    backgroundColor: "#8b5cf6",
-  },
-  saveBadgeText: {
-    fontSize: 10,
+  bestValueText: {
+    fontSize: 9,
     fontWeight: "700",
     color: "#ffffff",
-    letterSpacing: 0.5,
+    letterSpacing: 1,
+    textTransform: "uppercase",
   },
-  packageTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#6b7280",
-    marginBottom: 4,
-    marginTop: 4,
-  },
-  packagePrice: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#1f2937",
-  },
-  packagePeriod: {
-    fontSize: 12,
-    color: "#9ca3af",
-  },
-  purchaseButton: {
-    borderRadius: 16,
-    overflow: "hidden",
-    marginBottom: 12,
-  },
-  purchaseButtonDisabled: {
-    opacity: 0.7,
-  },
-  purchaseGradient: {
-    paddingVertical: 16,
+  cardRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
   },
-  purchaseButtonText: {
+  cardTitle: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
+    color: "#0f172a",
+  },
+  cardSubtitle: {
+    fontSize: 11,
+    color: "#64748b",
+    marginTop: 2,
+  },
+  cardPriceWrap: {
+    alignItems: "flex-end",
+  },
+  cardPrice: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#0f172a",
+  },
+  cardPeriod: {
+    fontSize: 10,
+    color: "#94a3b8",
+    fontWeight: "500",
+    textTransform: "lowercase",
+  },
+
+  // Bottom CTA bar
+  bottomBar: {
+    paddingHorizontal: 24,
+    paddingTop: 8,
+    paddingBottom: Platform.OS === "ios" ? 40 : 28,
+    zIndex: 20,
+  },
+  continueButton: {
+    borderRadius: 20,
+    overflow: "hidden",
+    marginBottom: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#5B8C5A",
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+      },
+      android: { elevation: 8 },
+    }),
+  },
+  continueButtonPressed: {
+    transform: [{ scale: 0.98 }],
+  },
+  continueButtonDisabled: {
+    opacity: 0.6,
+  },
+  continueGradient: {
+    paddingVertical: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  continueText: {
+    fontSize: 18,
+    fontWeight: "700",
     color: "#ffffff",
   },
   restoreButton: {
-    paddingVertical: 12,
     alignItems: "center",
+    paddingVertical: 8,
   },
   restoreText: {
-    fontSize: 14,
-    color: "#6b7280",
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#94a3b8",
+    letterSpacing: 2,
+    textTransform: "uppercase",
   },
   terms: {
-    fontSize: 11,
-    color: "#9ca3af",
+    fontSize: 10,
+    color: "#cbd5e1",
     textAlign: "center",
     marginTop: 8,
-    lineHeight: 16,
+    lineHeight: 14,
   },
 });

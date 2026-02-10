@@ -329,7 +329,7 @@ export default function HomeScreen() {
               <View style={styles.gridCardDecoration} />
               <View style={styles.gridCardContent}>
                 <View style={styles.pathIconContainer}>
-                  <MaterialCommunityIcons name="help-circle-outline" size={22} color="#66b083" />
+                  <MaterialCommunityIcons name="compass-outline" size={22} color="#66b083" />
                 </View>
                 <Text style={styles.gridCardLabel}>YOUR PATH</Text>
                 <Text style={styles.pathName}>{DUMMY_USER_PATH.name}</Text>

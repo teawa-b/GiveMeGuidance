@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -7,43 +7,100 @@ import {
   Platform,
   StatusBar,
   Pressable,
+  ActivityIndicator,
+  Alert,
+  Linking,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { EtherealBackground } from "../EtherealBackground";
-import { mediumHaptic, successHaptic, lightHaptic } from "../../lib/haptics";
+import { mediumHaptic, successHaptic, lightHaptic, warningHaptic } from "../../lib/haptics";
 
 interface NotificationsScreenProps {
   preferredTime: string; // Display time like "8:00 AM"
-  onEnable: () => void;
-  onSkip: () => void;
+  onEnable: () => Promise<boolean>;
+  onContinue: () => Promise<void> | void;
+  onSkip: () => Promise<void> | void;
 }
 
 export function NotificationsScreen({
   preferredTime,
   onEnable,
+  onContinue,
   onSkip,
 }: NotificationsScreenProps) {
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [isEnabling, setIsEnabling] = useState(false);
+  const confirmationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (confirmationTimeoutRef.current) {
+        clearTimeout(confirmationTimeoutRef.current);
+        confirmationTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   const handleEnableReminders = async () => {
+    if (isEnabling) return;
+
     mediumHaptic();
+    setIsEnabling(true);
 
     try {
-      // For now, we'll just show confirmation and proceed
-      // Actual notification scheduling would be implemented with expo-notifications
+      const enabled = await onEnable();
+
+      if (!enabled) {
+        warningHaptic();
+        Alert.alert(
+          "Notifications are off",
+          "Enable notifications in Settings to receive daily and streak reminders.",
+          [
+            {
+              text: "Open Settings",
+              onPress: () => {
+                Linking.openSettings().catch(() => {
+                  // Ignore settings failures and let users continue manually.
+                });
+              },
+            },
+            {
+              text: "Continue without reminders",
+              style: "cancel",
+              onPress: () => {
+                void onSkip();
+              },
+            },
+          ]
+        );
+        return;
+      }
+
       successHaptic();
       setShowConfirmation(true);
-      setTimeout(() => {
-        onEnable();
-      }, 2000);
+      confirmationTimeoutRef.current = setTimeout(() => {
+        void Promise.resolve(onContinue()).catch((continueError) => {
+          console.error("Error continuing after notification setup:", continueError);
+        });
+      }, 1500);
     } catch (error) {
-      console.error("Error requesting notifications permission:", error);
-      // Still proceed even if there's an error
-      successHaptic();
-      setShowConfirmation(true);
-      setTimeout(() => {
-        onEnable();
-      }, 2000);
+      console.error("Error enabling notifications:", error);
+      warningHaptic();
+      Alert.alert(
+        "Couldn't enable reminders",
+        "There was an issue setting up notifications. You can continue and enable them later.",
+        [
+          {
+            text: "Continue",
+            onPress: () => {
+              void onSkip();
+            },
+          },
+          { text: "Try again", style: "cancel" },
+        ]
+      );
+    } finally {
+      setIsEnabling(false);
     }
   };
 
@@ -58,7 +115,7 @@ export function NotificationsScreen({
             </View>
             <Text style={styles.confirmationTitle}>Reminder set!</Text>
             <Text style={styles.confirmationSubtitle}>
-              We'll send you a gentle reminder at {preferredTime}
+              Daily reminder at {preferredTime} plus a streak check-in at 11:30 PM.
             </Text>
           </View>
         </SafeAreaView>
@@ -109,22 +166,32 @@ export function NotificationsScreen({
             <Pressable
               style={({ pressed }) => [
                 styles.enableButton,
+                isEnabling && styles.buttonDisabled,
                 pressed && styles.buttonPressed,
               ]}
               onPress={handleEnableReminders}
+              disabled={isEnabling}
             >
-              <Ionicons name="notifications-outline" size={20} color="#ffffff" />
-              <Text style={styles.enableButtonText}>Enable reminders</Text>
+              {isEnabling ? (
+                <ActivityIndicator color="#ffffff" />
+              ) : (
+                <Ionicons name="notifications-outline" size={20} color="#ffffff" />
+              )}
+              <Text style={styles.enableButtonText}>
+                {isEnabling ? "Enabling reminders..." : "Enable reminders"}
+              </Text>
             </Pressable>
 
             <Pressable
               style={({ pressed }) => [
                 styles.skipButton,
+                isEnabling && styles.buttonDisabled,
                 pressed && styles.buttonPressed,
               ]}
+              disabled={isEnabling}
               onPress={() => {
                 lightHaptic();
-                onSkip();
+                void onSkip();
               }}
             >
               <Text style={styles.skipButtonText}>Not now</Text>
@@ -296,5 +363,8 @@ const styles = StyleSheet.create({
   buttonPressed: {
     opacity: 0.9,
     transform: [{ scale: 0.98 }],
+  },
+  buttonDisabled: {
+    opacity: 0.7,
   },
 });

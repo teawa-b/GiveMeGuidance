@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   Platform,
   StatusBar,
   Image,
@@ -13,9 +12,11 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as AppleAuthentication from "expo-apple-authentication";
-import { EtherealBackground } from "../EtherealBackground";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { mediumHaptic } from "../../lib/haptics";
 import { useAuth } from "../../lib/AuthContext";
+import { WarmBackground } from "./WarmBackground";
+import { OB_COLORS, buttonShadow, softShadow } from "./theme";
 
 interface LoginScreenProps {
   onBack?: () => void;
@@ -25,6 +26,7 @@ interface LoginScreenProps {
 
 export function LoginScreen({ onBack, onAuthenticated, onEmailPress }: LoginScreenProps) {
   const { signInWithApple, signInWithGoogle } = useAuth();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState<"apple" | "google" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,7 +48,7 @@ export function LoginScreen({ onBack, onAuthenticated, onEmailPress }: LoginScre
       });
 
       if (credential.identityToken) {
-        const result = await signInWithApple(credential.identityToken);
+        const result = await signInWithApple(credential.identityToken, credential.fullName);
         if (result.error) {
           setError(result.error);
         } else {
@@ -84,33 +86,38 @@ export function LoginScreen({ onBack, onAuthenticated, onEmailPress }: LoginScre
 
   return (
     <View style={styles.container}>
-      <EtherealBackground />
-      <SafeAreaView style={styles.safeArea}>
-        {/* Back button */}
+      <WarmBackground />
+      <SafeAreaView
+        style={[
+          styles.safeArea,
+          {
+            paddingTop: insets.top + 8,
+            paddingBottom: Math.max(insets.bottom, 16) + 8,
+          },
+        ]}
+      >
+        <StatusBar barStyle="dark-content" />
+
         {onBack && (
           <Pressable style={styles.backButton} onPress={onBack}>
-            <Ionicons name="arrow-back" size={24} color="#6b7280" />
+            <Ionicons name="arrow-back" size={22} color={OB_COLORS.textMuted} />
           </Pressable>
         )}
 
-          {/* Logo & Header */}
+        <View style={styles.content}>
           <View style={styles.header}>
-            <View style={styles.logoContainer}>
+            <View style={styles.logoHalo}>
               <Image
-                source={require("../../../assets/NewLogo.png")}
+                source={require("../../../assets/mascot/bird-reading.png")}
                 style={styles.logoImage}
                 resizeMode="contain"
               />
             </View>
             <Text style={styles.title}>Welcome back</Text>
-            <Text style={styles.subtitle}>
-              Sign in to continue your journey
-            </Text>
+            <Text style={styles.subtitle}>Sign in to continue your daily walk with guidance.</Text>
           </View>
 
-          {/* Auth Buttons */}
           <View style={styles.authButtons}>
-            {/* Apple */}
             <Pressable
               style={({ pressed }) => [
                 styles.authButton,
@@ -128,13 +135,12 @@ export function LoginScreen({ onBack, onAuthenticated, onEmailPress }: LoginScre
                 <ActivityIndicator color="#ffffff" size="small" />
               ) : (
                 <>
-                  <Ionicons name="logo-apple" size={24} color="#ffffff" style={styles.buttonIcon} />
+                  <Ionicons name="logo-apple" size={22} color="#ffffff" style={styles.buttonIcon} />
                   <Text style={styles.appleButtonText}>Continue with Apple</Text>
                 </>
               )}
             </Pressable>
 
-            {/* Google */}
             <Pressable
               style={({ pressed }) => [
                 styles.authButton,
@@ -149,18 +155,15 @@ export function LoginScreen({ onBack, onAuthenticated, onEmailPress }: LoginScre
               disabled={loading !== null}
             >
               {loading === "google" ? (
-                <ActivityIndicator color="#333" size="small" />
+                <ActivityIndicator color={OB_COLORS.textDark} size="small" />
               ) : (
                 <>
-                  <View style={styles.googleIconContainer}>
-                    <Text style={styles.googleIcon}>G</Text>
-                  </View>
+                  <Ionicons name="logo-google" size={20} color="#4285F4" style={styles.buttonIcon} />
                   <Text style={styles.googleButtonText}>Continue with Google</Text>
                 </>
               )}
             </Pressable>
 
-            {/* Email */}
             <Pressable
               style={({ pressed }) => [
                 styles.authButton,
@@ -174,25 +177,22 @@ export function LoginScreen({ onBack, onAuthenticated, onEmailPress }: LoginScre
               }}
               disabled={loading !== null}
             >
-              <Ionicons name="mail-outline" size={22} color="#374151" style={styles.buttonIcon} />
+              <Ionicons name="mail-outline" size={20} color={OB_COLORS.primaryDark} style={styles.buttonIcon} />
               <Text style={styles.emailButtonText}>Continue with Email</Text>
             </Pressable>
+
+            {error && (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            )}
           </View>
 
-          {/* Error message */}
-          {error && (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          )}
-
-          {/* Trust line */}
           <View style={styles.trustSection}>
-            <Ionicons name="shield-checkmark-outline" size={16} color="#9ca3af" />
-            <Text style={styles.trustText}>
-              Your guidance is private. We don't share your personal entries.
-            </Text>
+            <Ionicons name="shield-checkmark-outline" size={16} color={OB_COLORS.textLight} />
+            <Text style={styles.trustText}>Your guidance entries stay private to your account.</Text>
           </View>
+        </View>
       </SafeAreaView>
     </View>
   );
@@ -201,90 +201,72 @@ export function LoginScreen({ onBack, onAuthenticated, onEmailPress }: LoginScre
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fafafa",
+    backgroundColor: OB_COLORS.cream,
   },
   safeArea: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 12 : 12,
-    paddingBottom: 32,
   },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#ffffff",
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: OB_COLORS.surface,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 8,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+    ...softShadow,
+  },
+  content: {
+    flex: 1,
+    justifyContent: "space-between",
+    paddingTop: 10,
+    paddingBottom: 4,
   },
   header: {
     alignItems: "center",
-    marginTop: 20,
-    marginBottom: 40,
+    marginTop: 12,
+    paddingHorizontal: 18,
   },
-  logoContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
-    overflow: "hidden",
-    marginBottom: 20,
-    backgroundColor: "#ffffff",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
+  logoHalo: {
+    width: 104,
+    height: 104,
+    marginBottom: 18,
+    alignItems: "center",
+    justifyContent: "center",
   },
   logoImage: {
-    width: "100%",
-    height: "100%",
+    width: 104,
+    height: 104,
   },
   title: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#1f2937",
-    marginBottom: 8,
+    fontSize: 32,
+    fontWeight: "800",
+    color: OB_COLORS.textDark,
+    marginBottom: 6,
     textAlign: "center",
+    letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 16,
-    color: "#6b7280",
+    fontSize: 15,
+    color: OB_COLORS.textMuted,
     textAlign: "center",
+    lineHeight: 22,
+    maxWidth: 310,
   },
   authButtons: {
-    flex: 1,
-    justifyContent: "center",
     gap: 12,
+    paddingHorizontal: 4,
   },
   authButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    height: 56,
-    borderRadius: 14,
+    height: 58,
+    borderRadius: 18,
     paddingHorizontal: 20,
+    gap: 10,
   },
-  buttonIcon: {
-    marginRight: 12,
-  },
+  buttonIcon: {},
   buttonPressed: {
     opacity: 0.85,
     transform: [{ scale: 0.98 }],
@@ -293,66 +275,57 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   appleButton: {
-    backgroundColor: "#000000",
+    backgroundColor: OB_COLORS.black,
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.15,
-        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.24,
+        shadowRadius: 10,
       },
       android: {
-        elevation: 3,
+        elevation: 5,
       },
     }),
   },
   appleButtonText: {
     color: "#ffffff",
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: "600",
   },
   googleButton: {
-    backgroundColor: "#ffffff",
-    borderWidth: 1,
-    borderColor: "#dadce0",
-  },
-  googleIconContainer: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "#fff",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-  googleIcon: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#4285F4",
+    backgroundColor: OB_COLORS.surface,
+    borderWidth: 1.5,
+    borderColor: "rgba(91,140,90,0.18)",
+    ...softShadow,
   },
   googleButtonText: {
-    color: "#1f1f1f",
-    fontSize: 17,
-    fontWeight: "500",
+    color: OB_COLORS.textDark,
+    fontSize: 16,
+    fontWeight: "600",
   },
   emailButton: {
-    backgroundColor: "#f3f4f6",
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
+    backgroundColor: OB_COLORS.primaryLight,
+    borderWidth: 1.5,
+    borderColor: "rgba(91,140,90,0.34)",
+    ...buttonShadow,
   },
   emailButtonText: {
-    color: "#374151",
-    fontSize: 17,
-    fontWeight: "500",
+    color: OB_COLORS.primaryDark,
+    fontSize: 16,
+    fontWeight: "700",
   },
   errorContainer: {
-    backgroundColor: "#fef2f2",
-    padding: 12,
-    borderRadius: 10,
-    marginTop: 12,
+    backgroundColor: OB_COLORS.errorBg,
+    borderWidth: 1,
+    borderColor: "rgba(229,62,62,0.25)",
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    marginTop: 4,
   },
   errorText: {
-    color: "#dc2626",
+    color: OB_COLORS.error,
     fontSize: 14,
     textAlign: "center",
   },
@@ -361,11 +334,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    marginTop: 24,
+    paddingHorizontal: 20,
   },
   trustText: {
     fontSize: 13,
-    color: "#9ca3af",
+    color: OB_COLORS.textLight,
     textAlign: "center",
     lineHeight: 18,
   },

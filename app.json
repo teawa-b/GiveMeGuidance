@@ -187,6 +187,7 @@
       "expo-router",
       "expo-asset",
       "expo-font",
+      "expo-notifications",
       [
         "expo-tracking-transparency",
         {
@@ -197,7 +198,7 @@
         "react-native-google-mobile-ads",
         {
           "androidAppId": "ca-app-pub-7517928309502563~8405457175",
-          "iosAppId": "ca-app-pub-7517928309502563~6866156559",
+          "iosAppId": "ca-app-pub-7517928309502563~3997314976",
           "delayAppMeasurementInit": true
         }
       ],

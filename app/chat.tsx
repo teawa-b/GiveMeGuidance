@@ -21,6 +21,14 @@ import { useDataCache } from "../src/lib/DataCache";
 import { ChatLoadingBubble } from "../src/components/ChatLoadingBubble";
 import { lightHaptic, mediumHaptic } from "../src/lib/haptics";
 import { EtherealBackground } from "../src/components/EtherealBackground";
+import { usePremium } from "../src/lib/PremiumContext";
+import { PremiumPopup } from "../src/components/PremiumPopup";
+import {
+  canSendChatMessage,
+  recordChatMessage,
+  getChatMessageUsage,
+  FREE_CHAT_MESSAGE_LIMIT,
+} from "../src/lib/premiumLimits";
 
 const appLogo = require("../assets/mascot/bird-reading.png");
 
@@ -55,6 +63,14 @@ export default function ChatScreen() {
   const flatListRef = useRef<FlatList<Message>>(null);
 
   const { invalidateChats, invalidateStreak } = useDataCache();
+  const { isPremium } = usePremium();
+  const [premiumPopupVisible, setPremiumPopupVisible] = useState(false);
+  const [chatMsgCount, setChatMsgCount] = useState(0);
+
+  // Load chat message usage on mount
+  useEffect(() => {
+    getChatMessageUsage().then(({ used }) => setChatMsgCount(used));
+  }, []);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
@@ -305,10 +321,22 @@ export default function ChatScreen() {
   const handleSend = useCallback(async () => {
     if (!inputText.trim() || !context || !chatId || isSending) return;
 
+    // Check daily message limit for free users
+    const allowed = await canSendChatMessage(isPremium);
+    if (!allowed) {
+      mediumHaptic();
+      setPremiumPopupVisible(true);
+      return;
+    }
+
     lightHaptic();
     const userMessage = inputText.trim();
     setInputText("");
     setIsSending(true);
+
+    // Track usage
+    const newCount = await recordChatMessage();
+    setChatMsgCount(newCount);
 
     const userMessageId = Date.now().toString();
     const newUserMessage: Message = {
@@ -349,7 +377,7 @@ export default function ChatScreen() {
     } finally {
       setIsSending(false);
     }
-  }, [inputText, context, chatId, isSending, messages]);
+  }, [inputText, context, chatId, isSending, messages, isPremium]);
 
   const allQuickPrompts = useMemo(() => {
     const prompts = [
@@ -536,6 +564,7 @@ export default function ChatScreen() {
   }
 
   const canSend = inputText.trim().length > 0 && !isSending;
+  const remainingMessages = isPremium ? null : Math.max(0, FREE_CHAT_MESSAGE_LIMIT - chatMsgCount);
 
   return (
     <>
@@ -621,6 +650,26 @@ export default function ChatScreen() {
           />
 
           <View style={styles.composerSection}>
+            {/* Daily message limit indicator for free users */}
+            {remainingMessages !== null && (
+              <View style={styles.messageLimitBar}>
+                <Ionicons
+                  name={remainingMessages > 0 ? "chatbubble-outline" : "lock-closed-outline"}
+                  size={12}
+                  color={remainingMessages > 3 ? "#94a3b8" : "#f59e0b"}
+                />
+                <Text
+                  style={[
+                    styles.messageLimitText,
+                    remainingMessages <= 3 && styles.messageLimitTextWarn,
+                  ]}
+                >
+                  {remainingMessages > 0
+                    ? `${remainingMessages} message${remainingMessages === 1 ? "" : "s"} remaining today`
+                    : "Daily limit reached — upgrade for unlimited"}
+                </Text>
+              </View>
+            )}
             {!hasUserMessage && visiblePrompts.length > 0 && (
               <View style={styles.quickPromptRow}>
                 {visiblePrompts.map((prompt) => (
@@ -682,6 +731,11 @@ export default function ChatScreen() {
           </View>
         </KeyboardAvoidingView>
       </View>
+
+      <PremiumPopup
+        visible={premiumPopupVisible}
+        onClose={() => setPremiumPopupVisible(false)}
+      />
     </>
   );
 }
@@ -960,6 +1014,22 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "rgba(16, 185, 129, 0.12)",
     backgroundColor: "rgba(247, 252, 248, 0.95)",
+  },
+  messageLimitBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 6,
+    marginBottom: 6,
+  },
+  messageLimitText: {
+    fontSize: 11,
+    fontWeight: "500",
+    color: "#94a3b8",
+  },
+  messageLimitTextWarn: {
+    color: "#f59e0b",
   },
   quickPromptRow: {
     flexDirection: "row",

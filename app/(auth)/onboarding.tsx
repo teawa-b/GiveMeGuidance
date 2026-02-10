@@ -12,7 +12,10 @@ import {
 } from "../../src/lib/OnboardingContext";
 import { getGuidance } from "../../src/services/guidance";
 import { generateDailyWalkApi } from "../../src/services/api";
-import { requestAndScheduleDailyReminder } from "../../src/services/notifications";
+import {
+  cancelAllReminderNotifications,
+  requestAndScheduleDailyAndStreakReminders,
+} from "../../src/services/notifications";
 import { supabase } from "../../src/lib/supabase";
 import {
   GoalSelectionScreen,
@@ -54,6 +57,8 @@ export default function OnboardingScreen() {
   const [journeySaved, setJourneySaved] = useState(false);
   const [emailLoading, setEmailLoading] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
+
+  const streakReminderTime = { hour: 23, minute: 30 };
 
   // Handle goal toggle
   const handleGoalToggle = (goal: SpiritualGoal) => {
@@ -228,7 +233,10 @@ export default function OnboardingScreen() {
   const handleNotificationsEnable = async (): Promise<boolean> => {
     try {
       const { hour, minute } = getPreferredReminderTime();
-      const enabled = await requestAndScheduleDailyReminder(hour, minute);
+      const enabled = await requestAndScheduleDailyAndStreakReminders(
+        { hour, minute },
+        { streakTime: streakReminderTime }
+      );
       setNotificationsEnabled(enabled);
       updateData({ notificationEnabled: enabled });
       return enabled;
@@ -241,15 +249,27 @@ export default function OnboardingScreen() {
   };
 
   const handleNotificationsContinue = async () => {
-    await saveOnboarding({ onboardingCompleted: true });
+    await saveOnboarding({
+      onboardingCompleted: true,
+      notificationEnabled: notificationsEnabled,
+    });
     router.replace("/(tabs)");
   };
 
   // Handle notifications skip
   const handleNotificationsSkip = async () => {
+    try {
+      await cancelAllReminderNotifications();
+    } catch (error) {
+      console.error("[Onboarding] Failed to cancel reminders:", error);
+    }
+
     setNotificationsEnabled(false);
     updateData({ notificationEnabled: false });
-    await saveOnboarding({ onboardingCompleted: true });
+    await saveOnboarding({
+      onboardingCompleted: true,
+      notificationEnabled: false,
+    });
     router.replace("/(tabs)");
   };
 
