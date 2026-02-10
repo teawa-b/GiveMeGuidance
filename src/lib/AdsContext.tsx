@@ -68,34 +68,7 @@ const PRODUCTION_REWARDED_AD_UNIT_ID = Platform.select({
 });
 
 // Use test ads in development
-// Optional override for release/dev-client builds:
-// set EXPO_PUBLIC_FORCE_TEST_ADS=1 to force Google test ad units.
-const FORCE_TEST_ADS = process.env.EXPO_PUBLIC_FORCE_TEST_ADS === "1";
-const USE_TEST_ADS = __DEV__ || FORCE_TEST_ADS;
-
-const ENV_BANNER_AD_UNIT_ID = Platform.select({
-  ios: process.env.EXPO_PUBLIC_ADMOB_IOS_BANNER_AD_UNIT_ID,
-  android: process.env.EXPO_PUBLIC_ADMOB_ANDROID_BANNER_AD_UNIT_ID,
-  default: "",
-});
-
-const ENV_NATIVE_AD_UNIT_ID = Platform.select({
-  ios: process.env.EXPO_PUBLIC_ADMOB_IOS_NATIVE_AD_UNIT_ID,
-  android: process.env.EXPO_PUBLIC_ADMOB_ANDROID_NATIVE_AD_UNIT_ID,
-  default: "",
-});
-
-const ENV_INTERSTITIAL_AD_UNIT_ID = Platform.select({
-  ios: process.env.EXPO_PUBLIC_ADMOB_IOS_INTERSTITIAL_AD_UNIT_ID,
-  android: process.env.EXPO_PUBLIC_ADMOB_ANDROID_INTERSTITIAL_AD_UNIT_ID,
-  default: "",
-});
-
-const ENV_REWARDED_AD_UNIT_ID = Platform.select({
-  ios: process.env.EXPO_PUBLIC_ADMOB_IOS_REWARDED_AD_UNIT_ID,
-  android: process.env.EXPO_PUBLIC_ADMOB_ANDROID_REWARDED_AD_UNIT_ID,
-  default: "",
-});
+const USE_TEST_ADS = __DEV__;
 
 interface AdsContextType {
   // State
@@ -127,18 +100,10 @@ export function AdsProvider({ children }: { children: ReactNode }) {
   const [adsModule, setAdsModule] = useState<any>(null);
 
   // Get the appropriate ad unit IDs
-  const bannerAdUnitId = USE_TEST_ADS
-    ? TEST_BANNER_AD_UNIT_ID
-    : ENV_BANNER_AD_UNIT_ID || PRODUCTION_BANNER_AD_UNIT_ID;
-  const interstitialAdUnitId = USE_TEST_ADS
-    ? TEST_INTERSTITIAL_AD_UNIT_ID
-    : ENV_INTERSTITIAL_AD_UNIT_ID || PRODUCTION_INTERSTITIAL_AD_UNIT_ID;
-  const rewardedAdUnitId = USE_TEST_ADS
-    ? TEST_REWARDED_AD_UNIT_ID
-    : ENV_REWARDED_AD_UNIT_ID || PRODUCTION_REWARDED_AD_UNIT_ID;
-  const nativeAdUnitId = USE_TEST_ADS
-    ? TEST_NATIVE_AD_UNIT_ID
-    : ENV_NATIVE_AD_UNIT_ID || PRODUCTION_NATIVE_AD_UNIT_ID;
+  const bannerAdUnitId = USE_TEST_ADS ? TEST_BANNER_AD_UNIT_ID : PRODUCTION_BANNER_AD_UNIT_ID;
+  const interstitialAdUnitId = USE_TEST_ADS ? TEST_INTERSTITIAL_AD_UNIT_ID : PRODUCTION_INTERSTITIAL_AD_UNIT_ID;
+  const rewardedAdUnitId = USE_TEST_ADS ? TEST_REWARDED_AD_UNIT_ID : PRODUCTION_REWARDED_AD_UNIT_ID;
+  const nativeAdUnitId = USE_TEST_ADS ? TEST_NATIVE_AD_UNIT_ID : PRODUCTION_NATIVE_AD_UNIT_ID;
 
   // Initialize Google Mobile Ads
   useEffect(() => {
@@ -164,8 +129,9 @@ export function AdsProvider({ children }: { children: ReactNode }) {
         });
       });
 
-      // Small delay to ensure the app is fully initialized
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Add a delay to ensure the app is fully initialized
+      // This helps prevent crashes during rapid startup
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
       try {
         // Request App Tracking Transparency permission on iOS
@@ -176,11 +142,9 @@ export function AdsProvider({ children }: { children: ReactNode }) {
         }
 
         // Try to import and initialize the ads SDK
-        console.log("[Ads] Importing Google Mobile Ads SDK...");
         const adsModuleImport = require("react-native-google-mobile-ads");
         const mobileAds = adsModuleImport.default;
         
-        console.log("[Ads] Configuring request settings...");
         // Configure request settings before initialization
         await mobileAds().setRequestConfiguration({
           // Set to true for apps directed at children
@@ -189,10 +153,8 @@ export function AdsProvider({ children }: { children: ReactNode }) {
           tagForUnderAgeOfConsent: false,
         });
         
-        console.log("[Ads] Initializing Google Mobile Ads SDK...");
-        const initStatus = await mobileAds().initialize();
+        await mobileAds().initialize();
         console.log("[Ads] Google Mobile Ads initialized successfully");
-        console.log("[Ads] Adapter statuses:", JSON.stringify(initStatus));
         setAdsModule(adsModuleImport);
         setIsAdsInitialized(true);
       } catch (error) {

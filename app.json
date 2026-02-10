@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Guidance",
+    "name": "Give Me Guidance",
     "slug": "givemeguidance",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -16,13 +16,10 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.shroozy.givemeguidance",
-      "usesAppleSignIn": true,
       "googleServicesFile": "./GoogleService-Info.plist",
-      "icon": "./assets/icon.png",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSUserTrackingUsageDescription": "This identifier will be used to deliver personalized ads to you.",
-        "NSUserNotificationUsageDescription": "We use notifications to send your daily Bible reading reminder.",
         "SKAdNetworkItems": [
           {
             "SKAdNetworkIdentifier": "cstr6suwn9.skadnetwork"
@@ -190,9 +187,6 @@
       "expo-router",
       "expo-asset",
       "expo-font",
-      "expo-notifications",
-      "expo-apple-authentication",
-      "@react-native-google-signin/google-signin",
       [
         "expo-tracking-transparency",
         {

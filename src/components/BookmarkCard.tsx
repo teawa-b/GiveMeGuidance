@@ -83,15 +83,12 @@ export function BookmarkCard({
     <>
       <View style={styles.container}>
         <View style={styles.content}>
-          <View style={styles.topRow}>
+          <Text style={styles.verseText} numberOfLines={3}>
+            "{verseText}"
+          </Text>
+          <View style={styles.footer}>
             <Text style={styles.reference}>{verseReference}</Text>
             <Text style={styles.date}>{formattedDate}</Text>
-          </View>
-
-          <View style={styles.verseBlock}>
-            <Text style={styles.verseText} numberOfLines={3}>
-              "{verseText}"
-            </Text>
           </View>
           
           {/* Action buttons */}
@@ -206,68 +203,60 @@ export function BookmarkCard({
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 20,
+    padding: 18,
     marginBottom: 12,
-    borderWidth: 2,
-    borderColor: "transparent",
+    borderWidth: 1,
+    borderColor: "rgba(236, 253, 245, 0.8)",
     ...Platform.select({
       ios: {
-        backgroundColor: "#ffffff",
+        backgroundColor: "rgba(255, 255, 255, 0.9)",
         shadowColor: "#10b981",
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.06,
-        shadowRadius: 8,
+        shadowRadius: 12,
       },
       android: {
         backgroundColor: "#ffffff",
         elevation: 2,
       },
       web: {
-        backgroundColor: "#ffffff",
-        boxShadow: "0 2px 8px rgba(16, 185, 129, 0.06)",
+        backgroundColor: "rgba(255, 255, 255, 0.9)",
+        boxShadow: "0 4px 12px rgba(16, 185, 129, 0.06)",
       },
     }),
   },
   content: {
     flex: 1,
-    gap: 10,
+    gap: 8,
   },
-  topRow: {
+  verseText: {
+    fontSize: 16,
+    fontStyle: "italic",
+    color: "#374151",
+    lineHeight: 24,
+  },
+  footer: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-  },
-  verseBlock: {
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 9,
-    backgroundColor: "rgba(16, 185, 129, 0.05)",
-    borderWidth: 1,
-    borderColor: "rgba(16, 185, 129, 0.1)",
-  },
-  verseText: {
-    fontSize: 15,
-    fontStyle: "italic",
-    color: "#475569",
-    lineHeight: 22,
+    marginTop: 4,
   },
   reference: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#047857",
+    color: "#10b981",
   },
   date: {
-    fontSize: 12,
-    fontWeight: "500",
+    fontSize: 13,
     color: "#94a3b8",
   },
   actionsRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    marginTop: 2,
-    paddingTop: 10,
+    gap: 8,
+    marginTop: 12,
+    paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: "rgba(226, 232, 240, 0.6)",
   },
@@ -275,8 +264,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 3,
-    paddingVertical: 7,
+    gap: 4,
+    paddingVertical: 8,
     paddingHorizontal: 8,
     borderRadius: 10,
     backgroundColor: "#ecfdf5",
@@ -286,8 +275,8 @@ const styles = StyleSheet.create({
   },
   actionButtonText: {
     fontSize: 11,
-    fontWeight: "700",
-    color: "#059669",
+    fontWeight: "600",
+    color: "#10b981",
   },
   removeActionButton: {
     backgroundColor: "#fef2f2",
