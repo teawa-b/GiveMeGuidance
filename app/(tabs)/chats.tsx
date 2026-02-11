@@ -41,6 +41,17 @@ function isGenericQuestion(question: string): boolean {
   return GENERIC_QUESTIONS.has(question.toLowerCase().trim());
 }
 
+function isDailyGuidanceQuestion(question: string): boolean {
+  return question.toLowerCase().trim() === "daily guidance";
+}
+
+function formatDailyGuidanceLabel(dateStr: string): string {
+  const date = new Date(dateStr);
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `Daily Guidance ${month}/${day}`;
+}
+
 export default function ChatsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -237,6 +248,7 @@ export default function ChatsScreen() {
     if (!selectedChat) return;
     lightHaptic();
     setShowActionModal(false);
+    const isDailyGuidance = selectedChat.user_question.toLowerCase().trim() === "daily guidance";
     router.push({
       pathname: "/guidance",
       params: {
@@ -245,6 +257,7 @@ export default function ChatsScreen() {
         verseReference: selectedChat.verse_reference,
         explanationData: JSON.stringify(selectedChat.explanation_data),
         existingChatId: selectedChat.id, // Pass the existing chat ID to prevent duplicates
+        ...(isDailyGuidance ? { daily: "true" } : {}),
       },
     });
   };
@@ -472,7 +485,11 @@ export default function ChatsScreen() {
           
           <Text style={styles.questionLabel}>You asked</Text>
           <Text style={styles.questionText} numberOfLines={2}>
-            "{isGenericQuestion(item.user_question) ? item.verse_reference : item.user_question}"
+            "{isDailyGuidanceQuestion(item.user_question)
+              ? formatDailyGuidanceLabel(item.created_at)
+              : isGenericQuestion(item.user_question)
+                ? item.verse_reference
+                : item.user_question}"
           </Text>
           
           <View style={styles.verseBlock}>
