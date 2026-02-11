@@ -12,8 +12,8 @@ import { DataCacheProvider } from "../src/lib/DataCache";
 import { OnboardingProvider } from "../src/lib/OnboardingContext";
 // Note: react-native-get-random-values is already imported in polyfills.ts
 
-// App logo for loading screen
-const appLogo = require("../assets/NewLogo.png");
+// Bird icon for loading screen
+const appLogo = require("../assets/mascot/bird-reading.png");
 
 function RootLayoutNav() {
   const { isLoading, isAuthenticated } = useAuth();
@@ -51,8 +51,8 @@ function RootLayoutNav() {
         router.replace("/(tabs)");
       }
     } else {
-      // User is not authenticated - make sure they're in auth
-      if (!inAuthGroup) {
+      // User is not authenticated - allow guest users to remain in app routes
+      if (!inAuthGroup && !inProtectedRoute) {
         console.log("[Auth] User not authenticated, redirecting to /(auth)");
         router.replace("/(auth)");
       }
@@ -85,11 +85,11 @@ function RootLayoutNav() {
           options={{
             headerShown: true,
             headerTitle: "",
-            headerBackTitle: "Back",
-            headerTintColor: "#10b981",
-            headerStyle: { backgroundColor: "#fafaf6" },
+            headerTransparent: true,
             headerShadowVisible: false,
-            headerTransparent: false,
+            headerBackTitle: "Back",
+            headerBackButtonDisplayMode: "default",
+            headerTintColor: "#10b981",
           }}
         />
         <Stack.Screen
@@ -139,9 +139,11 @@ function DeferredProviders({ children }: { children: React.ReactNode }) {
     return () => handle.cancel();
   }, []);
 
-  // Always wrap children in providers - the providers themselves handle
-  // platform-specific initialization gracefully (e.g., skip on web)
-  // This prevents "hook called outside provider" errors during initial render
+  if (!isReady) {
+    // Render children without the heavy providers during initial mount
+    return <>{children}</>;
+  }
+
   return (
     <DataCacheProvider>
       <PremiumProvider>
