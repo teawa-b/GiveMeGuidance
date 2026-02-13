@@ -1,4 +1,4 @@
-// Must be first import - polyfills for React Native
+﻿// Must be first import - polyfills for React Native
 import "../src/lib/polyfills";
 
 import React, { useEffect, useState } from "react";
@@ -166,4 +166,6 @@ export default function RootLayout() {
     </AuthProvider>
   );
 }
+
+
 

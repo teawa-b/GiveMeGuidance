@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+﻿import React, { useRef, useState } from "react";
 import { View, Text, StyleSheet, Pressable, Platform, Modal } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { errorHaptic, lightHaptic, successHaptic } from "../lib/haptics";
@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.06,
         shadowRadius: 12,
       },
-      android: {
+      default: {
         backgroundColor: "#ffffff",
         elevation: 2,
       },
@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.25,
         shadowRadius: 16,
       },
-      android: {
+      default: {
         elevation: 8,
       },
     }),
@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 8,
       },
-      android: {
+      default: {
         elevation: 4,
       },
     }),
@@ -369,3 +369,4 @@ const styles = StyleSheet.create({
     color: "#ffffff",
   },
 });
+

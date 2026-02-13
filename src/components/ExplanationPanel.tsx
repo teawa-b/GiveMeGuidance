@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { View, Text, StyleSheet, Pressable, ActivityIndicator, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.05,
         shadowRadius: 4,
       },
-      android: {
+      default: {
         elevation: 1,
       },
       web: {
@@ -229,3 +229,4 @@ const styles = StyleSheet.create({
     color: "#10b981",
   },
 });
+

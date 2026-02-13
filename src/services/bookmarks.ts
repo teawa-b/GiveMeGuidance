@@ -1,4 +1,4 @@
-import { supabase, Bookmark } from "../lib/supabase";
+﻿import { supabase, Bookmark } from "../lib/supabase";
 
 export type { Bookmark };
 
@@ -143,3 +143,4 @@ export async function isBookmarked(verseReference: string): Promise<boolean> {
 
   return !!data;
 }
+

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+﻿import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -137,7 +137,7 @@ export function PremiumPopup({
   if (isPremium) return null;
   if (shouldUseNativePaywall && visible) return null;
 
-  // ── Handlers ──────────────────────────────────────────────
+  // â”€â”€ Handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const handlePurchase = async () => {
     if (!selectedPackage || isPurchasing) return;
     mediumHaptic();
@@ -173,7 +173,7 @@ export function PremiumPopup({
     onClose();
   };
 
-  // ── Package helpers ───────────────────────────────────────
+  // â”€â”€ Package helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const monthlyPackage = packages.find((p) => p.period === "monthly");
   const yearlyPackage = packages.find((p) => p.period === "yearly");
   const lifetimePackage = packages.find((p) => p.period === "lifetime");
@@ -207,7 +207,7 @@ export function PremiumPopup({
     }
   };
 
-  // ── Render ────────────────────────────────────────────────
+  // â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   return (
     <Modal
       visible={visible}
@@ -294,20 +294,20 @@ export function PremiumPopup({
           {isLoading ? (
             <View style={styles.loadingWrap}>
               <ActivityIndicator size="large" color="#10b981" />
-              <Text style={styles.loadingText}>Loading options…</Text>
+              <Text style={styles.loadingText}>Loading optionsâ€¦</Text>
             </View>
           ) : packages.length === 0 ? (
             <View style={styles.loadingWrap}>
               <Ionicons name="alert-circle-outline" size={44} color="#9ca3af" />
               <Text style={styles.loadingText}>
                 {Platform.OS === "web"
-                  ? "In-app purchases are only available on iOS and Android."
+                  ? "In-app purchases are only available on iOS and Mobile."
                   : "Unable to load subscription options."}
               </Text>
             </View>
           ) : (
             <View style={styles.cardsContainer}>
-              {/* Yearly – Best Value */}
+              {/* Yearly â€“ Best Value */}
               {yearlyPackage && (
                 <Pressable
                   style={({ pressed }) => [
@@ -442,7 +442,7 @@ export function PremiumPopup({
   );
 }
 
-// ── Styles ──────────────────────────────────────────────────
+// â”€â”€ Styles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -610,7 +610,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.06,
         shadowRadius: 8,
       },
-      android: { elevation: 2 },
+      default: { elevation: 2 },
     }),
   },
   pricingCardSelected: {
@@ -623,7 +623,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.12,
         shadowRadius: 10,
       },
-      android: { elevation: 4 },
+      default: { elevation: 4 },
     }),
   },
   pricingCardPressed: {
@@ -645,7 +645,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.3,
         shadowRadius: 4,
       },
-      android: { elevation: 3 },
+      default: { elevation: 3 },
     }),
   },
   bestValueText: {
@@ -703,7 +703,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.3,
         shadowRadius: 12,
       },
-      android: { elevation: 8 },
+      default: { elevation: 8 },
     }),
   },
   continueButtonPressed: {
@@ -741,3 +741,4 @@ const styles = StyleSheet.create({
     lineHeight: 14,
   },
 });
+

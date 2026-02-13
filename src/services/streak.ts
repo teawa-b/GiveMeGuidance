@@ -1,4 +1,4 @@
-import { supabase } from "../lib/supabase";
+﻿import { supabase } from "../lib/supabase";
 
 export interface UserStreak {
   id: string;
@@ -274,3 +274,4 @@ export async function getChatsForDate(dateString: string): Promise<string[]> {
 
   return data?.map((chat) => chat.id) || [];
 }
+

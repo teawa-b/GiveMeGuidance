@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from "react";
+﻿import React, { useState, useCallback, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -46,7 +46,7 @@ export default function BookmarksScreen() {
 
   const headerTopPadding = Math.max(
     insets.top + 6,
-    Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 10 : 16
+    Platform.OS !== "ios" && Platform.OS !== "web" ? (StatusBar.currentHeight ?? 0) + 10 : 16
   );
 
   useFocusEffect(
@@ -565,7 +565,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 8,
       },
-      android: {
+      default: {
         backgroundColor: "#ffffff",
         elevation: 3,
       },
@@ -630,7 +630,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.06,
         shadowRadius: 8,
       },
-      android: {
+      default: {
         elevation: 2,
       },
     }),
@@ -697,7 +697,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.3,
         shadowRadius: 14,
       },
-      android: {
+      default: {
         elevation: 7,
       },
       web: {
@@ -746,7 +746,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 12,
       },
-      android: {
+      default: {
         backgroundColor: "#ffffff",
         elevation: 3,
       },
@@ -771,3 +771,6 @@ const styles = StyleSheet.create({
     maxWidth: 320,
   },
 });
+
+
+

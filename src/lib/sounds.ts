@@ -1,4 +1,4 @@
-import { useAudioPlayer, AudioPlayer } from "expo-audio";
+﻿import { useAudioPlayer, AudioPlayer } from "expo-audio";
 
 // Sound instances for reuse
 let appOpenedPlayer: AudioPlayer | null = null;
@@ -97,3 +97,4 @@ export const unloadAllSounds = async () => {
     console.error("Error unloading sounds:", error);
   }
 };
+

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+﻿import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 48 : 48,
+    paddingTop: Platform.OS !== "ios" && Platform.OS !== "web" ? (StatusBar.currentHeight ?? 0) + 48 : 48,
     paddingBottom: 24,
   },
   confirmationContent: {
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.2,
         shadowRadius: 12,
       },
-      android: {
+      default: {
         elevation: 4,
       },
     }),
@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 12,
       },
-      android: {
+      default: {
         elevation: 4,
       },
     }),
@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.3,
         shadowRadius: 16,
       },
-      android: {
+      default: {
         elevation: 6,
       },
     }),
@@ -368,3 +368,4 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
 });
+

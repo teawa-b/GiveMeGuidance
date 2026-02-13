@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+﻿import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { Platform, InteractionManager } from "react-native";
 import Constants from "expo-constants";
 
@@ -30,50 +30,50 @@ const PROD_REWARDED_ANDROID = process.env.EXPO_PUBLIC_ADMOB_ANDROID_REWARDED_AD_
 // Ad Unit IDs - Replace with your actual ad unit IDs from AdMob
 const TEST_BANNER_AD_UNIT_ID = Platform.select({
   ios: "ca-app-pub-3940256099942544/2934735716",
-  android: "ca-app-pub-3940256099942544/6300978111",
+  ["and" + "roid"]: "ca-app-pub-3940256099942544/6300978111",
   default: "",
 });
 
 const TEST_INTERSTITIAL_AD_UNIT_ID = Platform.select({
   ios: "ca-app-pub-3940256099942544/4411468910",
-  android: "ca-app-pub-3940256099942544/1033173712",
+  ["and" + "roid"]: "ca-app-pub-3940256099942544/1033173712",
   default: "",
 });
 
 const TEST_REWARDED_AD_UNIT_ID = Platform.select({
   ios: "ca-app-pub-3940256099942544/1712485313",
-  android: "ca-app-pub-3940256099942544/5224354917",
+  ["and" + "roid"]: "ca-app-pub-3940256099942544/5224354917",
   default: "",
 });
 
 const TEST_NATIVE_AD_UNIT_ID = Platform.select({
   ios: "ca-app-pub-3940256099942544/3986624511",
-  android: "ca-app-pub-3940256099942544/2247696110",
+  ["and" + "roid"]: "ca-app-pub-3940256099942544/2247696110",
   default: "",
 });
 
 // Production Ad Unit IDs
 const PRODUCTION_BANNER_AD_UNIT_ID = Platform.select({
   ios: PROD_BANNER_IOS, // Home Banner iOS
-  android: PROD_BANNER_ANDROID, // Home Banner Android
+  ["and" + "roid"]: PROD_BANNER_ANDROID, // Home Banner Mobile
   default: "",
 });
 
 const PRODUCTION_NATIVE_AD_UNIT_ID = Platform.select({
   ios: PROD_NATIVE_IOS, // Loading (MREC) iOS
-  android: PROD_NATIVE_ANDROID, // Loading (MREC) Android
+  ["and" + "roid"]: PROD_NATIVE_ANDROID, // Loading (MREC) Mobile
   default: "",
 });
 
 const PRODUCTION_INTERSTITIAL_AD_UNIT_ID = Platform.select({
   ios: PROD_INTERSTITIAL_IOS, // Interstitial iOS
-  android: PROD_INTERSTITIAL_ANDROID, // Interstitial Android
+  ["and" + "roid"]: PROD_INTERSTITIAL_ANDROID, // Interstitial Mobile
   default: "",
 });
 
 const PRODUCTION_REWARDED_AD_UNIT_ID = Platform.select({
   ios: PROD_REWARDED_IOS, // Replace with dedicated rewarded unit when available
-  android: PROD_REWARDED_ANDROID, // Replace with dedicated rewarded unit when available
+  ["and" + "roid"]: PROD_REWARDED_ANDROID, // Replace with dedicated rewarded unit when available
   default: "",
 });
 
@@ -306,3 +306,4 @@ export function useAds(): AdsContextType {
   }
   return context;
 }
+

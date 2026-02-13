@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+﻿import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { useAuth } from "../../src/lib/AuthContext";
 import { LandingScreen, LoginScreen, WarmBackground } from "../../src/components/onboarding";
@@ -147,3 +147,5 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
 });
+
+

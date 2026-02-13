@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+﻿import React, { useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -311,3 +311,4 @@ const styles = StyleSheet.create({
   signInButtonPressed: { opacity: 0.5 },
   signInText: { fontSize: 15, fontWeight: "600", color: OB_COLORS.textMuted },
 });
+

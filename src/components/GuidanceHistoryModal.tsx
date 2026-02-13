@@ -1,4 +1,4 @@
-
+﻿
 import React, { useEffect, useRef, useState } from "react";
 import {
   View,
@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.15,
         shadowRadius: 12,
       },
-      android: {
+      default: {
         elevation: 8,
       },
       web: {
@@ -453,3 +453,4 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 });
+

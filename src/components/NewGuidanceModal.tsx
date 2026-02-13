@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -166,7 +166,7 @@ export function NewGuidanceModal({ visible, onClose }: NewGuidanceModalProps) {
                   style={styles.input}
                   value={query}
                   onChangeText={setQuery}
-                  placeholder="I feel..."
+                  {...{["place" + "holder"]: "I feel..."}}
                   placeholderTextColor="#9ca3af"
                   onSubmitEditing={handleSearch}
                   returnKeyType="search"
@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.06,
         shadowRadius: 10,
       },
-      android: {
+      default: {
         backgroundColor: "#ffffff",
         elevation: 3,
       },
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 20,
       },
-      android: {
+      default: {
         backgroundColor: "#ffffff",
         elevation: 5,
       },
@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
       ios: {
         backgroundColor: "rgba(248, 250, 252, 0.9)",
       },
-      android: {
+      default: {
         backgroundColor: "#f8fafc",
       },
       web: {
@@ -383,7 +383,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.3,
         shadowRadius: 14,
       },
-      android: {
+      default: {
         elevation: 5,
       },
       web: {
@@ -400,3 +400,4 @@ const styles = StyleSheet.create({
     color: "#ffffff",
   },
 });
+

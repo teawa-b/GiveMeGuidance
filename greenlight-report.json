@@ -1,0 +1,33 @@
+{
+  "project_path": ".",
+  "app_name": "Guidance",
+  "bundle_id": "com.shroozy.givemeguidance",
+  "has_privacy_info": true,
+  "detected_apis": [
+    "User Defaults"
+  ],
+  "tracking_sdks": [
+    "Google Ads/AdMob"
+  ],
+  "findings": [
+    {
+      "source": "codescan",
+      "severity": "INFO",
+      "guideline": "2.1",
+      "title": "Debug logging in production code",
+      "detail": "Excessive console.log/print statements may indicate the app is not production-ready.",
+      "fix": "Remove or gate debug logging behind a DEBUG flag.",
+      "file": "app\\(tabs)\\profile.tsx",
+      "line": 99,
+      "code": "console.error(\"Error fetching profile data:\", error);"
+    }
+  ],
+  "summary": {
+    "total": 1,
+    "critical": 0,
+    "warns": 0,
+    "infos": 1,
+    "passed": true
+  },
+  "elapsed": "771ms"
+}

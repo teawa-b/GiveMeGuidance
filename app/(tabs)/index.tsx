@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+﻿import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -443,7 +443,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 12 : 16,
+    paddingTop: Platform.OS !== "ios" && Platform.OS !== "web" ? (StatusBar.currentHeight ?? 0) + 12 : 16,
     paddingBottom: 12,
     zIndex: 10,
   },
@@ -467,7 +467,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 4,
       },
-      android: {
+      default: {
         elevation: 2,
       },
     }),
@@ -523,7 +523,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.08,
         shadowRadius: 20,
       },
-      android: {
+      default: {
         elevation: 4,
       },
       web: {
@@ -612,7 +612,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.3,
         shadowRadius: 16,
       },
-      android: {
+      default: {
         elevation: 6,
       },
       web: {
@@ -644,7 +644,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.08,
         shadowRadius: 20,
       },
-      android: {
+      default: {
         elevation: 4,
       },
       web: {
@@ -758,7 +758,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.08,
         shadowRadius: 20,
       },
-      android: {
+      default: {
         elevation: 4,
       },
       web: {
@@ -799,3 +799,5 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
 });
+
+

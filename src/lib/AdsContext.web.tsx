@@ -1,4 +1,4 @@
-import React, { createContext, useContext, ReactNode } from "react";
+﻿import React, { createContext, useContext, ReactNode } from "react";
 
 // Web-only stub for AdsContext - ads are not supported on web
 
@@ -43,3 +43,4 @@ export function useAds(): AdsContextType {
   }
   return context;
 }
+

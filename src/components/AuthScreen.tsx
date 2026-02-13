@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState } from "react";
 import {
   View,
   Text,
@@ -26,17 +26,13 @@ interface AuthScreenProps {
 }
 
 export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
-  const { signIn, signUp, signInWithGoogle, signInWithApple, isLoading, isAuthenticated } = useAuth();
+  const { signIn, signUp, signInWithGoogle, signInWithApple } = useAuth();
   const router = useRouter();
   const [showEmailForm, setShowEmailForm] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [loading, setLoading] = useState<"apple" | "google" | "email" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Debug: log auth state changes in AuthScreen
-  useEffect(() => {
-    console.log("[AuthScreen] Auth state - isLoading:", isLoading, "isAuthenticated:", isAuthenticated);
-  }, [isLoading, isAuthenticated]);
 
   // Handle Apple Sign In (iOS native)
   const handleAppleAuth = async () => {
@@ -70,7 +66,6 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
         // User canceled - don't show error
       } else {
         setError("Apple sign in failed. Please try again.");
-        console.error("Apple auth error:", e);
       }
     } finally {
       setLoading(null);
@@ -91,7 +86,6 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
       }
     } catch (e) {
       setError("Google sign in failed. Please try again.");
-      console.error("Google auth error:", e);
     } finally {
       setLoading(null);
     }
@@ -103,19 +97,15 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
       setLoading("email");
       setError(null);
 
-      console.log("[AuthScreen] Calling signIn with password...");
       const result = await signIn(email, password);
 
       if (result.error) {
-        console.error("[AuthScreen] signIn error:", result.error);
         setError(result.error);
         throw new Error(result.error);
       }
 
-      console.log("[AuthScreen] signIn successful, navigating to tabs...");
       router.replace("/(tabs)");
     } catch (e: any) {
-      console.error("[AuthScreen] signIn error:", e);
       if (!error) {
         setError(e.message || "Invalid email or password");
       }
@@ -131,27 +121,22 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
       setLoading("email");
       setError(null);
 
-      console.log("[AuthScreen] Calling signUp...");
       const result = await signUp(email, password);
 
       if (result.error) {
-        console.error("[AuthScreen] signUp error:", result.error);
         setError(result.error);
         throw new Error(result.error);
       }
 
       // Check if email confirmation is required
       if (result.needsConfirmation) {
-        console.log("[AuthScreen] Email confirmation required");
         setShowConfirmation(true);
         setShowEmailForm(false);
         return;
       }
 
-      console.log("[AuthScreen] signUp successful, navigating to tabs...");
       router.replace("/(tabs)");
     } catch (e: any) {
-      console.error("[AuthScreen] signUp error:", e);
       if (!error) {
         setError(e.message || "Could not create account");
       }
@@ -389,3 +374,6 @@ const styles = StyleSheet.create({
     color: "#ffffff",
   },
 });
+
+
+

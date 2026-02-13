@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+﻿import React, { useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -287,3 +287,4 @@ const styles = StyleSheet.create({
   secondaryButtonText: { fontSize: 13, fontWeight: "700", color: OB_COLORS.primary },
   buttonPressed: { opacity: 0.9, transform: [{ scale: 0.97 }] },
 });
+

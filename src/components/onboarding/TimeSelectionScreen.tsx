@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+﻿import React, { useEffect, useState, useRef } from "react";
 import {
   View,
   Text,
@@ -108,7 +108,7 @@ export function TimeSelectionScreen({
             <Ionicons name="arrow-back" size={22} color={OB_COLORS.textMuted} />
           </Pressable>
           <ProgressSteps current={1} />
-          <View style={styles.placeholder} />
+          <View style={styles.spacerSlot} />
         </View>
 
         <View style={styles.mascotRow}>
@@ -243,7 +243,7 @@ const styles = StyleSheet.create({
   progressDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: OB_COLORS.disabled },
   progressDotActive: { width: 28, borderRadius: 4, backgroundColor: OB_COLORS.primary },
   progressDotCompleted: { backgroundColor: OB_COLORS.primary },
-  placeholder: { width: 42 },
+  spacerSlot: { width: 42 },
 
   mascotRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 4 },
   speechBubble: {
@@ -372,3 +372,4 @@ const styles = StyleSheet.create({
   continueButtonText: { fontSize: 17, fontWeight: "700", color: "#FFFFFF" },
   buttonPressed: { opacity: 0.9, transform: [{ scale: 0.97 }] },
 });
+

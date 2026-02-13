@@ -1,4 +1,4 @@
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
+﻿import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -117,3 +117,4 @@ export interface User {
   email: string;
   created_at: string;
 }
+

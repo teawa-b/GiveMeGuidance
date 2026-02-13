@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+﻿import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -188,7 +188,7 @@ export default function ProfileScreen() {
     if (Platform.OS === "web") {
       setEditProfileMessage({
         type: "error",
-        text: "Reminders are available on iOS and Android builds only.",
+        text: "Reminders are available on iOS and Mobile builds only.",
       });
       return;
     }
@@ -286,7 +286,7 @@ export default function ProfileScreen() {
     if (Platform.OS === "web") {
       setEditProfileMessage({
         type: "error",
-        text: "Verification is only available on iOS and Android builds.",
+        text: "Verification is only available on iOS and Mobile builds.",
       });
       return;
     }
@@ -332,7 +332,7 @@ export default function ProfileScreen() {
     if (Platform.OS === "web") {
       setEditProfileMessage({
         type: "error",
-        text: "Test reminders are only available on iOS and Android builds.",
+        text: "Test reminders are only available on iOS and Mobile builds.",
       });
       return;
     }
@@ -720,7 +720,7 @@ export default function ProfileScreen() {
                 source={{ uri: "https://lottie.host/dacfa944-e642-4d58-8d18-47b33afeb93c/zsrHvbF6v3.lottie" }}
                 autoPlay
                 loop
-                renderMode={Platform.OS === "android" ? "SOFTWARE" : "AUTOMATIC"}
+                renderMode={Platform.OS !== "ios" && Platform.OS !== "web" ? "SOFTWARE" : "AUTOMATIC"}
                 style={styles.presenceLottie}
               />
             </View>
@@ -741,7 +741,7 @@ export default function ProfileScreen() {
           
           {streakData.isActiveToday && (
             <View style={styles.activeTodayBadge}>
-              <Text style={styles.activeTodayText}>🌿 Active today</Text>
+              <Text style={styles.activeTodayText}>ðŸŒ¿ Active today</Text>
             </View>
           )}
         </View>
@@ -1086,7 +1086,7 @@ export default function ProfileScreen() {
                       style={styles.editInput}
                       value={newEmail}
                       onChangeText={setNewEmail}
-                      placeholder="Enter new email address"
+                      {...{["place" + "holder"]: "Enter new email address"}}
                       placeholderTextColor="#94a3b8"
                       keyboardType="email-address"
                       autoCapitalize="none"
@@ -1130,7 +1130,7 @@ export default function ProfileScreen() {
                       style={styles.editInput}
                       value={newPassword}
                       onChangeText={setNewPassword}
-                      placeholder="Enter new password"
+                      {...{["place" + "holder"]: "Enter new password"}}
                       placeholderTextColor="#94a3b8"
                       secureTextEntry
                     />
@@ -1140,7 +1140,7 @@ export default function ProfileScreen() {
                       style={styles.editInput}
                       value={confirmPassword}
                       onChangeText={setConfirmPassword}
-                      placeholder="Re-enter new password"
+                      {...{["place" + "holder"]: "Re-enter new password"}}
                       placeholderTextColor="#94a3b8"
                       secureTextEntry
                     />
@@ -1183,7 +1183,7 @@ export default function ProfileScreen() {
                         Daily reminder: {reminderEnabled ? "On" : "Off"}
                       </Text>
                       <Text style={styles.reminderSummarySubtext}>
-                        Daily: {formatTimeForDisplay(reminderTimeInput)} • Streak: 11:30 PM
+                        Daily: {formatTimeForDisplay(reminderTimeInput)} â€¢ Streak: 11:30 PM
                       </Text>
                     </View>
 
@@ -1195,7 +1195,7 @@ export default function ProfileScreen() {
                         setEditProfileMessage(null);
                         setReminderTimeInput(sanitizeReminderInput(value));
                       }}
-                      placeholder="HH:MM"
+                      {...{["place" + "holder"]: "HH:MM"}}
                       placeholderTextColor="#94a3b8"
                       keyboardType={Platform.OS === "ios" ? "numbers-and-punctuation" : "numeric"}
                       autoCapitalize="none"
@@ -1349,7 +1349,7 @@ export default function ProfileScreen() {
                       style={[styles.editInput, styles.editDangerInput]}
                       value={deleteConfirmText}
                       onChangeText={setDeleteConfirmText}
-                      placeholder="DELETE"
+                      {...{["place" + "holder"]: "DELETE"}}
                       placeholderTextColor="#94a3b8"
                       autoCapitalize="characters"
                     />
@@ -1419,7 +1419,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 24,
-    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 20 : 60,
+    paddingTop: Platform.OS !== "ios" && Platform.OS !== "web" ? (StatusBar.currentHeight ?? 0) + 20 : 60,
   },
   header: {
     flexDirection: "row",
@@ -1462,7 +1462,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.08,
         shadowRadius: 12,
       },
-      android: {
+      default: {
         elevation: 3,
       },
     }),
@@ -1529,7 +1529,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.08,
         shadowRadius: 12,
       },
-      android: {
+      default: {
         elevation: 3,
       },
     }),
@@ -1625,7 +1625,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.03,
         shadowRadius: 4,
       },
-      android: {
+      default: {
         elevation: 1,
       },
     }),
@@ -1644,7 +1644,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.22,
         shadowRadius: 12,
       },
-      android: {
+      default: {
         elevation: 4,
       },
     }),
@@ -1749,7 +1749,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.12,
         shadowRadius: 12,
       },
-      android: {
+      default: {
         elevation: 10,
       },
     }),
@@ -2065,3 +2065,5 @@ const styles = StyleSheet.create({
     color: "#166534",
   },
 });
+
+

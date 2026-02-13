@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+﻿import React, { useEffect, useRef } from "react";
 import { View, StyleSheet, Dimensions, Animated, Easing, Image, DimensionValue } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -212,7 +212,12 @@ function Sparkle({ sparkle, index }: { sparkle: typeof sparkles[0]; index: numbe
   );
 }
 
-export function EtherealBackground() {
+interface EtherealBackgroundProps {
+  variant?: string;
+  intensity?: string;
+}
+
+export function EtherealBackground(_: EtherealBackgroundProps = {}) {
   return (
     <View style={styles.container}>
       {/* Base gradient - Light minty white (#f0fdf4) inspired background */}
@@ -331,3 +336,4 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
 });
+

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+﻿import React, { useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -76,7 +76,7 @@ export function StyleSelectionScreen({
             <Ionicons name="arrow-back" size={22} color={OB_COLORS.textMuted} />
           </Pressable>
           <ProgressSteps current={2} />
-          <View style={styles.placeholder} />
+          <View style={styles.spacerSlot} />
         </View>
 
         <View style={styles.mascotRow}>
@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
   progressDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: OB_COLORS.disabled },
   progressDotActive: { width: 28, borderRadius: 4, backgroundColor: OB_COLORS.primary },
   progressDotCompleted: { backgroundColor: OB_COLORS.primary },
-  placeholder: { width: 42 },
+  spacerSlot: { width: 42 },
 
   mascotRow: { alignItems: "center", marginBottom: 2 },
 
@@ -270,3 +270,4 @@ const styles = StyleSheet.create({
   continueButtonText: { fontSize: 17, fontWeight: "700", color: "#ffffff" },
   buttonPressed: { opacity: 0.9, transform: [{ scale: 0.97 }] },
 });
+

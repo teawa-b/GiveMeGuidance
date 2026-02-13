@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import {
   View,
   Text,
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
   scrollView: { flex: 1 },
   scrollContent: {
     paddingHorizontal: 24,
-    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 16 : 16,
+    paddingTop: Platform.OS !== "ios" && Platform.OS !== "web" ? (StatusBar.currentHeight ?? 0) + 16 : 16,
     paddingBottom: 40,
   },
 
@@ -229,3 +229,4 @@ const styles = StyleSheet.create({
   secondaryButtonText: { fontSize: 13, fontWeight: "600", color: OB_COLORS.textMuted },
   buttonPressed: { opacity: 0.9, transform: [{ scale: 0.97 }] },
 });
+

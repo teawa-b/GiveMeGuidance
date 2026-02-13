@@ -1,4 +1,4 @@
-export { SearchBar } from "./SearchBar";
+﻿export { SearchBar } from "./SearchBar";
 export { VerseCard } from "./VerseCard";
 export { ExplanationPanel } from "./ExplanationPanel";
 export { BookmarkCard } from "./BookmarkCard";

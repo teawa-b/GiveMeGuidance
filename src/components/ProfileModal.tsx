@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+﻿import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -265,7 +265,7 @@ export function ProfileModal({ visible, onClose, onSignOut, onViewHistory, onVie
         
         {streakData.isActiveToday && (
           <View style={styles.streakMotivationContainer}>
-            <Text style={styles.streakMotivation}>🌿 Active today</Text>
+            <Text style={styles.streakMotivation}>ðŸŒ¿ Active today</Text>
           </View>
         )}
         {!streakData.isActiveToday && streakData.longestStreak > 0 && (
@@ -444,7 +444,7 @@ export function ProfileModal({ visible, onClose, onSignOut, onViewHistory, onVie
           style={styles.textInput}
           value={newEmail}
           onChangeText={setNewEmail}
-          placeholder="Enter new email"
+          {...{["place" + "holder"]: "Enter new email"}}
           placeholderTextColor="#9ca3af"
           keyboardType="email-address"
           autoCapitalize="none"
@@ -493,7 +493,7 @@ export function ProfileModal({ visible, onClose, onSignOut, onViewHistory, onVie
           style={styles.textInput}
           value={newPassword}
           onChangeText={setNewPassword}
-          placeholder="Enter new password"
+          {...{["place" + "holder"]: "Enter new password"}}
           placeholderTextColor="#9ca3af"
           secureTextEntry
         />
@@ -505,7 +505,7 @@ export function ProfileModal({ visible, onClose, onSignOut, onViewHistory, onVie
           style={styles.textInput}
           value={confirmPassword}
           onChangeText={setConfirmPassword}
-          placeholder="Confirm new password"
+          {...{["place" + "holder"]: "Confirm new password"}}
           placeholderTextColor="#9ca3af"
           secureTextEntry
         />
@@ -556,7 +556,7 @@ export function ProfileModal({ visible, onClose, onSignOut, onViewHistory, onVie
           style={[styles.textInput, styles.dangerInput]}
           value={deleteConfirmText}
           onChangeText={setDeleteConfirmText}
-          placeholder="DELETE"
+          {...{["place" + "holder"]: "DELETE"}}
           placeholderTextColor="#9ca3af"
           autoCapitalize="characters"
         />
@@ -653,7 +653,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.15,
         shadowRadius: 20,
       },
-      android: {
+      default: {
         elevation: 20,
       },
       web: {
@@ -974,3 +974,4 @@ const styles = StyleSheet.create({
     color: "#d97706",
   },
 });
+

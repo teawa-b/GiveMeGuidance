@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+﻿import React, { useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -85,7 +85,7 @@ export function GoalSelectionScreen({
             <Ionicons name="arrow-back" size={22} color={OB_COLORS.textMuted} />
           </Pressable>
           <ProgressSteps current={0} />
-          <View style={styles.placeholder} />
+          <View style={styles.spacerSlot} />
         </View>
 
         <View style={styles.mascotRow}>
@@ -282,14 +282,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     ...Platform.select({
       ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 4 },
-      android: { elevation: 2 },
+      default: { elevation: 2 },
     }),
   },
   progressContainer: { flexDirection: "row", alignItems: "center", gap: 6 },
   progressDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: OB_COLORS.disabled },
   progressDotActive: { width: 28, borderRadius: 4, backgroundColor: OB_COLORS.primary },
   progressDotCompleted: { backgroundColor: OB_COLORS.primary },
-  placeholder: { width: 42 },
+  spacerSlot: { width: 42 },
 
   mascotRow: {
     flexDirection: "row",
@@ -308,7 +308,7 @@ const styles = StyleSheet.create({
     position: "relative",
     ...Platform.select({
       ios: { shadowColor: OB_COLORS.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 6 },
-      android: { elevation: 2 },
+      default: { elevation: 2 },
     }),
   },
   speechText: { fontSize: 13, fontWeight: "600", color: OB_COLORS.primary },
@@ -407,9 +407,10 @@ const styles = StyleSheet.create({
   },
   continueButtonDisabled: {
     backgroundColor: OB_COLORS.disabled,
-    ...Platform.select({ ios: { shadowOpacity: 0 }, android: { elevation: 0 } }),
+    ...Platform.select({ ios: { shadowOpacity: 0 }, default: { elevation: 0 } }),
   },
   continueButtonText: { fontSize: 17, fontWeight: "700", color: "#FFFFFF" },
   continueButtonTextDisabled: { color: OB_COLORS.textLight, fontSize: 17, fontWeight: "700" },
   buttonPressed: { opacity: 0.9, transform: [{ scale: 0.97 }] },
 });
+

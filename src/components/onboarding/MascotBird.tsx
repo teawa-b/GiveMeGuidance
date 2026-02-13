@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+﻿import React, { useEffect, useRef } from "react";
 import { Animated, Image, Easing, ViewStyle, Platform } from "react-native";
 
 export type MascotPose = "reading" | "pointing-up" | "pointing-right";
@@ -121,3 +121,4 @@ export function MascotBird({
     </Animated.View>
   );
 }
+

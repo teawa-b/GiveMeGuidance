@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef } from "react";
+﻿import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef } from "react";
 import { Platform, Alert, AppState, AppStateStatus, InteractionManager } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Purchases, { 
@@ -275,7 +275,7 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
     if (Platform.OS === "web") {
       Alert.alert(
         "Not Available",
-        "In-app purchases are only available on iOS and Android.",
+        "In-app purchases are only available on iOS and Mobile.",
         [{ text: "OK" }]
       );
       return false;
@@ -284,7 +284,7 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
     // Show message if RevenueCat is disabled
     if (!REVENUECAT_ENABLED) {
       Alert.alert(
-        "Coming Soon",
+        "Feature temporarily unavailable",
         "Premium subscriptions will be available in an upcoming update. Thank you for your patience!",
         [{ text: "OK" }]
       );
@@ -335,7 +335,7 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
     if (Platform.OS === "web") {
       Alert.alert(
         "Not Available",
-        "Restore purchases is only available on iOS and Android.",
+        "Restore purchases is only available on iOS and Mobile.",
         [{ text: "OK" }]
       );
       return false;
@@ -344,7 +344,7 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
     // Show message if RevenueCat is disabled
     if (!REVENUECAT_ENABLED) {
       Alert.alert(
-        "Coming Soon",
+        "Feature temporarily unavailable",
         "Restore purchases will be available in an upcoming update. Thank you for your patience!",
         [{ text: "OK" }]
       );
@@ -385,7 +385,7 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
     if (Platform.OS === "web") {
       Alert.alert(
         "Not Available",
-        "Paywall is only available on iOS and Android.",
+        "Paywall is only available on iOS and Mobile.",
         [{ text: "OK" }]
       );
       return false;
@@ -394,7 +394,7 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
     // Show message if RevenueCat is disabled
     if (!REVENUECAT_ENABLED) {
       Alert.alert(
-        "Coming Soon",
+        "Feature temporarily unavailable",
         "Premium subscriptions will be available in an upcoming update. Thank you for your patience!",
         [{ text: "OK" }]
       );
@@ -459,7 +459,7 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
     if (Platform.OS === "web") {
       Alert.alert(
         "Not Available",
-        "Subscription management is only available on iOS and Android.",
+        "Subscription management is only available on iOS and Mobile.",
         [{ text: "OK" }]
       );
       return;
@@ -468,7 +468,7 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
     // Show message if RevenueCat is disabled
     if (!REVENUECAT_ENABLED) {
       Alert.alert(
-        "Coming Soon",
+        "Feature temporarily unavailable",
         "Subscription management will be available in an upcoming update.",
         [{ text: "OK" }]
       );
@@ -604,3 +604,5 @@ export function useEntitlement(entitlementId: string = ENTITLEMENT_ID): boolean 
   const entitlement = customerInfo.entitlements.active[entitlementId];
   return entitlement !== undefined && entitlement.isActive;
 }
+
+

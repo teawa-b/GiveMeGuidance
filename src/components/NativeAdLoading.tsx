@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+﻿import React, { useEffect, useRef, useState } from "react";
 import { View, StyleSheet, Platform, Text, Animated, Image, ActivityIndicator } from "react-native";
 import Constants from "expo-constants";
 import { useAds } from "../lib/AdsContext";
@@ -146,3 +146,4 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
 });
+

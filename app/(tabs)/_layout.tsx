@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Tabs, useRouter } from "expo-router";
+﻿import React, { useState } from "react";
+import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { View, Pressable, StyleSheet, Platform } from "react-native";
 import { mediumHaptic } from "../../src/lib/haptics";
@@ -8,6 +8,8 @@ import { NewGuidanceModal } from "../../src/components/NewGuidanceModal";
 
 export default function TabLayout() {
   const [newGuidanceModalVisible, setNewGuidanceModalVisible] = useState(false);
+  const isIOS = Platform.OS === "ios";
+  const isWeb = Platform.OS === "web";
 
   const CenterButton = () => {
     return (
@@ -38,22 +40,20 @@ export default function TabLayout() {
             borderTopWidth: 1,
             borderTopColor: "rgba(226, 232, 240, 0.2)",
             paddingTop: 12,
-            paddingBottom: Platform.OS === "ios" ? 28 : 28,
-            height: Platform.OS === "ios" ? 85 : 80,
-            ...Platform.select({
-              ios: {
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: -2 },
-                shadowOpacity: 0.03,
-                shadowRadius: 8,
-              },
-              android: {
-                elevation: 0,
-              },
-              web: {
-                backdropFilter: "blur(24px)",
-              } as any,
-            }),
+            paddingBottom: 28,
+            height: isIOS ? 85 : 80,
+            ...(isIOS
+              ? {
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: -2 },
+                  shadowOpacity: 0.03,
+                  shadowRadius: 8,
+                }
+              : isWeb
+                ? ({ backdropFilter: "blur(24px)" } as any)
+                : {
+                    elevation: 0,
+                  }),
           },
           tabBarLabelStyle: {
             fontSize: 9,
@@ -177,19 +177,19 @@ const styles = StyleSheet.create({
     backgroundColor: "#10b981",
     justifyContent: "center",
     alignItems: "center",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#10b981",
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.35,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 8,
-      },
-      web: {
-        boxShadow: "0 6px 20px rgba(16, 185, 129, 0.35)",
-      } as any,
-    }),
+    ...(Platform.OS === "ios"
+      ? {
+          shadowColor: "#10b981",
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.35,
+          shadowRadius: 12,
+        }
+      : Platform.OS === "web"
+        ? ({ boxShadow: "0 6px 20px rgba(16, 185, 129, 0.35)" } as any)
+        : {
+            elevation: 8,
+          }),
   },
 });
+
+

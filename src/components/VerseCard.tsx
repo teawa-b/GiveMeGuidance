@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, Pressable, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { isBookmarked as checkIsBookmarked, addBookmark } from "../services/bookmarks";
@@ -49,7 +49,7 @@ export function VerseCard({ verseText, verseReference }: VerseCardProps) {
       <View style={styles.header}>
         <View style={styles.textContainer}>
           <Text style={styles.verseText}>"{verseText}"</Text>
-          <Text style={styles.reference}>— {verseReference}</Text>
+          <Text style={styles.reference}>â€” {verseReference}</Text>
         </View>
         <Pressable
           style={styles.bookmarkButton}
@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.05,
         shadowRadius: 4,
       },
-      android: {
+      default: {
         elevation: 1,
       },
       web: {
@@ -113,3 +113,4 @@ const styles = StyleSheet.create({
     marginTop: -4,
   },
 });
+

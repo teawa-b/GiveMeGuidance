@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import {
   View,
   Text,
@@ -160,3 +160,4 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
 });
+

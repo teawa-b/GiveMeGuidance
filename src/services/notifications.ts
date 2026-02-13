@@ -1,4 +1,4 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+﻿import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 
@@ -49,7 +49,7 @@ function ensureNotificationHandler() {
 }
 
 async function setupAndroidChannel() {
-  if (Platform.OS !== "android" || hasConfiguredAndroidChannels) return;
+  if (Platform.OS === "ios" || Platform.OS === "web" || hasConfiguredAndroidChannels) return;
 
   await Promise.all([
     Notifications.setNotificationChannelAsync(DAILY_REMINDER_CHANNEL_ID, {
@@ -77,7 +77,7 @@ function normalizeTime(hour: number, minute: number): NotificationTime {
 }
 
 function buildDailyTrigger(channelId: string, time: NotificationTime): Notifications.DailyTriggerInput {
-  if (Platform.OS === "android") {
+  if (Platform.OS !== "ios" && Platform.OS !== "web") {
     return {
       type: Notifications.SchedulableTriggerInputTypes.DAILY,
       hour: time.hour,
@@ -303,7 +303,7 @@ export async function scheduleReminderTestNotification(delaySeconds = 15): Promi
   await setupAndroidChannel();
 
   const seconds = Math.max(5, Math.floor(delaySeconds));
-  const trigger: Notifications.TimeIntervalTriggerInput = Platform.OS === "android"
+  const trigger: Notifications.TimeIntervalTriggerInput = Platform.OS !== "ios"
     ? {
         type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
         seconds,
@@ -363,3 +363,4 @@ export async function getReminderScheduleSnapshot(): Promise<ReminderScheduleSna
     streakReminderId: streakReminderId || undefined,
   };
 }
+

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+﻿import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { InteractionManager, Platform } from "react-native";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
@@ -21,7 +21,7 @@ if (Platform.OS !== "web") {
   }
 }
 
-// ⚠️ IMPORTANT: Replace these with your actual Google OAuth Client IDs from Google Cloud Console
+// âš ï¸ IMPORTANT: Replace these with your actual Google OAuth Client IDs from Google Cloud Console
 // Get these from: https://console.cloud.google.com/apis/credentials
 const GOOGLE_WEB_CLIENT_ID = (process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || "").trim();
 const GOOGLE_IOS_CLIENT_ID = (process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || "").trim();
@@ -324,3 +324,4 @@ export function useAuth() {
   }
   return context;
 }
+

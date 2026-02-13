@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
+﻿import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase, Bookmark } from "./supabase";
 
@@ -819,3 +819,4 @@ export function useActivityDates() {
     refresh: fetchActivityDates,
   };
 }
+

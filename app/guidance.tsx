@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+﻿import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -52,12 +52,11 @@ let ViewShot: any = null;
 try {
   ViewShot = require("react-native-view-shot").default;
 } catch (e) {
-  console.warn("react-native-view-shot not available:", e);
 }
 
 const appLogo = require("../assets/mascot/bird-reading.png");
 
-// ── Compact golden "Your Daily Guidance" header ─────────────────────────────
+// â”€â”€ Compact golden "Your Daily Guidance" header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function DailyGuidanceHeader({ theme }: { theme?: string }) {
   const shimmerAnim = useRef(new Animated.Value(0)).current;
 
@@ -129,7 +128,7 @@ const dailyHeaderStyles = StyleSheet.create({
   },
 });
 
-// ── Floating Chat FAB ──────────────────────────────────────────────────────────────
+// â”€â”€ Floating Chat FAB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function FloatingChatFAB({ onPress }: { onPress: () => void }) {
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -198,7 +197,7 @@ const fabStyles = StyleSheet.create({
   wrapper: {
     position: "absolute",
     right: 20,
-    bottom: Platform.select({ ios: 160, android: 150, web: 150 }),
+    bottom: Platform.select({ ios: 160, default: 150, web: 150 }),
     alignItems: "center",
     zIndex: 50,
   },
@@ -214,7 +213,7 @@ const fabStyles = StyleSheet.create({
         shadowOpacity: 0.35,
         shadowRadius: 14,
       },
-      android: {
+      default: {
         elevation: 10,
       },
       web: {
@@ -245,7 +244,7 @@ const fabStyles = StyleSheet.create({
         shadowOpacity: 0.08,
         shadowRadius: 4,
       },
-      android: {
+      default: {
         elevation: 2,
       },
       web: {
@@ -360,9 +359,9 @@ export default function GuidanceScreen() {
       .replace(/\bI\'m\b/gi, "You're")
       .replace(/\bI\'ve\b/gi, "You've")
       .replace(/\bI\'ll\b/gi, "You'll")
-      .replace(/\bI\’m\b/gi, "You're")
-      .replace(/\bI\’ve\b/gi, "You've")
-      .replace(/\bI\’ll\b/gi, "You'll");
+      .replace(/\bI\â€™m\b/gi, "You're")
+      .replace(/\bI\â€™ve\b/gi, "You've")
+      .replace(/\bI\â€™ll\b/gi, "You'll");
   };
 
   // Check if verse is already bookmarked
@@ -373,7 +372,6 @@ export default function GuidanceScreen() {
           const result = await checkIsBookmarked(verseData.reference.passage);
           setBookmarked(result);
         } catch (error) {
-          console.error("Error checking bookmark:", error);
         }
       };
       checkBookmark();
@@ -409,7 +407,6 @@ export default function GuidanceScreen() {
     } catch (error) {
       // Revert on failure
       setBookmarked(wasBookmarked);
-      console.error("Error toggling bookmark:", error);
     } finally {
       setIsBookmarking(false);
     }
@@ -425,7 +422,6 @@ export default function GuidanceScreen() {
         title: "Share Verse",
       });
     } catch (error) {
-      console.error("Error sharing:", error);
     }
   };
 
@@ -437,7 +433,6 @@ export default function GuidanceScreen() {
 
   const handleCaptureAndShare = async () => {
     if (!ViewShot || !viewShotRef.current?.capture) {
-      console.warn("ViewShot not available for sharing");
       setShowSharePreview(false);
       return;
     }
@@ -455,7 +450,6 @@ export default function GuidanceScreen() {
         successHaptic();
       }
     } catch (error) {
-      console.error("Error sharing image:", error);
     } finally {
       setIsCapturingImage(false);
       setShowSharePreview(false);
@@ -481,7 +475,6 @@ export default function GuidanceScreen() {
         // Save to daily guidance cache for history (with theme from verse)
         saveToDailyCache(userQuestion, verse, data);
       } catch (err) {
-        console.error("Error fetching explanation:", err);
       } finally {
         setIsLoadingExplanation(false);
       }
@@ -505,7 +498,6 @@ export default function GuidanceScreen() {
       try {
         await updateStreak();
       } catch (activityError) {
-        console.error("Error updating streak:", activityError);
         // Don't fail the whole save if streak update fails
       }
 
@@ -573,7 +565,6 @@ export default function GuidanceScreen() {
         await AsyncStorage.setItem(DAYS_OF_GUIDANCE_KEY, String(days + 1));
       }
     } catch (error) {
-      console.error("Error saving to daily cache:", error);
     }
   };
 
@@ -606,7 +597,6 @@ export default function GuidanceScreen() {
 
         fetchExplanation(searchQuery, data);
       } catch (err) {
-        console.error("Error fetching guidance:", err);
         setError(err instanceof Error ? err.message : "Something went wrong");
       } finally {
         setIsLoadingVerse(false);
@@ -649,7 +639,6 @@ export default function GuidanceScreen() {
             return;
           }
         } catch (cacheError) {
-          console.error("Error loading cached daily guidance:", cacheError);
         }
       }
 
@@ -1168,7 +1157,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.3,
         shadowRadius: 8,
       },
-      android: {
+      default: {
         elevation: 4,
       },
       web: {
@@ -1251,7 +1240,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.08,
         shadowRadius: 24,
       },
-      android: {
+      default: {
         elevation: 8,
       },
       web: {
@@ -1279,7 +1268,7 @@ const styles = StyleSheet.create({
   quoteIcon: {
     fontSize: 64,
     color: "rgba(16, 185, 129, 0.2)",
-    fontFamily: Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" }),
+    fontFamily: Platform.select({ ios: "Georgia", default: "serif", web: "Georgia, serif" }),
     lineHeight: 64,
     marginBottom: 8,
     marginTop: -16,
@@ -1290,7 +1279,7 @@ const styles = StyleSheet.create({
     lineHeight: 32,
     color: "#1f2937",
     fontStyle: "italic",
-    fontFamily: Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" }),
+    fontFamily: Platform.select({ ios: "Georgia", default: "serif", web: "Georgia, serif" }),
   },
   referenceDivider: {
     flexDirection: "row",
@@ -1336,7 +1325,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.05,
         shadowRadius: 12,
       },
-      android: {
+      default: {
         elevation: 4,
       },
       web: {
@@ -1455,7 +1444,7 @@ const styles = StyleSheet.create({
     borderTopColor: "#f1f5f9",
     paddingHorizontal: 24,
     paddingTop: 20,
-    paddingBottom: Platform.select({ ios: 34, android: 24, web: 24 }),
+    paddingBottom: Platform.select({ ios: 34, default: 24, web: 24 }),
   },
   footerActions: {
     flexDirection: "row",
@@ -1478,7 +1467,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.25,
         shadowRadius: 8,
       },
-      android: {
+      default: {
         elevation: 4,
       },
       web: {
@@ -1539,7 +1528,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.25,
         shadowRadius: 16,
       },
-      android: {
+      default: {
         elevation: 8,
       },
     }),
@@ -1592,3 +1581,6 @@ const styles = StyleSheet.create({
     color: "#ffffff",
   },
 });
+
+
+

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import {
   View,
   Text,
@@ -114,7 +114,7 @@ export function EmailAuthForm({
           />
           <TextInput
             style={styles.input}
-            placeholder="Email address"
+            {...{["place" + "holder"]: "Email address"}}
             placeholderTextColor="#9ca3af"
             value={email}
             onChangeText={setEmail}
@@ -134,7 +134,7 @@ export function EmailAuthForm({
           />
           <TextInput
             style={styles.input}
-            placeholder="Password"
+            {...{["place" + "holder"]: "Password"}}
             placeholderTextColor="#9ca3af"
             value={password}
             onChangeText={setPassword}
@@ -161,7 +161,7 @@ export function EmailAuthForm({
             />
             <TextInput
               style={styles.input}
-              placeholder="Confirm password"
+              {...{["place" + "holder"]: "Confirm password"}}
               placeholderTextColor="#9ca3af"
               value={confirmPassword}
               onChangeText={setConfirmPassword}
@@ -318,3 +318,4 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 });
+

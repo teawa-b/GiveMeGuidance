@@ -1,4 +1,4 @@
-import React, { forwardRef } from "react";
+﻿import React, { forwardRef } from "react";
 import { View, Text, StyleSheet, Dimensions, Platform, Image } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -170,14 +170,14 @@ const styles = StyleSheet.create({
   quoteIcon: {
     fontSize: 42,
     color: "rgba(16, 185, 129, 0.35)",
-    fontFamily: Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" }),
+    fontFamily: Platform.select({ ios: "Georgia", default: "serif", web: "Georgia, serif" }),
     lineHeight: 42,
     marginBottom: 6,
   },
   quoteIconClose: {
     fontSize: 42,
     color: "rgba(16, 185, 129, 0.35)",
-    fontFamily: Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" }),
+    fontFamily: Platform.select({ ios: "Georgia", default: "serif", web: "Georgia, serif" }),
     lineHeight: 42,
     marginTop: 4,
     alignSelf: "flex-end",
@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
     color: "#1e3a2f",
     textAlign: "center",
     fontStyle: "italic",
-    fontFamily: Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" }),
+    fontFamily: Platform.select({ ios: "Georgia", default: "serif", web: "Georgia, serif" }),
   },
   divider: {
     flexDirection: "row",
@@ -253,3 +253,4 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
 });
+

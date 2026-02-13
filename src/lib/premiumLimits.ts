@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Premium feature limits & daily usage tracking.
  *
  * Free limits (per calendar day):
@@ -13,12 +13,12 @@
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// ── Limits ──────────────────────────────────────────────────
+// â”€â”€ Limits â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export const FREE_VERSE_REFRESH_LIMIT = 3;
 export const FREE_CHAT_MESSAGE_LIMIT = 15;
 export const FREE_HISTORY_DAYS = 7;
 
-// ── Internal helpers ────────────────────────────────────────
+// â”€â”€ Internal helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const todayKey = () => new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 
 const VERSE_REFRESH_KEY = "premium_verse_refreshes";
@@ -50,7 +50,7 @@ async function incrementCounter(storageKey: string): Promise<DailyCounter> {
   return counter;
 }
 
-// ── Public API ──────────────────────────────────────────────
+// â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /** Get today's verse-refresh usage. */
 export async function getVerseRefreshUsage(): Promise<{ used: number; limit: number }> {
@@ -89,3 +89,4 @@ export async function canSendChatMessage(isPremium: boolean): Promise<boolean> {
   const { used, limit } = await getChatMessageUsage();
   return used < limit;
 }
+

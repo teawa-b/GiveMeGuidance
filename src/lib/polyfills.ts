@@ -1,4 +1,4 @@
-// Polyfills for React Native
+﻿// Polyfills for React Native
 // This import must be first and should be safe as it's designed to work during early initialization
 try {
   require("react-native-get-random-values");
@@ -22,3 +22,4 @@ if (typeof navigator !== "undefined" && navigator.onLine === undefined) {
     configurable: true,
   });
 }
+

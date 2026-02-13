@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
+﻿import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase } from "./supabase";
 
@@ -296,3 +296,4 @@ export const styleDisplayNames: Record<GuidanceStyle, string> = {
   direct: "Straight to the point",
   deep: "Bible deep dive",
 };
+

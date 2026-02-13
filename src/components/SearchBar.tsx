@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+﻿import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   TextInput,
@@ -114,7 +114,7 @@ export function SearchBar({ onSubmit }: SearchBarProps) {
             style={styles.input}
             value={query}
             onChangeText={setQuery}
-            placeholder={isFocused ? "Share what's on your heart..." : placeholderText}
+            {...{["place" + "holder"]: isFocused ? "Share what's on your heart..." : placeholderText}}
             placeholderTextColor="#9ca3af"
             onFocus={handleFocus}
             onBlur={handleBlur}
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.08,
         shadowRadius: 16,
       },
-      android: {
+      default: {
         elevation: 4,
       },
       web: {
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.25,
         shadowRadius: 6,
       },
-      android: {
+      default: {
         elevation: 3,
       },
       web: {
@@ -243,3 +243,4 @@ const styles = StyleSheet.create({
     color: "#9ca3af",
   },
 });
+

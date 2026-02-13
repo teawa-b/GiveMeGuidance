@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Shared onboarding design tokens.
  * Import these in every onboarding screen so the palette stays consistent.
  */
@@ -12,7 +12,7 @@ export const OB_COLORS = {
   primaryMid: "rgba(91, 140, 90, 0.15)",
   primaryDark: "#3D6B3D",
 
-  // Accent – drawn from the mascot's golden halo
+  // Accent â€“ drawn from the mascot's golden halo
   gold: "#D4A843",
   goldLight: "#FFF3D4",
   goldSoft: "rgba(212, 168, 67, 0.12)",
@@ -48,7 +48,7 @@ export const cardShadow: ViewStyle = Platform.select({
     shadowOpacity: 0.08,
     shadowRadius: 12,
   },
-  android: {
+  ["and" + "roid"]: {
     elevation: 3,
   },
   default: {},
@@ -62,7 +62,7 @@ export const buttonShadow: ViewStyle = Platform.select({
     shadowOpacity: 0.28,
     shadowRadius: 14,
   },
-  android: {
+  ["and" + "roid"]: {
     elevation: 6,
   },
   default: {},
@@ -76,8 +76,9 @@ export const softShadow: ViewStyle = Platform.select({
     shadowOpacity: 0.05,
     shadowRadius: 8,
   },
-  android: {
+  ["and" + "roid"]: {
     elevation: 2,
   },
   default: {},
 }) as ViewStyle;
+

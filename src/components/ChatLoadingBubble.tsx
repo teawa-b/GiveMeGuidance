@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+﻿import React, { useEffect, useRef } from "react";
 import { View, StyleSheet, Platform, Animated, Easing, Image } from "react-native";
 
 // Bird icon for chat avatar
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.05,
         shadowRadius: 2,
       },
-      android: {
+      default: {
         elevation: 1,
       },
     }),
@@ -141,3 +141,4 @@ const styles = StyleSheet.create({
     height: 32,
   },
 });
+

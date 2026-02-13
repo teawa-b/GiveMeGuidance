@@ -1,4 +1,4 @@
-import { chatApi } from "./api";
+﻿import { chatApi } from "./api";
 
 export interface ChatContext {
   verseText: string;
@@ -26,3 +26,4 @@ export async function sendChatMessage(
 ): Promise<string> {
   return chatApi(context, messages, userMessage);
 }
+

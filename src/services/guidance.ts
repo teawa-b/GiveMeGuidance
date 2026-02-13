@@ -1,4 +1,4 @@
-import { guidanceApi, explainApi } from "./api";
+﻿import { guidanceApi, explainApi } from "./api";
 
 export interface VerseData {
   reference: {
@@ -38,3 +38,4 @@ export async function getExplanation(
     translation,
   });
 }
+

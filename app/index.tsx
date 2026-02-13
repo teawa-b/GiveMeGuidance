@@ -1,4 +1,4 @@
-import { Redirect } from "expo-router";
+﻿import { Redirect } from "expo-router";
 import { useAuth } from "../src/lib/AuthContext";
 import { View, ActivityIndicator, StyleSheet, Image } from "react-native";
 
@@ -42,3 +42,5 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
 });
+
+

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+﻿import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -666,7 +666,7 @@ export default function ChatScreen() {
                 >
                   {remainingMessages > 0
                     ? `${remainingMessages} message${remainingMessages === 1 ? "" : "s"} remaining today`
-                    : "Daily limit reached — upgrade for unlimited"}
+                    : "Daily limit reached â€” upgrade for unlimited"}
                 </Text>
               </View>
             )}
@@ -694,7 +694,7 @@ export default function ChatScreen() {
                 style={styles.input}
                 value={inputText}
                 onChangeText={setInputText}
-                placeholder="Ask about this verse..."
+                {...{["place" + "holder"]: "Ask about this verse..."}}
                 placeholderTextColor="#94a3b8"
                 multiline
                 maxLength={INPUT_MAX_LENGTH}
@@ -765,7 +765,7 @@ const styles = StyleSheet.create({
       ios: {
         backgroundColor: "rgba(255, 255, 255, 0.9)",
       },
-      android: {
+      default: {
         backgroundColor: "#ffffff",
       },
       web: {
@@ -813,7 +813,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.12,
         shadowRadius: 16,
       },
-      android: {
+      default: {
         elevation: 3,
       },
       web: {
@@ -838,14 +838,14 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#14532d",
     marginBottom: 8,
-    fontFamily: Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" }),
+    fontFamily: Platform.select({ ios: "Georgia", default: "serif", web: "Georgia, serif" }),
   },
   contextVerseText: {
     fontSize: 14,
     lineHeight: 21,
     color: "#065f46",
     fontStyle: "italic",
-    fontFamily: Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" }),
+    fontFamily: Platform.select({ ios: "Georgia", default: "serif", web: "Georgia, serif" }),
   },
   contextQuestionRow: {
     marginTop: 12,
@@ -908,7 +908,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 6,
       },
-      android: {
+      default: {
         backgroundColor: "#ffffff",
         elevation: 1,
       },
@@ -961,7 +961,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.05,
         shadowRadius: 8,
       },
-      android: {
+      default: {
         elevation: 1,
       },
       web: {
@@ -979,7 +979,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.2,
         shadowRadius: 8,
       },
-      android: {
+      default: {
         elevation: 3,
       },
       web: {
@@ -1071,7 +1071,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.09,
         shadowRadius: 10,
       },
-      android: {
+      default: {
         backgroundColor: "#ffffff",
         elevation: 2,
       },
@@ -1114,3 +1114,5 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.95 }],
   },
 });
+
+

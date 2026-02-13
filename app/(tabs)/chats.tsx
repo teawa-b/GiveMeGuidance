@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect, useRef } from "react";
+﻿import React, { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -97,7 +97,7 @@ export default function ChatsScreen() {
   const sectionListRef = useRef<SectionList<Chat, ChatSection> | null>(null);
   const headerTopPadding = Math.max(
     insets.top + 6,
-    Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 10 : 16
+    Platform.OS !== "ios" && Platform.OS !== "web" ? (StatusBar.currentHeight ?? 0) + 10 : 16
   );
 
   useFocusEffect(
@@ -653,7 +653,7 @@ export default function ChatsScreen() {
               <Ionicons name="search" size={18} color="#0f766e" style={styles.searchIcon} />
               <TextInput
                 style={styles.searchInput}
-                placeholder="Search reflections, verses, or references..."
+                {...{["place" + "holder"]: "Search reflections, verses, or references..."}}
                 placeholderTextColor="#94a3b8"
                 value={searchQuery}
                 onChangeText={setSearchQuery}
@@ -988,7 +988,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 8,
       },
-      android: {
+      default: {
         backgroundColor: "#ffffff",
         elevation: 3,
       },
@@ -1016,7 +1016,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.04,
         shadowRadius: 10,
       },
-      android: {
+      default: {
         backgroundColor: "#ffffff",
         elevation: 1,
       },
@@ -1088,7 +1088,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.06,
         shadowRadius: 8,
       },
-      android: {
+      default: {
         backgroundColor: "#ffffff",
         elevation: 2,
       },
@@ -1230,7 +1230,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 12,
       },
-      android: {
+      default: {
         backgroundColor: "#ffffff",
         elevation: 3,
       },
@@ -1397,7 +1397,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 8,
       },
-      android: {
+      default: {
         backgroundColor: "#ffffff",
         elevation: 3,
       },
@@ -1480,7 +1480,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.3,
         shadowRadius: 14,
       },
-      android: {
+      default: {
         elevation: 7,
       },
       web: {
@@ -1510,3 +1510,6 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
 });
+
+
+

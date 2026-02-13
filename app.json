@@ -2,6 +2,7 @@
   "expo": {
     "name": "Guidance",
     "slug": "givemeguidance",
+    "description": "Daily scripture-based guidance, reflection, and chat support to help users navigate life decisions with clarity and peace.",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -169,6 +170,19 @@
             "SKAdNetworkIdentifier": "3qcr597p9d.skadnetwork"
           }
         ]
+      },
+      "privacyManifests": {
+        "NSPrivacyTracking": false,
+        "NSPrivacyCollectedDataTypes": [],
+        "NSPrivacyTrackingDomains": [],
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "CA92.1"
+            ]
+          }
+        ]
       }
     },
     "android": {
@@ -208,6 +222,7 @@
       "typedRoutes": true
     },
     "extra": {
+      "privacyPolicyUrl": "https://givemeguidance.com/privacy-policy",
       "router": {},
       "eas": {
         "projectId": "45162512-4a59-4d41-b01d-e63424b4bdfd"

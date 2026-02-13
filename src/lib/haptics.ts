@@ -1,4 +1,4 @@
-import { Platform } from "react-native";
+﻿import { Platform } from "react-native";
 import * as Haptics from "expo-haptics";
 
 /**
@@ -6,7 +6,7 @@ import * as Haptics from "expo-haptics";
  * Provides various haptic patterns for different interaction types
  */
 
-const isHapticsSupported = Platform.OS === "ios" || Platform.OS === "android";
+const isHapticsSupported = Platform.OS !== "web";
 
 /**
  * Light haptic feedback for subtle interactions
@@ -77,3 +77,4 @@ export const errorHaptic = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
   }
 };
+

@@ -1,4 +1,4 @@
-import { supabase } from "../lib/supabase";
+﻿import { supabase } from "../lib/supabase";
 import type { GuidanceHistoryEntry } from "./dailyGuidance";
 import { updateStreak } from "./streak";
 
@@ -272,3 +272,4 @@ export async function resetChatMessages(chatId: string, keepCount: number = 2): 
     .update({ updated_at: new Date().toISOString() })
     .eq("id", chatId);
 }
+

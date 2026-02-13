@@ -1,4 +1,4 @@
-import Constants from "expo-constants";
+﻿import Constants from "expo-constants";
 
 // API Base URL - set this to your deployed backend URL
 const API_BASE_URL =
@@ -7,7 +7,7 @@ const API_BASE_URL =
   "https://givemeguidancebackend-production.up.railway.app";
 
 // Log immediately on module load
-console.log("🔌 [API] Module loaded - API_BASE_URL:", API_BASE_URL);
+console.log("ðŸ”Œ [API] Module loaded - API_BASE_URL:", API_BASE_URL);
 
 export { API_BASE_URL };
 
@@ -170,3 +170,4 @@ export async function generateDailyWalkApi(request: DailyWalkRequest): Promise<D
 
   return response.json();
 }
+

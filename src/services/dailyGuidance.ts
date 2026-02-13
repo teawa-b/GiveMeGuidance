@@ -1,4 +1,4 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+﻿import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getGuidance, getExplanation, type VerseData, type ExplanationData } from "./guidance";
 
 // Storage keys
@@ -255,3 +255,4 @@ export async function clearDailyGuidanceData(): Promise<void> {
     console.error("Error clearing daily guidance data:", error);
   }
 }
+

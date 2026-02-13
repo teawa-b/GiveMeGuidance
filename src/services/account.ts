@@ -1,4 +1,4 @@
-import { supabase } from "../lib/supabase";
+﻿import { supabase } from "../lib/supabase";
 import { API_BASE_URL } from "./api";
 
 export async function deleteMyAccount(): Promise<void> {
@@ -28,3 +28,4 @@ export async function deleteMyAccount(): Promise<void> {
     throw new Error("Account deletion could not be verified.");
   }
 }
+

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+﻿import React, { useState, useEffect, useRef } from "react";
 import { View, StyleSheet, Platform, Text, Dimensions } from "react-native";
 import Constants from "expo-constants";
 import { useAds } from "../lib/AdsContext";
@@ -23,18 +23,6 @@ export function BannerAdComponent({ style }: BannerAdComponentProps) {
   const [adRequestKey, setAdRequestKey] = useState(0);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Log initialization state
-  useEffect(() => {
-    console.log("[BannerAd] Component mounted", {
-      isPremium,
-      shouldShowAds,
-      isAdsInitialized,
-      hasBannerAd: !!BannerAd,
-      bannerAdUnitId,
-      platform: Platform.OS,
-    });
-  }, [isPremium, shouldShowAds, isAdsInitialized, BannerAd, bannerAdUnitId]);
-
   useEffect(() => {
     return () => {
       if (retryTimerRef.current) {
@@ -50,22 +38,19 @@ export function BannerAdComponent({ style }: BannerAdComponentProps) {
 
   // Don't show if ads shouldn't be displayed
   if (!shouldShowAds) {
-    console.log("[BannerAd] shouldShowAds is false");
     return null;
   }
 
   if (!bannerAdUnitId) {
-    console.log("[BannerAd] Missing banner ad unit ID");
     return null;
   }
 
-  // Native ads module not available - show placeholder
+  // Native ads module not available - show temporary ad frame
   if (!BannerAd || !isAdsInitialized) {
-    console.log("[BannerAd] Waiting for initialization...", { BannerAd: !!BannerAd, isAdsInitialized });
     return (
       <View style={[styles.container, style]}>
-        <View style={styles.placeholder}>
-          <Text style={styles.placeholderText}>
+        <View style={styles.loadingFrame}>
+          <Text style={styles.loadingText}>
             {!isAdsInitialized ? "Initializing ads..." : "Loading ad..."}
           </Text>
         </View>
@@ -75,7 +60,6 @@ export function BannerAdComponent({ style }: BannerAdComponentProps) {
 
   // Avoid leaving permanent empty ad gaps when no-fill persists on a device.
   if (!adLoaded && retryCount >= MAX_RETRIES) {
-    console.log("[BannerAd] Max retries reached, hiding banner for this session");
     return null;
   }
 
@@ -92,17 +76,10 @@ export function BannerAdComponent({ style }: BannerAdComponentProps) {
         size={bannerSize}
         requestOptions={{}}
         onAdLoaded={() => {
-          console.log("[BannerAd] Ad loaded successfully");
           setAdLoaded(true);
           setRetryCount(0);
         }}
         onAdFailedToLoad={(error: any) => {
-          console.log("[BannerAd] Ad failed to load:", {
-            code: error?.code,
-            message: error?.message,
-            domain: error?.domain,
-            retryCount,
-          });
           setAdLoaded(false);
           setRetryCount((prev) => {
             const next = prev + 1;
@@ -116,12 +93,8 @@ export function BannerAdComponent({ style }: BannerAdComponentProps) {
             return next;
           });
         }}
-        onAdOpened={() => {
-          console.log("[BannerAd] Ad opened");
-        }}
-        onAdClosed={() => {
-          console.log("[BannerAd] Ad closed");
-        }}
+        onAdOpened={() => {}}
+        onAdClosed={() => {}}
       />
     </View>
   );
@@ -138,7 +111,7 @@ const styles = StyleSheet.create({
   loading: {
     opacity: 0.5,
   },
-  placeholder: {
+  loadingFrame: {
     width: "100%",
     maxWidth: 320,
     height: 50,
@@ -147,8 +120,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  placeholderText: {
+  loadingText: {
     fontSize: 11,
     color: "#d1d5db",
   },
 });
+

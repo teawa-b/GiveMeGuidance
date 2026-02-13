@@ -20,9 +20,6 @@ function withFirebaseIOS(config) {
       
       if (fs.existsSync(sourcePlist)) {
         fs.copyFileSync(sourcePlist, destPlist);
-        console.log('[withFirebaseIOS] Copied GoogleService-Info.plist to ios/');
-      } else {
-        console.warn('[withFirebaseIOS] GoogleService-Info.plist not found in project root');
       }
       
       // 2. Add modular headers to Podfile
@@ -47,15 +44,8 @@ pod 'nanopb', :modular_headers => true
           if (platformRegex.test(podfileContent)) {
             podfileContent = podfileContent.replace(platformRegex, modularHeadersCode);
             fs.writeFileSync(podfilePath, podfileContent);
-            console.log('[withFirebaseIOS] Added modular headers for Firebase dependencies');
-          } else {
-            console.log('[withFirebaseIOS] Could not find platform declaration in Podfile');
           }
-        } else {
-          console.log('[withFirebaseIOS] Modular headers already added');
         }
-      } else {
-        console.log('[withFirebaseIOS] Podfile not found (will be created by prebuild)');
       }
       
       return config;

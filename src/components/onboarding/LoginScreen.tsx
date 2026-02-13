@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import {
   View,
   Text,
@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.24,
         shadowRadius: 10,
       },
-      android: {
+      default: {
         elevation: 5,
       },
     }),
@@ -343,3 +343,4 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 });
+
