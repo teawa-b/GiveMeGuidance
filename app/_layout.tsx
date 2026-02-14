@@ -27,13 +27,16 @@ function RootLayoutNav() {
   // Reschedule notifications on every app open / foreground
   useEffect(() => {
     incrementAppOpenCount().catch(() => {});
-    rescheduleAllNotifications().catch(() => {});
 
+    // Reschedule on mount and on every foreground resume
     const sub = AppState.addEventListener("change", (state) => {
       if (state === "active") {
         rescheduleAllNotifications().catch(() => {});
       }
     });
+    // Also trigger once now (covers initial app open)
+    rescheduleAllNotifications().catch(() => {});
+
     return () => sub.remove();
   }, []);
 

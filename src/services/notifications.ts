@@ -32,6 +32,7 @@ const REENGAGEMENT_CHANNEL_ID = "reengagement";
 
 // ── Milestone thresholds ────────────────────────────────────────────
 const MILESTONE_STREAKS = [7, 14, 30, 60, 100];
+const MILESTONE_DELAY_MS = 2000;
 
 // ── Exported types (kept for backward compat) ───────────────────────
 export interface NotificationTime {
@@ -87,12 +88,10 @@ function getLondonHourMinute(date: Date = new Date()): { hour: number; minute: n
 
 /** Build a Date for the given date-string (YYYY-MM-DD) at h:m in Europe/London. */
 function londonDateAt(dateStr: string, hour: number, minute: number): Date {
-  // Walk second-by-second until we land on the right London h:m.
-  // Practical approach that handles DST correctly.
+  // Try a few UTC offsets to find the one that lands on the right London time.
+  // This handles BST (UTC+1) and GMT (UTC+0) correctly.
   const [y, m, d] = dateStr.split("-").map(Number);
-  // Start from a UTC estimate. London is UTC+0 or UTC+1.
   const estimate = new Date(Date.UTC(y, m - 1, d, hour, minute, 0));
-  // Adjust ±2 hours to find the exact moment.
   for (let offset = -2; offset <= 2; offset++) {
     const candidate = new Date(estimate.getTime() + offset * 3600_000);
     const londonStr = getLondonDateString(candidate);
@@ -101,7 +100,7 @@ function londonDateAt(dateStr: string, hour: number, minute: number): Date {
       return candidate;
     }
   }
-  return estimate; // Fallback – should rarely be needed.
+  return estimate;
 }
 
 function addDays(dateStr: string, days: number): string {
@@ -370,8 +369,8 @@ export async function rescheduleAllNotifications(streakCount = 0): Promise<boole
   };
 
   // ── Schedule each day for the next 7 days ─────────────────────────
-  // Pick random midday nudge days for the week
-  const middayDays = pickRandomDays(7, settings.middayNudgeDaysPerWeek);
+  // Pick midday nudge days deterministically for the week (stable across re-schedules)
+  const middayDays = pickDaysDeterministic(7, settings.middayNudgeDaysPerWeek, todayStr);
 
   for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
     const dateStr = addDays(todayStr, dayOffset);
@@ -406,8 +405,7 @@ export async function rescheduleAllNotifications(streakCount = 0): Promise<boole
 
     // ── A2 Midday nudge ───────────────────────────────────────────
     if (settings.middayNudgeEnabled && middayDays.includes(dayOffset) && !completedThisDay) {
-      const nudgeHour = 12 + Math.floor(Math.random() * 2); // 12 or 13
-      const nudgeMinute = Math.floor(Math.random() * 60);
+      const { hour: nudgeHour, minute: nudgeMinute } = deterministicMiddayTime(dateStr);
       const fireAt = londonDateAt(dateStr, nudgeHour, nudgeMinute);
       const text = middayNudgeText(settings.tonePreference);
       await trySchedule({
@@ -500,8 +498,8 @@ export async function rescheduleAllNotifications(streakCount = 0): Promise<boole
         });
       }
 
-      // D2 – 5 days inactive
-      if (inactiveDays >= 2 && inactiveDays <= 5) {
+      // D2 – 5 days inactive (schedule when between 3-5 days so it fires on day 5)
+      if (inactiveDays > 2 && inactiveDays <= 5) {
         const targetDateStr = addDays(lastCompletionDate, 5);
         const fireAt = londonDateAt(targetDateStr, 18, 0);
         if (fireAt.getTime() > Date.now()) {
@@ -585,7 +583,7 @@ export async function onDailyCompletion(streakCount: number): Promise<void> {
       identifier: notifId("milestone", todayStr, String(streakCount)),
       title: text.title,
       body: text.body,
-      date: new Date(Date.now() + 2000), // 2 seconds from now
+      date: new Date(Date.now() + MILESTONE_DELAY_MS),
       channelId: DAILY_REMINDER_CHANNEL_ID,
     });
   }
@@ -594,18 +592,39 @@ export async function onDailyCompletion(streakCount: number): Promise<void> {
   await rescheduleAllNotifications(streakCount);
 }
 
-// ── Random day picker for midday nudge ──────────────────────────────
+// ── Deterministic day picker for midday nudge ───────────────────────
 
-function pickRandomDays(totalDays: number, count: number): number[] {
+/** Simple numeric hash from a string, used for deterministic random selection. */
+function simpleHash(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+}
+
+/**
+ * Pick `count` days from 0..totalDays-1 deterministically based on a seed string.
+ * The same seed always produces the same selection.
+ */
+function pickDaysDeterministic(totalDays: number, count: number, seed: string): number[] {
   const pool = Array.from({ length: totalDays }, (_, i) => i);
   const picked: number[] = [];
   const n = Math.min(count, totalDays);
+  let h = simpleHash(seed);
   for (let i = 0; i < n; i++) {
-    const idx = Math.floor(Math.random() * pool.length);
+    const idx = h % pool.length;
     picked.push(pool[idx]);
     pool.splice(idx, 1);
+    h = simpleHash(seed + String(i));
   }
   return picked;
+}
+
+/** Deterministic midday time (12:00-13:59) based on seed. */
+function deterministicMiddayTime(seed: string): { hour: number; minute: number } {
+  const h = simpleHash(seed);
+  return { hour: 12 + (h % 2), minute: h % 60 };
 }
 
 // ── Legacy / backward-compatible exports ────────────────────────────

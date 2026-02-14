@@ -219,13 +219,9 @@ export default function ProfileScreen() {
     try {
       // Persist notification settings first
       await saveNotificationSettings({
+        ...notifSettings,
         dailyReminderEnabled: true,
         dailyReminderTime: { hour, minute },
-        streakProtectionEnabled: notifSettings.streakProtectionEnabled,
-        middayNudgeEnabled: notifSettings.middayNudgeEnabled,
-        eveningReflectionEnabled: notifSettings.eveningReflectionEnabled,
-        reengagementEnabled: notifSettings.reengagementEnabled,
-        tonePreference: notifSettings.tonePreference,
       });
 
       const scheduled = await rescheduleAllNotifications();
