@@ -2,6 +2,7 @@
 import { View, Text, StyleSheet, Pressable, ActivityIndicator, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { capitalizeFirstLetter } from "../lib/textUtils";
 
 interface ExplanationData {
   verse_explanation: string;
