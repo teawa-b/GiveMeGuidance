@@ -40,6 +40,7 @@ import { useOnboarding, goalDisplayNames, styleDisplayNames } from "../src/lib/O
 import { findTodaysChatByVerse } from "../src/services/chats";
 import { usePremium } from "../src/lib/PremiumContext";
 import { PremiumPopup } from "../src/components/PremiumPopup";
+import { capitalizeFirstLetter } from "../src/lib/textUtils";
 import {
   canRefreshVerse,
   recordVerseRefresh,
@@ -849,7 +850,7 @@ export default function GuidanceScreen() {
           <Text style={styles.quoteIcon}>"</Text>
           
           {/* Verse text */}
-          <Text style={styles.verseText}>{verseData.text}</Text>
+          <Text style={styles.verseText}>{capitalizeFirstLetter(verseData.text)}</Text>
           
           {/* Reference divider */}
           <View style={styles.referenceDivider}>
