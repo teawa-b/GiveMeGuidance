@@ -4,7 +4,7 @@
  * @returns The text with the first character capitalized
  */
 export function capitalizeFirstLetter(text: string): string {
-  if (!text || text.length === 0) {
+  if (!text) {
     return text;
   }
   return text.charAt(0).toUpperCase() + text.slice(1);
