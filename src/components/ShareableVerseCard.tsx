@@ -1,6 +1,7 @@
 ﻿import React, { forwardRef } from "react";
 import { View, Text, StyleSheet, Dimensions, Platform, Image } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { capitalizeFirstLetter } from "../lib/textUtils";
 
 // Nature leaf image for decorative elements
 const natureLeafImage = require("../../assets/HomeScreenAssets/nature.png");
@@ -81,7 +82,7 @@ export const ShareableVerseCard = forwardRef<View, ShareableVerseCardProps>(
             numberOfLines={7}
             ellipsizeMode="tail"
           >
-            {verseText}
+            {capitalizeFirstLetter(verseText)}
           </Text>
           
           {/* Closing quote */}

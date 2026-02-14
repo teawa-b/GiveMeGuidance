@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { isBookmarked as checkIsBookmarked, addBookmark } from "../services/bookmarks";
 import { successHaptic } from "../lib/haptics";
+import { capitalizeFirstLetter } from "../lib/textUtils";
 
 interface VerseCardProps {
   verseText: string;
@@ -48,7 +49,7 @@ export function VerseCard({ verseText, verseReference }: VerseCardProps) {
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.textContainer}>
-          <Text style={styles.verseText}>"{verseText}"</Text>
+          <Text style={styles.verseText}>"{capitalizeFirstLetter(verseText)}"</Text>
           <Text style={styles.reference}>â€” {verseReference}</Text>
         </View>
         <Pressable

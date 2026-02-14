@@ -26,6 +26,7 @@ import { getCurrentStreakDisplay } from "../../src/services/streak";
 import { getBookmarks } from "../../src/services/bookmarks";
 import { getTodaysGuidance } from "../../src/services/dailyGuidance";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { capitalizeFirstLetter } from "../../src/lib/textUtils";
 
 // Daily guidance status types
 type DailyGuidanceStatus = "not_started" | "in_progress" | "completed";
@@ -123,12 +124,14 @@ export default function HomeScreen() {
               viewedDate === today ? "completed" : "in_progress";
             setDailyGuidanceStatus(nextStatus);
             setDailyGuidanceCardData({
-              verse: `"${todaysGuidance.verse.text}"`,
+              verse: `"${capitalizeFirstLetter(todaysGuidance.verse.text)}"`,
               reference: todaysGuidance.verse.reference.passage,
               reflectionPreview: clampPreview(
-                todaysGuidance.explanation?.guidance_application ||
-                todaysGuidance.explanation?.connection_to_user_need ||
-                DUMMY_DAILY_GUIDANCE.reflectionPreview
+                capitalizeFirstLetter(
+                  todaysGuidance.explanation?.guidance_application ||
+                  todaysGuidance.explanation?.connection_to_user_need ||
+                  DUMMY_DAILY_GUIDANCE.reflectionPreview
+                )
               ),
             });
           } else {

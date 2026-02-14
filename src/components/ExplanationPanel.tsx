@@ -2,6 +2,7 @@
 import { View, Text, StyleSheet, Pressable, ActivityIndicator, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { capitalizeFirstLetter } from "../lib/textUtils";
 
 interface ExplanationData {
   verse_explanation: string;
@@ -68,14 +69,14 @@ export function ExplanationPanel({
           {/* Verse Explanation */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Understanding This Verse</Text>
-            <Text style={styles.sectionBody}>{explanationData.verse_explanation}</Text>
+            <Text style={styles.sectionBody}>{capitalizeFirstLetter(explanationData.verse_explanation)}</Text>
           </View>
 
           {/* Connection to User's Need */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>How This Speaks to You</Text>
             <Text style={styles.sectionBody}>
-              {explanationData.connection_to_user_need}
+              {capitalizeFirstLetter(explanationData.connection_to_user_need)}
             </Text>
           </View>
 
@@ -83,7 +84,7 @@ export function ExplanationPanel({
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Living It Out</Text>
             <Text style={styles.sectionBody}>
-              {explanationData.guidance_application}
+              {capitalizeFirstLetter(explanationData.guidance_application)}
             </Text>
           </View>
         </View>

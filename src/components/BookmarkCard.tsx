@@ -5,6 +5,7 @@ import { errorHaptic, lightHaptic, successHaptic } from "../lib/haptics";
 import { ShareableVerseCard } from "./ShareableVerseCard";
 import * as Sharing from "expo-sharing";
 import * as FileSystem from "expo-file-system";
+import { capitalizeFirstLetter } from "../lib/textUtils";
 
 // Conditionally import ViewShot - it may not be available in dev builds
 let ViewShot: any = null;
@@ -84,7 +85,7 @@ export function BookmarkCard({
       <View style={styles.container}>
         <View style={styles.content}>
           <Text style={styles.verseText} numberOfLines={3}>
-            "{verseText}"
+            "{capitalizeFirstLetter(verseText)}"
           </Text>
           <View style={styles.footer}>
             <Text style={styles.reference}>{verseReference}</Text>
