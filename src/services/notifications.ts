@@ -1,15 +1,39 @@
 ﻿import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
+import {
+  getNotificationSettings,
+  type NotificationSettings,
+} from "./notificationSettings";
+import {
+  dailyReminderText,
+  middayNudgeText,
+  eveningReflectionText,
+  streakWarn4hText,
+  streakWarn1hText,
+  streakFinalText,
+  milestoneText,
+  reengage2dText,
+  reengage5dText,
+  reengageWeeklyText,
+} from "./notificationTexts";
 
+// ── Storage keys (legacy kept for backward compat) ──────────────────
 const DAILY_REMINDER_ID_KEY = "@daily_reminder_notification_id";
 const STREAK_REMINDER_ID_KEY = "@streak_reminder_notification_id";
+const SCHEDULED_IDS_KEY = "@scheduled_notification_ids";
+const LAST_COMPLETION_DATE_KEY = "@last_completion_date";
+const APP_OPEN_COUNT_KEY = "@app_open_count";
 
+// ── Android channel IDs ─────────────────────────────────────────────
 const DAILY_REMINDER_CHANNEL_ID = "daily-reminders";
 const STREAK_REMINDER_CHANNEL_ID = "streak-reminders";
+const REENGAGEMENT_CHANNEL_ID = "reengagement";
 
-const DEFAULT_STREAK_REMINDER_TIME: NotificationTime = { hour: 23, minute: 30 };
+// ── Milestone thresholds ────────────────────────────────────────────
+const MILESTONE_STREAKS = [7, 14, 30, 60, 100];
 
+// ── Exported types (kept for backward compat) ───────────────────────
 export interface NotificationTime {
   hour: number;
   minute: number;
@@ -29,8 +53,77 @@ export interface ReminderScheduleSnapshot {
   streakReminderId?: string;
 }
 
+// ── Module state ────────────────────────────────────────────────────
 let hasConfiguredHandler = false;
 let hasConfiguredAndroidChannels = false;
+
+// ── Europe/London date helpers ──────────────────────────────────────
+
+function getLondonDateString(date: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const y = parts.find((p) => p.type === "year")!.value;
+  const m = parts.find((p) => p.type === "month")!.value;
+  const d = parts.find((p) => p.type === "day")!.value;
+  return `${y}-${m}-${d}`;
+}
+
+function getLondonHourMinute(date: Date = new Date()): { hour: number; minute: number } {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  return {
+    hour: Number(parts.find((p) => p.type === "hour")!.value),
+    minute: Number(parts.find((p) => p.type === "minute")!.value),
+  };
+}
+
+/** Build a Date for the given date-string (YYYY-MM-DD) at h:m in Europe/London. */
+function londonDateAt(dateStr: string, hour: number, minute: number): Date {
+  // Walk second-by-second until we land on the right London h:m.
+  // Practical approach that handles DST correctly.
+  const [y, m, d] = dateStr.split("-").map(Number);
+  // Start from a UTC estimate. London is UTC+0 or UTC+1.
+  const estimate = new Date(Date.UTC(y, m - 1, d, hour, minute, 0));
+  // Adjust ±2 hours to find the exact moment.
+  for (let offset = -2; offset <= 2; offset++) {
+    const candidate = new Date(estimate.getTime() + offset * 3600_000);
+    const londonStr = getLondonDateString(candidate);
+    const londonTime = getLondonHourMinute(candidate);
+    if (londonStr === dateStr && londonTime.hour === hour && londonTime.minute === minute) {
+      return candidate;
+    }
+  }
+  return estimate; // Fallback – should rarely be needed.
+}
+
+function addDays(dateStr: string, days: number): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d + days, 12, 0, 0));
+  return getLondonDateString(date);
+}
+
+function daysBetween(a: string, b: string): number {
+  const da = new Date(a + "T12:00:00Z");
+  const db = new Date(b + "T12:00:00Z");
+  return Math.round((db.getTime() - da.getTime()) / 86_400_000);
+}
+
+// ── Notification ID builders (deterministic per category + date) ────
+
+function notifId(category: string, dateStr: string, extra?: string): string {
+  const tag = dateStr.replace(/-/g, "");
+  return extra ? `${category}_${tag}_${extra}` : `${category}_${tag}`;
+}
+
+// ── Low-level helpers ───────────────────────────────────────────────
 
 function ensureNotificationHandler() {
   if (hasConfiguredHandler) return;
@@ -48,7 +141,7 @@ function ensureNotificationHandler() {
   hasConfiguredHandler = true;
 }
 
-async function setupAndroidChannel() {
+async function setupAndroidChannels() {
   if (Platform.OS === "ios" || Platform.OS === "web" || hasConfiguredAndroidChannels) return;
 
   await Promise.all([
@@ -64,6 +157,12 @@ async function setupAndroidChannel() {
       vibrationPattern: [0, 250, 120, 250],
       lightColor: "#D97706",
     }),
+    Notifications.setNotificationChannelAsync(REENGAGEMENT_CHANNEL_ID, {
+      name: "Come back reminders",
+      importance: Notifications.AndroidImportance.DEFAULT,
+      vibrationPattern: [0, 200, 120, 200],
+      lightColor: "#5B8C5A",
+    }),
   ]);
 
   hasConfiguredAndroidChannels = true;
@@ -76,213 +175,471 @@ function normalizeTime(hour: number, minute: number): NotificationTime {
   };
 }
 
-function buildDailyTrigger(channelId: string, time: NotificationTime): Notifications.DailyTriggerInput {
-  if (Platform.OS !== "ios" && Platform.OS !== "web") {
-    return {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour: time.hour,
-      minute: time.minute,
-      channelId,
-    };
-  }
-
-  return {
-    type: Notifications.SchedulableTriggerInputTypes.DAILY,
-    hour: time.hour,
-    minute: time.minute,
-  };
-}
-
 async function ensureNotificationPermission(): Promise<boolean> {
-  if (Platform.OS === "web") {
-    return false;
-  }
+  if (Platform.OS === "web") return false;
 
   ensureNotificationHandler();
 
-  const existingPermissions = await Notifications.getPermissionsAsync();
-  if (existingPermissions.granted || existingPermissions.status === "granted") {
-    return true;
-  }
+  const existing = await Notifications.getPermissionsAsync();
+  if (existing.granted || existing.status === "granted") return true;
 
-  const requestedPermissions = await Notifications.requestPermissionsAsync({
-    ios: {
-      allowAlert: true,
-      allowBadge: true,
-      allowSound: true,
-    },
+  const requested = await Notifications.requestPermissionsAsync({
+    ios: { allowAlert: true, allowBadge: true, allowSound: true },
   });
 
-  return requestedPermissions.granted || requestedPermissions.status === "granted";
+  return requested.granted || requested.status === "granted";
 }
 
-async function cancelStoredReminder(storageKey: string) {
-  const existingReminderId = await getStoredReminderId(storageKey);
-  if (!existingReminderId) return;
+// ── Stored IDs management ───────────────────────────────────────────
 
+async function getStoredIds(): Promise<string[]> {
   try {
-    await Notifications.cancelScheduledNotificationAsync(existingReminderId);
+    const raw = await AsyncStorage.getItem(SCHEDULED_IDS_KEY);
+    return raw ? JSON.parse(raw) : [];
   } catch {
-    // Ignore stale IDs and continue cleanup.
+    return [];
   }
-
-  await AsyncStorage.removeItem(storageKey);
 }
 
-async function getStoredReminderId(storageKey: string): Promise<string | null> {
-  return AsyncStorage.getItem(storageKey);
+async function setStoredIds(ids: string[]): Promise<void> {
+  await AsyncStorage.setItem(SCHEDULED_IDS_KEY, JSON.stringify(ids));
 }
 
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+async function cancelAllScheduledIds(): Promise<void> {
+  const ids = await getStoredIds();
+  await Promise.all(
+    ids.map((id) =>
+      Notifications.cancelScheduledNotificationAsync(id).catch(() => {
+        /* stale id */
+      }),
+    ),
+  );
+  await setStoredIds([]);
+  // Also clear legacy keys
+  await AsyncStorage.multiRemove([DAILY_REMINDER_ID_KEY, STREAK_REMINDER_ID_KEY]).catch(() => {});
 }
 
-async function verifyScheduledIdentifiers(
-  expectedIdentifiers: string[],
-  maxAttempts = 3
-): Promise<boolean> {
-  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-    const identifiers = new Set(scheduled.map((request) => request.identifier));
+// ── Scheduling a single notification at an absolute Date ────────────
 
-    const hasAll = expectedIdentifiers.every((id) => identifiers.has(id));
-    if (hasAll) {
-      return true;
-    }
-
-    if (attempt < maxAttempts - 1) {
-      await sleep(120);
-    }
-  }
-
-  return false;
-}
-
-async function scheduleReminder({
-  storageKey,
-  channelId,
-  title,
-  body,
-  hour,
-  minute,
-}: {
-  storageKey: string;
-  channelId: string;
+interface ScheduleOneParams {
+  identifier: string;
   title: string;
   body: string;
-  hour: number;
-  minute: number;
-}) {
-  const time = normalizeTime(hour, minute);
-
-  await cancelStoredReminder(storageKey);
-
-  const trigger = buildDailyTrigger(channelId, time);
-
-  const reminderId = await Notifications.scheduleNotificationAsync({
-    content: {
-      title,
-      body,
-      sound: true,
-    },
-    trigger,
-  });
-
-  await AsyncStorage.setItem(storageKey, reminderId);
-  return reminderId;
+  date: Date;
+  channelId: string;
 }
 
-function isSameTime(a: NotificationTime, b: NotificationTime): boolean {
-  return a.hour === b.hour && a.minute === b.minute;
-}
+async function scheduleOne(params: ScheduleOneParams): Promise<string | null> {
+  const secondsFromNow = Math.floor((params.date.getTime() - Date.now()) / 1000);
+  if (secondsFromNow <= 0) return null; // In the past – skip.
 
-export async function requestAndScheduleDailyAndStreakReminders(
-  dailyTime: NotificationTime,
-  options: ReminderScheduleOptions = {}
-): Promise<boolean> {
-  const hasPermission = await ensureNotificationPermission();
-  if (!hasPermission) {
-    return false;
-  }
-
-  await setupAndroidChannel();
-
-  const normalizedDailyTime = normalizeTime(dailyTime.hour, dailyTime.minute);
-  const normalizedStreakTime = normalizeTime(
-    options.streakTime?.hour ?? DEFAULT_STREAK_REMINDER_TIME.hour,
-    options.streakTime?.minute ?? DEFAULT_STREAK_REMINDER_TIME.minute
-  );
+  const trigger: Notifications.TimeIntervalTriggerInput =
+    Platform.OS !== "ios" && Platform.OS !== "web"
+      ? {
+          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+          seconds: secondsFromNow,
+          repeats: false,
+          channelId: params.channelId,
+        }
+      : {
+          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+          seconds: secondsFromNow,
+          repeats: false,
+        };
 
   try {
-    const dailyReminderId = await scheduleReminder({
-      storageKey: DAILY_REMINDER_ID_KEY,
-      channelId: DAILY_REMINDER_CHANNEL_ID,
-      title: "Give Me Guidance",
-      body: "Your daily walk is ready. Take 2 minutes to connect with God today.",
-      hour: normalizedDailyTime.hour,
-      minute: normalizedDailyTime.minute,
+    const id = await Notifications.scheduleNotificationAsync({
+      identifier: params.identifier,
+      content: {
+        title: params.title,
+        body: params.body,
+        sound: true,
+      },
+      trigger,
     });
+    return id;
+  } catch (e) {
+    console.error(`[Notifications] Failed to schedule ${params.identifier}:`, e);
+    return null;
+  }
+}
 
-    let streakReminderId: string | null = null;
-    let shouldScheduleStreak = false;
+// ── Completion tracking ─────────────────────────────────────────────
 
-    if (options.includeStreakReminder ?? true) {
-      if (isSameTime(normalizedDailyTime, normalizedStreakTime)) {
-        await cancelStoredReminder(STREAK_REMINDER_ID_KEY);
-      } else {
-        shouldScheduleStreak = true;
-        streakReminderId = await scheduleReminder({
-          storageKey: STREAK_REMINDER_ID_KEY,
+export async function getLastCompletionDate(): Promise<string | null> {
+  return AsyncStorage.getItem(LAST_COMPLETION_DATE_KEY);
+}
+
+export async function setLastCompletionDate(dateStr: string): Promise<void> {
+  await AsyncStorage.setItem(LAST_COMPLETION_DATE_KEY, dateStr);
+}
+
+async function hasCompletedToday(): Promise<boolean> {
+  const last = await getLastCompletionDate();
+  return last === getLondonDateString();
+}
+
+// ── App open tracking (for C2 usage milestone) ──────────────────────
+
+export async function incrementAppOpenCount(): Promise<number> {
+  try {
+    const raw = await AsyncStorage.getItem(APP_OPEN_COUNT_KEY);
+    const count = (raw ? parseInt(raw, 10) : 0) + 1;
+    await AsyncStorage.setItem(APP_OPEN_COUNT_KEY, String(count));
+    return count;
+  } catch {
+    return 0;
+  }
+}
+
+// ── Core scheduling engine ──────────────────────────────────────────
+
+interface ScheduleContext {
+  settings: NotificationSettings;
+  todayStr: string;
+  now: Date;
+  completedToday: boolean;
+  lastCompletionDate: string | null;
+  streakCount: number;
+}
+
+/**
+ * Recompute and reschedule the next 7 days of notifications.
+ * Call this on every app open, after settings change, or after completion.
+ */
+export async function rescheduleAllNotifications(streakCount = 0): Promise<boolean> {
+  if (Platform.OS === "web") return false;
+
+  const hasPermission = await ensureNotificationPermission();
+  if (!hasPermission) return false;
+
+  await setupAndroidChannels();
+
+  const settings = await getNotificationSettings();
+  const now = new Date();
+  const todayStr = getLondonDateString(now);
+  const completedToday = await hasCompletedToday();
+  const lastCompletionDate = await getLastCompletionDate();
+
+  // Cancel everything we previously scheduled
+  await cancelAllScheduledIds();
+
+  const ctx: ScheduleContext = {
+    settings,
+    todayStr,
+    now,
+    completedToday,
+    lastCompletionDate,
+    streakCount,
+  };
+
+  const scheduledIds: string[] = [];
+  const daySlots: Map<string, number> = new Map(); // dateStr → count of notifications scheduled
+
+  const incSlot = (d: string) => daySlots.set(d, (daySlots.get(d) ?? 0) + 1);
+  const dayCount = (d: string) => daySlots.get(d) ?? 0;
+  const weekTotal = () => {
+    let sum = 0;
+    daySlots.forEach((v) => (sum += v));
+    return sum;
+  };
+
+  // Determine if streak is at risk today (not completed, protection on)
+  const streakAtRisk = !completedToday && settings.streakProtectionEnabled && streakCount > 0;
+  const maxPerDay = (d: string) => {
+    if (d === todayStr && streakAtRisk) return 3;
+    return 2;
+  };
+
+  // Helper: try to add a notification, respecting caps
+  const trySchedule = async (
+    p: Omit<ScheduleOneParams, "channelId"> & { channelId?: string; dateStr: string },
+  ) => {
+    const dateStr = p.dateStr;
+    if (dayCount(dateStr) >= maxPerDay(dateStr)) return;
+    if (weekTotal() >= 7) return;
+
+    const id = await scheduleOne({
+      ...p,
+      channelId: p.channelId ?? DAILY_REMINDER_CHANNEL_ID,
+    });
+    if (id) {
+      scheduledIds.push(id);
+      incSlot(dateStr);
+    }
+  };
+
+  // ── Schedule each day for the next 7 days ─────────────────────────
+  // Pick random midday nudge days for the week
+  const middayDays = pickRandomDays(7, settings.middayNudgeDaysPerWeek);
+
+  for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+    const dateStr = addDays(todayStr, dayOffset);
+    const isToday = dayOffset === 0;
+    const completedThisDay = isToday ? completedToday : false; // Future days: assume not completed.
+
+    // ── A1 Daily reminder ─────────────────────────────────────────
+    if (settings.dailyReminderEnabled && !completedThisDay) {
+      let { hour, minute } = settings.dailyReminderTime;
+
+      // Rule 5: if daily reminder is after streak expiry, move it 2h before expiry
+      const expiryMinutes = settings.streakExpiryTime.hour * 60 + settings.streakExpiryTime.minute;
+      const reminderMinutes = hour * 60 + minute;
+      if (reminderMinutes >= expiryMinutes) {
+        const adjusted = expiryMinutes - 120;
+        if (adjusted > 0) {
+          hour = Math.floor(adjusted / 60);
+          minute = adjusted % 60;
+        }
+      }
+
+      const fireAt = londonDateAt(dateStr, hour, minute);
+      const text = dailyReminderText(settings.tonePreference);
+      await trySchedule({
+        identifier: notifId("dailyReminder", dateStr),
+        title: text.title,
+        body: text.body,
+        date: fireAt,
+        dateStr,
+      });
+    }
+
+    // ── A2 Midday nudge ───────────────────────────────────────────
+    if (settings.middayNudgeEnabled && middayDays.includes(dayOffset) && !completedThisDay) {
+      const nudgeHour = 12 + Math.floor(Math.random() * 2); // 12 or 13
+      const nudgeMinute = Math.floor(Math.random() * 60);
+      const fireAt = londonDateAt(dateStr, nudgeHour, nudgeMinute);
+      const text = middayNudgeText(settings.tonePreference);
+      await trySchedule({
+        identifier: notifId("middayNudge", dateStr),
+        title: text.title,
+        body: text.body,
+        date: fireAt,
+        dateStr,
+      });
+    }
+
+    // ── A3 Evening reflection ─────────────────────────────────────
+    if (settings.eveningReflectionEnabled && !completedThisDay) {
+      const { hour, minute } = settings.eveningReflectionTime;
+      const fireAt = londonDateAt(dateStr, hour, minute);
+      const text = eveningReflectionText(settings.tonePreference);
+      await trySchedule({
+        identifier: notifId("eveningReflection", dateStr),
+        title: text.title,
+        body: text.body,
+        date: fireAt,
+        dateStr,
+      });
+    }
+
+    // ── B Streak protection (only if not completed) ───────────────
+    if (settings.streakProtectionEnabled && !completedThisDay && streakCount > 0) {
+      const { hour: eh, minute: em } = settings.streakExpiryTime;
+
+      // B1 – 4 hours before expiry
+      const b1 = londonDateAt(dateStr, eh, em);
+      b1.setTime(b1.getTime() - 4 * 3600_000);
+      const textB1 = streakWarn4hText(settings.tonePreference);
+      await trySchedule({
+        identifier: notifId("streakWarn4h", dateStr),
+        title: textB1.title,
+        body: textB1.body,
+        date: b1,
+        channelId: STREAK_REMINDER_CHANNEL_ID,
+        dateStr,
+      });
+
+      // B2 – 1 hour before expiry
+      const b2 = londonDateAt(dateStr, eh, em);
+      b2.setTime(b2.getTime() - 1 * 3600_000);
+      const textB2 = streakWarn1hText(settings.tonePreference);
+      await trySchedule({
+        identifier: notifId("streakWarn1h", dateStr),
+        title: textB2.title,
+        body: textB2.body,
+        date: b2,
+        channelId: STREAK_REMINDER_CHANNEL_ID,
+        dateStr,
+      });
+
+      // B3 – 15 minutes before expiry (only if streak >= 5)
+      if (streakCount >= 5) {
+        const b3 = londonDateAt(dateStr, eh, em);
+        b3.setTime(b3.getTime() - 15 * 60_000);
+        const textB3 = streakFinalText(settings.tonePreference, streakCount);
+        await trySchedule({
+          identifier: notifId("streakFinal", dateStr),
+          title: textB3.title,
+          body: textB3.body,
+          date: b3,
           channelId: STREAK_REMINDER_CHANNEL_ID,
-          title: "Keep your streak alive",
-          body: "Your streak ends at midnight. Check in with God before the day closes.",
-          hour: normalizedStreakTime.hour,
-          minute: normalizedStreakTime.minute,
+          dateStr,
         });
       }
     }
-
-    const expectedIdentifiers = shouldScheduleStreak && streakReminderId
-      ? [dailyReminderId, streakReminderId]
-      : [dailyReminderId];
-
-    const isVerified = await verifyScheduledIdentifiers(expectedIdentifiers);
-    if (!isVerified) {
-      console.error("[Notifications] Scheduling verification failed");
-      return false;
-    }
-
-    return true;
-  } catch (error) {
-    console.error("[Notifications] Failed to schedule reminders:", error);
-    return false;
   }
+
+  // ── D Re-engagement ─────────────────────────────────────────────
+  if (settings.reengagementEnabled && lastCompletionDate && !completedToday) {
+    const inactiveDays = daysBetween(lastCompletionDate, todayStr);
+
+    if (inactiveDays >= 2) {
+      // D1 – 2 days inactive
+      if (inactiveDays === 2) {
+        const dateStr = todayStr;
+        const fireAt = londonDateAt(dateStr, 18, 0);
+        const text = reengage2dText(settings.tonePreference);
+        await trySchedule({
+          identifier: notifId("reengage2d", dateStr),
+          title: text.title,
+          body: text.body,
+          date: fireAt,
+          channelId: REENGAGEMENT_CHANNEL_ID,
+          dateStr,
+        });
+      }
+
+      // D2 – 5 days inactive
+      if (inactiveDays >= 2 && inactiveDays <= 5) {
+        const targetDateStr = addDays(lastCompletionDate, 5);
+        const fireAt = londonDateAt(targetDateStr, 18, 0);
+        if (fireAt.getTime() > Date.now()) {
+          const text = reengage5dText(settings.tonePreference);
+          await trySchedule({
+            identifier: notifId("reengage5d", targetDateStr),
+            title: text.title,
+            body: text.body,
+            date: fireAt,
+            channelId: REENGAGEMENT_CHANNEL_ID,
+            dateStr: targetDateStr,
+          });
+        }
+      }
+
+      // D3 – 7+ days: schedule weekly check-ins
+      if (inactiveDays >= 7) {
+        // Fire at 18:00 every 7 days from when they became inactive
+        for (let w = 1; w <= 4; w++) {
+          const targetDateStr = addDays(lastCompletionDate, 7 * w);
+          const fireAt = londonDateAt(targetDateStr, 18, 0);
+          if (fireAt.getTime() > Date.now() && weekTotal() < 7) {
+            const text = reengageWeeklyText(settings.tonePreference);
+            await trySchedule({
+              identifier: notifId("reengageWeekly", targetDateStr),
+              title: text.title,
+              body: text.body,
+              date: fireAt,
+              channelId: REENGAGEMENT_CHANNEL_ID,
+              dateStr: targetDateStr,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  await setStoredIds(scheduledIds);
+  return true;
+}
+
+// ── Called when user completes today's devotion ─────────────────────
+
+export async function onDailyCompletion(streakCount: number): Promise<void> {
+  if (Platform.OS === "web") return;
+
+  const todayStr = getLondonDateString();
+  await setLastCompletionDate(todayStr);
+
+  // Cancel same-day notifications in categories A2, A3, B1, B2, B3, and D*
+  const categoriesToCancel = [
+    "middayNudge",
+    "eveningReflection",
+    "streakWarn4h",
+    "streakWarn1h",
+    "streakFinal",
+    "reengage2d",
+    "reengage5d",
+    "reengageWeekly",
+  ];
+
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+  const idsToCancel: string[] = [];
+  for (const req of scheduled) {
+    for (const cat of categoriesToCancel) {
+      if (req.identifier.startsWith(cat + "_")) {
+        idsToCancel.push(req.identifier);
+        break;
+      }
+    }
+  }
+
+  await Promise.all(
+    idsToCancel.map((id) => Notifications.cancelScheduledNotificationAsync(id).catch(() => {})),
+  );
+
+  // C1 – Milestone celebration
+  if (MILESTONE_STREAKS.includes(streakCount)) {
+    const text = milestoneText(streakCount);
+    await scheduleOne({
+      identifier: notifId("milestone", todayStr, String(streakCount)),
+      title: text.title,
+      body: text.body,
+      date: new Date(Date.now() + 2000), // 2 seconds from now
+      channelId: DAILY_REMINDER_CHANNEL_ID,
+    });
+  }
+
+  // Re-schedule remaining future notifications
+  await rescheduleAllNotifications(streakCount);
+}
+
+// ── Random day picker for midday nudge ──────────────────────────────
+
+function pickRandomDays(totalDays: number, count: number): number[] {
+  const pool = Array.from({ length: totalDays }, (_, i) => i);
+  const picked: number[] = [];
+  const n = Math.min(count, totalDays);
+  for (let i = 0; i < n; i++) {
+    const idx = Math.floor(Math.random() * pool.length);
+    picked.push(pool[idx]);
+    pool.splice(idx, 1);
+  }
+  return picked;
+}
+
+// ── Legacy / backward-compatible exports ────────────────────────────
+
+export async function requestAndScheduleDailyAndStreakReminders(
+  dailyTime: NotificationTime,
+  _options: ReminderScheduleOptions = {},
+): Promise<boolean> {
+  // Save the daily time to settings then reschedule everything
+  const { saveNotificationSettings } = await import("./notificationSettings");
+  await saveNotificationSettings({
+    dailyReminderTime: normalizeTime(dailyTime.hour, dailyTime.minute),
+  });
+  return rescheduleAllNotifications();
 }
 
 export async function requestAndScheduleDailyReminder(hour: number, minute: number): Promise<boolean> {
-  return requestAndScheduleDailyAndStreakReminders(
-    { hour, minute },
-    { includeStreakReminder: false }
-  );
+  return requestAndScheduleDailyAndStreakReminders({ hour, minute }, { includeStreakReminder: false });
 }
 
 export async function cancelDailyReminder(): Promise<void> {
   if (Platform.OS === "web") return;
-  await cancelStoredReminder(DAILY_REMINDER_ID_KEY);
+  await cancelAllScheduledIds();
 }
 
 export async function cancelStreakReminder(): Promise<void> {
   if (Platform.OS === "web") return;
-  await cancelStoredReminder(STREAK_REMINDER_ID_KEY);
+  // Streak reminders are now part of the full schedule; cancel all.
+  await cancelAllScheduledIds();
 }
 
 export async function cancelAllReminderNotifications(): Promise<void> {
   if (Platform.OS === "web") return;
-
-  await Promise.all([
-    cancelDailyReminder(),
-    cancelStreakReminder(),
-  ]);
+  await cancelAllScheduledIds();
 }
 
 export async function getAllScheduledReminderNotifications(): Promise<Notifications.NotificationRequest[]> {
@@ -291,42 +648,38 @@ export async function getAllScheduledReminderNotifications(): Promise<Notificati
 }
 
 export async function scheduleReminderTestNotification(delaySeconds = 15): Promise<boolean> {
-  if (Platform.OS === "web") {
-    return false;
-  }
+  if (Platform.OS === "web") return false;
 
   const hasPermission = await ensureNotificationPermission();
-  if (!hasPermission) {
-    return false;
-  }
+  if (!hasPermission) return false;
 
-  await setupAndroidChannel();
+  await setupAndroidChannels();
 
   const seconds = Math.max(5, Math.floor(delaySeconds));
-  const trigger: Notifications.TimeIntervalTriggerInput = Platform.OS !== "ios"
-    ? {
-        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-        seconds,
-        repeats: false,
-        channelId: DAILY_REMINDER_CHANNEL_ID,
-      }
-    : {
-        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-        seconds,
-        repeats: false,
-      };
+  const trigger: Notifications.TimeIntervalTriggerInput =
+    Platform.OS !== "ios"
+      ? {
+          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+          seconds,
+          repeats: false,
+          channelId: DAILY_REMINDER_CHANNEL_ID,
+        }
+      : {
+          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+          seconds,
+          repeats: false,
+        };
 
   try {
-    const reminderId = await Notifications.scheduleNotificationAsync({
+    await Notifications.scheduleNotificationAsync({
       content: {
         title: "Give Me Guidance test",
-        body: `If you see this, local notifications are working on this device.`,
+        body: "If you see this, local notifications are working on this device.",
         sound: true,
       },
       trigger,
     });
-
-    return verifyScheduledIdentifiers([reminderId], 2);
+    return true;
   } catch (error) {
     console.error("[Notifications] Failed to schedule test notification:", error);
     return false;
@@ -345,22 +698,22 @@ export async function getReminderScheduleSnapshot(): Promise<ReminderScheduleSna
 
   ensureNotificationHandler();
 
-  const [permissions, scheduled, dailyReminderId, streakReminderId] = await Promise.all([
+  const [permissions, scheduled] = await Promise.all([
     Notifications.getPermissionsAsync(),
     Notifications.getAllScheduledNotificationsAsync(),
-    getStoredReminderId(DAILY_REMINDER_ID_KEY),
-    getStoredReminderId(STREAK_REMINDER_ID_KEY),
   ]);
 
-  const scheduledIds = new Set(scheduled.map((request) => request.identifier));
+  const ids = scheduled.map((r) => r.identifier);
+  const hasDaily = ids.some((id) => id.startsWith("dailyReminder_"));
+  const hasStreak = ids.some(
+    (id) => id.startsWith("streakWarn4h_") || id.startsWith("streakWarn1h_") || id.startsWith("streakFinal_"),
+  );
 
   return {
     permissionGranted: permissions.granted || permissions.status === "granted",
     scheduledCount: scheduled.length,
-    dailyReminderScheduled: !!dailyReminderId && scheduledIds.has(dailyReminderId),
-    streakReminderScheduled: !!streakReminderId && scheduledIds.has(streakReminderId),
-    dailyReminderId: dailyReminderId || undefined,
-    streakReminderId: streakReminderId || undefined,
+    dailyReminderScheduled: hasDaily,
+    streakReminderScheduled: hasStreak,
   };
 }
 

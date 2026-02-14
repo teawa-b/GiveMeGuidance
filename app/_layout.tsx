@@ -4,12 +4,13 @@ import "../src/lib/polyfills";
 import React, { useEffect, useState } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { View, ActivityIndicator, StyleSheet, InteractionManager, Image } from "react-native";
+import { View, ActivityIndicator, StyleSheet, InteractionManager, Image, AppState } from "react-native";
 import { AuthProvider, useAuth } from "../src/lib/AuthContext";
 import { PremiumProvider } from "../src/lib/PremiumContext";
 import { AdsProvider } from "../src/lib/AdsContext";
 import { DataCacheProvider } from "../src/lib/DataCache";
 import { OnboardingProvider } from "../src/lib/OnboardingContext";
+import { rescheduleAllNotifications, incrementAppOpenCount } from "../src/services/notifications";
 // Note: react-native-get-random-values is already imported in polyfills.ts
 
 // Bird icon for loading screen
@@ -22,6 +23,19 @@ function RootLayoutNav() {
 
   // Debug logging
   console.log("[Auth] RENDER - isLoading:", isLoading, "isAuthenticated:", isAuthenticated, "segments:", segments);
+
+  // Reschedule notifications on every app open / foreground
+  useEffect(() => {
+    incrementAppOpenCount().catch(() => {});
+    rescheduleAllNotifications().catch(() => {});
+
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        rescheduleAllNotifications().catch(() => {});
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   useEffect(() => {
     if (isLoading) {
