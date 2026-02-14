@@ -293,15 +293,6 @@ export async function incrementAppOpenCount(): Promise<number> {
 
 // ── Core scheduling engine ──────────────────────────────────────────
 
-interface ScheduleContext {
-  settings: NotificationSettings;
-  todayStr: string;
-  now: Date;
-  completedToday: boolean;
-  lastCompletionDate: string | null;
-  streakCount: number;
-}
-
 /**
  * Recompute and reschedule the next 7 days of notifications.
  * Call this on every app open, after settings change, or after completion.
@@ -322,15 +313,6 @@ export async function rescheduleAllNotifications(streakCount = 0): Promise<boole
 
   // Cancel everything we previously scheduled
   await cancelAllScheduledIds();
-
-  const ctx: ScheduleContext = {
-    settings,
-    todayStr,
-    now,
-    completedToday,
-    lastCompletionDate,
-    streakCount,
-  };
 
   const scheduledIds: string[] = [];
   const daySlots: Map<string, number> = new Map(); // dateStr → count of notifications scheduled
