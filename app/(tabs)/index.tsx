@@ -127,9 +127,11 @@ export default function HomeScreen() {
               verse: `"${capitalizeFirstLetter(todaysGuidance.verse.text)}"`,
               reference: todaysGuidance.verse.reference.passage,
               reflectionPreview: clampPreview(
-                capitalizeFirstLetter(todaysGuidance.explanation?.guidance_application ||
-                todaysGuidance.explanation?.connection_to_user_need ||
-                DUMMY_DAILY_GUIDANCE.reflectionPreview)
+                capitalizeFirstLetter(
+                  todaysGuidance.explanation?.guidance_application ||
+                  todaysGuidance.explanation?.connection_to_user_need ||
+                  DUMMY_DAILY_GUIDANCE.reflectionPreview
+                )
               ),
             });
           } else {
