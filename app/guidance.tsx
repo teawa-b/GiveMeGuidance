@@ -21,7 +21,8 @@ import * as Sharing from "expo-sharing";
 import { ShareableVerseCard } from "../src/components/ShareableVerseCard";
 import { getGuidance, getExplanation, type VerseData, type ExplanationData } from "../src/services/guidance";
 import { isBookmarked as checkIsBookmarked, addBookmark, removeBookmarkByReference } from "../src/services/bookmarks";
-import { updateStreak } from "../src/services/streak";
+import { updateStreak, getCurrentStreakDisplay } from "../src/services/streak";
+import { onDailyCompletion } from "../src/services/notifications";
 import { useDataCache } from "../src/lib/DataCache";
 import { useAuth } from "../src/lib/AuthContext";
 import { 
@@ -498,6 +499,9 @@ export default function GuidanceScreen() {
       // ALWAYS update streak when guidance is received (the streak service handles deduplication)
       try {
         await updateStreak();
+        // Notify the local notification scheduler that today is complete
+        const streakInfo = await getCurrentStreakDisplay();
+        onDailyCompletion(streakInfo.currentStreak).catch(() => {});
       } catch (activityError) {
         // Don't fail the whole save if streak update fails
       }

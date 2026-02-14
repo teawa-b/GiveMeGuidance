@@ -36,9 +36,16 @@ import {
   cancelAllReminderNotifications,
   getReminderScheduleSnapshot,
   requestAndScheduleDailyAndStreakReminders,
+  rescheduleAllNotifications,
   scheduleReminderTestNotification,
   type ReminderScheduleSnapshot,
 } from "../../src/services/notifications";
+import {
+  getNotificationSettings,
+  saveNotificationSettings,
+  type NotificationSettings,
+  DEFAULT_NOTIFICATION_SETTINGS,
+} from "../../src/services/notificationSettings";
 
 type EditProfileView = "main" | "changeEmail" | "changePassword" | "dangerZone" | "reminders";
 const profileBird = require("../../assets/mascot/bird-pointing-right.png");
@@ -78,6 +85,7 @@ export default function ProfileScreen() {
   const [reminderTimeInput, setReminderTimeInput] = useState("08:00");
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderSnapshot, setReminderSnapshot] = useState<ReminderScheduleSnapshot | null>(null);
+  const [notifSettings, setNotifSettings] = useState<NotificationSettings>(DEFAULT_NOTIFICATION_SETTINGS);
   const editModalTranslateY = useRef(new Animated.Value(120)).current;
   const editModalDragY = useRef(new Animated.Value(0)).current;
   const isClosingModalRef = useRef(false);
@@ -158,6 +166,7 @@ export default function ProfileScreen() {
     setReminderTimeInput(resolveReminderTimeFromPreferences());
     setReminderEnabled(onboardingData.notificationEnabled);
     void refreshReminderSnapshot();
+    getNotificationSettings().then(setNotifSettings).catch(() => {});
   }, [
     editProfileVisible,
     onboardingData.notificationEnabled,
@@ -208,10 +217,14 @@ export default function ProfileScreen() {
     setEditProfileMessage(null);
 
     try {
-      const scheduled = await requestAndScheduleDailyAndStreakReminders(
-        { hour, minute },
-        { streakTime: { hour: 23, minute: 30 } }
-      );
+      // Persist notification settings first
+      await saveNotificationSettings({
+        ...notifSettings,
+        dailyReminderEnabled: true,
+        dailyReminderTime: { hour, minute },
+      });
+
+      const scheduled = await rescheduleAllNotifications();
 
       if (!scheduled) {
         setEditProfileMessage({
@@ -230,7 +243,7 @@ export default function ProfileScreen() {
       await refreshReminderSnapshot();
       setEditProfileMessage({
         type: "success",
-        text: `Reminders are active. Daily at ${formatTimeForDisplay(normalizedInput)} and streak at 11:30 PM.`,
+        text: `Reminders are active. Daily at ${formatTimeForDisplay(normalizedInput)}.`,
       });
     } catch (error: any) {
       console.error("Failed to save reminder settings:", error);
@@ -1183,7 +1196,7 @@ export default function ProfileScreen() {
                         Daily reminder: {reminderEnabled ? "On" : "Off"}
                       </Text>
                       <Text style={styles.reminderSummarySubtext}>
-                        Daily: {formatTimeForDisplay(reminderTimeInput)} â€¢ Streak: 11:30 PM
+                        Daily: {formatTimeForDisplay(reminderTimeInput)}
                       </Text>
                     </View>
 
@@ -1230,6 +1243,58 @@ export default function ProfileScreen() {
                           </Pressable>
                         );
                       })}
+                    </View>
+
+                    {/* ── Notification category toggles ── */}
+                    <View style={styles.reminderSummaryCard}>
+                      <Text style={styles.reminderSummaryTitle}>Notification Categories</Text>
+
+                      <Pressable
+                        style={styles.notifToggleRow}
+                        onPress={() => setNotifSettings((s) => ({ ...s, streakProtectionEnabled: !s.streakProtectionEnabled }))}
+                      >
+                        <Text style={styles.notifToggleLabel}>Streak protection</Text>
+                        <Text style={styles.notifToggleValue}>{notifSettings.streakProtectionEnabled ? "On" : "Off"}</Text>
+                      </Pressable>
+
+                      <Pressable
+                        style={styles.notifToggleRow}
+                        onPress={() => setNotifSettings((s) => ({ ...s, middayNudgeEnabled: !s.middayNudgeEnabled }))}
+                      >
+                        <Text style={styles.notifToggleLabel}>Midday nudge</Text>
+                        <Text style={styles.notifToggleValue}>{notifSettings.middayNudgeEnabled ? "On" : "Off"}</Text>
+                      </Pressable>
+
+                      <Pressable
+                        style={styles.notifToggleRow}
+                        onPress={() => setNotifSettings((s) => ({ ...s, eveningReflectionEnabled: !s.eveningReflectionEnabled }))}
+                      >
+                        <Text style={styles.notifToggleLabel}>Evening reflection</Text>
+                        <Text style={styles.notifToggleValue}>{notifSettings.eveningReflectionEnabled ? "On" : "Off"}</Text>
+                      </Pressable>
+
+                      <Pressable
+                        style={styles.notifToggleRow}
+                        onPress={() => setNotifSettings((s) => ({ ...s, reengagementEnabled: !s.reengagementEnabled }))}
+                      >
+                        <Text style={styles.notifToggleLabel}>Come back reminders</Text>
+                        <Text style={styles.notifToggleValue}>{notifSettings.reengagementEnabled ? "On" : "Off"}</Text>
+                      </Pressable>
+
+                      <Pressable
+                        style={styles.notifToggleRow}
+                        onPress={() =>
+                          setNotifSettings((s) => ({
+                            ...s,
+                            tonePreference: s.tonePreference === "gentle" ? "accountable" : "gentle",
+                          }))
+                        }
+                      >
+                        <Text style={styles.notifToggleLabel}>Tone</Text>
+                        <Text style={styles.notifToggleValue}>
+                          {notifSettings.tonePreference === "gentle" ? "Gentle" : "Accountable"}
+                        </Text>
+                      </Pressable>
                     </View>
 
                     {reminderSnapshot && (
@@ -1952,6 +2017,23 @@ const styles = StyleSheet.create({
   reminderDebugItem: {
     fontSize: 12,
     color: "#475569",
+  },
+  notifToggleRow: {
+    flexDirection: "row" as const,
+    justifyContent: "space-between" as const,
+    alignItems: "center" as const,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#e2e8f0",
+  },
+  notifToggleLabel: {
+    fontSize: 14,
+    color: "#334155",
+  },
+  notifToggleValue: {
+    fontSize: 14,
+    fontWeight: "600" as const,
+    color: "#10b981",
   },
   editDangerInput: {
     borderColor: "#fecaca",
