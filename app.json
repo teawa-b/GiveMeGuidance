@@ -216,7 +216,8 @@
           "delayAppMeasurementInit": true
         }
       ],
-      "./plugins/withFirebaseIOS"
+      "./plugins/withFirebaseIOS",
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true

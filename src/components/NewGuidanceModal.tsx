@@ -203,8 +203,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: Platform.OS === "ios" ? 16 : 20,
     paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(226, 232, 240, 0.5)",
   },
   headerLeft: {
     flex: 1,

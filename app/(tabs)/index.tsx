@@ -522,15 +522,15 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 20,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.06,
+        shadowRadius: 12,
       },
       default: {
         elevation: 4,
       },
       web: {
-        boxShadow: "0 4px 20px -2px rgba(0, 0, 0, 0.05)",
+        boxShadow: "0 6px 16px -4px rgba(0, 0, 0, 0.04)",
       },
     }),
   },

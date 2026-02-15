@@ -265,7 +265,7 @@ export function ProfileModal({ visible, onClose, onSignOut, onViewHistory, onVie
         
         {streakData.isActiveToday && (
           <View style={styles.streakMotivationContainer}>
-            <Text style={styles.streakMotivation}>ðŸŒ¿ Active today</Text>
+            <Text style={styles.streakMotivation}>🌿 Active today</Text>
           </View>
         )}
         {!streakData.isActiveToday && streakData.longestStreak > 0 && (

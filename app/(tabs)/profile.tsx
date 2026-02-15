@@ -37,12 +37,12 @@ import {
   getReminderScheduleSnapshot,
   requestAndScheduleDailyAndStreakReminders,
   rescheduleAllNotifications,
-  scheduleReminderTestNotification,
   type ReminderScheduleSnapshot,
 } from "../../src/services/notifications";
 import {
   getNotificationSettings,
   saveNotificationSettings,
+  type TonePreference,
   type NotificationSettings,
   DEFAULT_NOTIFICATION_SETTINGS,
 } from "../../src/services/notificationSettings";
@@ -51,6 +51,55 @@ type EditProfileView = "main" | "changeEmail" | "changePassword" | "dangerZone" 
 const profileBird = require("../../assets/mascot/bird-pointing-right.png");
 const loadingBird = require("../../assets/mascot/bird-reading.png");
 const REMINDER_PRESET_TIMES = ["08:00", "12:00", "18:00", "21:00"] as const;
+type ToneProfileLabel = "gentle" | "accountable" | "custom";
+
+const TONE_PRESET_CONFIG: Record<
+  TonePreference,
+  Pick<
+    NotificationSettings,
+    | "streakProtectionEnabled"
+    | "middayNudgeEnabled"
+    | "middayNudgeDaysPerWeek"
+    | "eveningReflectionEnabled"
+    | "reengagementEnabled"
+  >
+> = {
+  gentle: {
+    streakProtectionEnabled: true,
+    middayNudgeEnabled: false,
+    middayNudgeDaysPerWeek: 3,
+    eveningReflectionEnabled: false,
+    reengagementEnabled: true,
+  },
+  accountable: {
+    streakProtectionEnabled: true,
+    middayNudgeEnabled: true,
+    middayNudgeDaysPerWeek: 5,
+    eveningReflectionEnabled: true,
+    reengagementEnabled: true,
+  },
+};
+
+function getToneProfileLabel(settings: NotificationSettings): ToneProfileLabel {
+  const matchesGentle =
+    settings.streakProtectionEnabled === TONE_PRESET_CONFIG.gentle.streakProtectionEnabled &&
+    settings.middayNudgeEnabled === TONE_PRESET_CONFIG.gentle.middayNudgeEnabled &&
+    settings.middayNudgeDaysPerWeek === TONE_PRESET_CONFIG.gentle.middayNudgeDaysPerWeek &&
+    settings.eveningReflectionEnabled === TONE_PRESET_CONFIG.gentle.eveningReflectionEnabled &&
+    settings.reengagementEnabled === TONE_PRESET_CONFIG.gentle.reengagementEnabled;
+
+  if (matchesGentle) return "gentle";
+
+  const matchesAccountable =
+    settings.streakProtectionEnabled === TONE_PRESET_CONFIG.accountable.streakProtectionEnabled &&
+    settings.middayNudgeEnabled === TONE_PRESET_CONFIG.accountable.middayNudgeEnabled &&
+    settings.middayNudgeDaysPerWeek === TONE_PRESET_CONFIG.accountable.middayNudgeDaysPerWeek &&
+    settings.eveningReflectionEnabled === TONE_PRESET_CONFIG.accountable.eveningReflectionEnabled &&
+    settings.reengagementEnabled === TONE_PRESET_CONFIG.accountable.reengagementEnabled;
+
+  if (matchesAccountable) return "accountable";
+  return "custom";
+}
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -86,6 +135,7 @@ export default function ProfileScreen() {
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderSnapshot, setReminderSnapshot] = useState<ReminderScheduleSnapshot | null>(null);
   const [notifSettings, setNotifSettings] = useState<NotificationSettings>(DEFAULT_NOTIFICATION_SETTINGS);
+  const toneProfile = useMemo(() => getToneProfileLabel(notifSettings), [notifSettings]);
   const editModalTranslateY = useRef(new Animated.Value(120)).current;
   const editModalDragY = useRef(new Animated.Value(0)).current;
   const isClosingModalRef = useRef(false);
@@ -110,9 +160,12 @@ export default function ProfileScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  // Fetch streak data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchData();
+    }, [fetchData])
+  );
 
   const resolveReminderTimeFromPreferences = useCallback((): string => {
     if (onboardingData.preferredTimeOfDay === "custom" && onboardingData.customTime) {
@@ -193,6 +246,16 @@ export default function ProfileScreen() {
     };
   }, []);
 
+  const handleApplyToneProfile = useCallback((tone: TonePreference) => {
+    lightHaptic();
+    setEditProfileMessage(null);
+    setNotifSettings((settings) => ({
+      ...settings,
+      tonePreference: tone,
+      ...TONE_PRESET_CONFIG[tone],
+    }));
+  }, []);
+
   const handleSaveReminderSettings = useCallback(async () => {
     if (Platform.OS === "web") {
       setEditProfileMessage({
@@ -258,6 +321,7 @@ export default function ProfileScreen() {
     buildOnboardingTimeOverrides,
     formatTimeForDisplay,
     isValidTimeInput,
+    notifSettings,
     reminderTimeInput,
     refreshReminderSnapshot,
     saveOnboarding,
@@ -294,84 +358,6 @@ export default function ProfileScreen() {
       setEditProfileLoading(false);
     }
   }, [refreshReminderSnapshot, saveOnboarding]);
-
-  const handleVerifyReminderSetup = useCallback(async () => {
-    if (Platform.OS === "web") {
-      setEditProfileMessage({
-        type: "error",
-        text: "Verification is only available on iOS and Mobile builds.",
-      });
-      return;
-    }
-
-    setEditProfileLoading(true);
-    setEditProfileMessage(null);
-
-    try {
-      const snapshot = await refreshReminderSnapshot();
-      if (!snapshot) {
-        setEditProfileMessage({
-          type: "error",
-          text: "Could not verify reminder status.",
-        });
-        return;
-      }
-
-      if (!snapshot.permissionGranted) {
-        setEditProfileMessage({
-          type: "error",
-          text: "Notification permission is not granted.",
-        });
-        return;
-      }
-
-      if (snapshot.dailyReminderScheduled && snapshot.streakReminderScheduled) {
-        setEditProfileMessage({
-          type: "success",
-          text: "Verification passed: daily and streak reminders are scheduled.",
-        });
-      } else {
-        setEditProfileMessage({
-          type: "error",
-          text: "Verification failed: one or more reminders are missing. Re-save reminder settings.",
-        });
-      }
-    } finally {
-      setEditProfileLoading(false);
-    }
-  }, [refreshReminderSnapshot]);
-
-  const handleSendTestReminder = useCallback(async () => {
-    if (Platform.OS === "web") {
-      setEditProfileMessage({
-        type: "error",
-        text: "Test reminders are only available on iOS and Mobile builds.",
-      });
-      return;
-    }
-
-    setEditProfileLoading(true);
-    setEditProfileMessage(null);
-
-    try {
-      const scheduled = await scheduleReminderTestNotification(15);
-      if (!scheduled) {
-        setEditProfileMessage({
-          type: "error",
-          text: "Could not schedule the test reminder. Check notification permission.",
-        });
-        return;
-      }
-
-      setEditProfileMessage({
-        type: "success",
-        text: "Test reminder scheduled for ~15 seconds from now.",
-      });
-      await refreshReminderSnapshot();
-    } finally {
-      setEditProfileLoading(false);
-    }
-  }, [refreshReminderSnapshot]);
 
   const handleSignOut = async () => {
     const doSignOut = async () => {
@@ -754,7 +740,7 @@ export default function ProfileScreen() {
           
           {streakData.isActiveToday && (
             <View style={styles.activeTodayBadge}>
-              <Text style={styles.activeTodayText}>ðŸŒ¿ Active today</Text>
+              <Text style={styles.activeTodayText}>🌿 Active today</Text>
             </View>
           )}
         </View>
@@ -1249,71 +1235,177 @@ export default function ProfileScreen() {
                     <View style={styles.reminderSummaryCard}>
                       <Text style={styles.reminderSummaryTitle}>Notification Categories</Text>
 
+                      <View style={styles.toneSelectorRow}>
+                        <Text style={styles.notifToggleLabel}>Tone profile</Text>
+                        <View style={styles.toneSelectorButtons}>
+                          <Pressable
+                            style={({ pressed }) => [
+                              styles.tonePill,
+                              toneProfile === "gentle" && styles.tonePillSelected,
+                              pressed && styles.menuItemPressed,
+                            ]}
+                            onPress={() => handleApplyToneProfile("gentle")}
+                          >
+                            <Text
+                              style={[
+                                styles.tonePillText,
+                                toneProfile === "gentle" && styles.tonePillTextSelected,
+                              ]}
+                            >
+                              Gentle
+                            </Text>
+                          </Pressable>
+
+                          <Pressable
+                            style={({ pressed }) => [
+                              styles.tonePill,
+                              toneProfile === "accountable" && styles.tonePillSelected,
+                              pressed && styles.menuItemPressed,
+                            ]}
+                            onPress={() => handleApplyToneProfile("accountable")}
+                          >
+                            <Text
+                              style={[
+                                styles.tonePillText,
+                                toneProfile === "accountable" && styles.tonePillTextSelected,
+                              ]}
+                            >
+                              Accountable
+                            </Text>
+                          </Pressable>
+
+                          <View style={[styles.tonePill, toneProfile === "custom" && styles.tonePillCustom]}>
+                            <Text style={[styles.tonePillText, toneProfile === "custom" && styles.tonePillTextCustom]}>
+                              Custom
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+
                       <Pressable
-                        style={styles.notifToggleRow}
-                        onPress={() => setNotifSettings((s) => ({ ...s, streakProtectionEnabled: !s.streakProtectionEnabled }))}
+                        style={({ pressed }) => [
+                          styles.notifToggleRow,
+                          notifSettings.streakProtectionEnabled ? styles.notifToggleRowEnabled : styles.notifToggleRowDisabled,
+                          pressed && styles.menuItemPressed,
+                        ]}
+                        onPress={() => {
+                          lightHaptic();
+                          setEditProfileMessage(null);
+                          setNotifSettings((s) => ({ ...s, streakProtectionEnabled: !s.streakProtectionEnabled }));
+                        }}
                       >
-                        <Text style={styles.notifToggleLabel}>Streak protection</Text>
-                        <Text style={styles.notifToggleValue}>{notifSettings.streakProtectionEnabled ? "On" : "Off"}</Text>
+                        <Text
+                          style={[
+                            styles.notifToggleLabel,
+                            notifSettings.streakProtectionEnabled
+                              ? styles.notifToggleLabelEnabled
+                              : styles.notifToggleLabelDisabled,
+                          ]}
+                        >
+                          Streak protection
+                        </Text>
+                        <Text
+                          style={[
+                            styles.notifToggleValue,
+                            notifSettings.streakProtectionEnabled ? styles.notifToggleValueOn : styles.notifToggleValueOff,
+                          ]}
+                        >
+                          {notifSettings.streakProtectionEnabled ? "On" : "Off"}
+                        </Text>
                       </Pressable>
 
                       <Pressable
-                        style={styles.notifToggleRow}
-                        onPress={() => setNotifSettings((s) => ({ ...s, middayNudgeEnabled: !s.middayNudgeEnabled }))}
+                        style={({ pressed }) => [
+                          styles.notifToggleRow,
+                          notifSettings.middayNudgeEnabled ? styles.notifToggleRowEnabled : styles.notifToggleRowDisabled,
+                          pressed && styles.menuItemPressed,
+                        ]}
+                        onPress={() => {
+                          lightHaptic();
+                          setEditProfileMessage(null);
+                          setNotifSettings((s) => ({ ...s, middayNudgeEnabled: !s.middayNudgeEnabled }));
+                        }}
                       >
-                        <Text style={styles.notifToggleLabel}>Midday nudge</Text>
-                        <Text style={styles.notifToggleValue}>{notifSettings.middayNudgeEnabled ? "On" : "Off"}</Text>
+                        <Text
+                          style={[
+                            styles.notifToggleLabel,
+                            notifSettings.middayNudgeEnabled ? styles.notifToggleLabelEnabled : styles.notifToggleLabelDisabled,
+                          ]}
+                        >
+                          Midday nudge
+                        </Text>
+                        <Text
+                          style={[
+                            styles.notifToggleValue,
+                            notifSettings.middayNudgeEnabled ? styles.notifToggleValueOn : styles.notifToggleValueOff,
+                          ]}
+                        >
+                          {notifSettings.middayNudgeEnabled ? "On" : "Off"}
+                        </Text>
                       </Pressable>
 
                       <Pressable
-                        style={styles.notifToggleRow}
-                        onPress={() => setNotifSettings((s) => ({ ...s, eveningReflectionEnabled: !s.eveningReflectionEnabled }))}
+                        style={({ pressed }) => [
+                          styles.notifToggleRow,
+                          notifSettings.eveningReflectionEnabled ? styles.notifToggleRowEnabled : styles.notifToggleRowDisabled,
+                          pressed && styles.menuItemPressed,
+                        ]}
+                        onPress={() => {
+                          lightHaptic();
+                          setEditProfileMessage(null);
+                          setNotifSettings((s) => ({ ...s, eveningReflectionEnabled: !s.eveningReflectionEnabled }));
+                        }}
                       >
-                        <Text style={styles.notifToggleLabel}>Evening reflection</Text>
-                        <Text style={styles.notifToggleValue}>{notifSettings.eveningReflectionEnabled ? "On" : "Off"}</Text>
+                        <Text
+                          style={[
+                            styles.notifToggleLabel,
+                            notifSettings.eveningReflectionEnabled
+                              ? styles.notifToggleLabelEnabled
+                              : styles.notifToggleLabelDisabled,
+                          ]}
+                        >
+                          Evening reflection
+                        </Text>
+                        <Text
+                          style={[
+                            styles.notifToggleValue,
+                            notifSettings.eveningReflectionEnabled ? styles.notifToggleValueOn : styles.notifToggleValueOff,
+                          ]}
+                        >
+                          {notifSettings.eveningReflectionEnabled ? "On" : "Off"}
+                        </Text>
                       </Pressable>
 
                       <Pressable
-                        style={styles.notifToggleRow}
-                        onPress={() => setNotifSettings((s) => ({ ...s, reengagementEnabled: !s.reengagementEnabled }))}
+                        style={({ pressed }) => [
+                          styles.notifToggleRow,
+                          notifSettings.reengagementEnabled ? styles.notifToggleRowEnabled : styles.notifToggleRowDisabled,
+                          pressed && styles.menuItemPressed,
+                        ]}
+                        onPress={() => {
+                          lightHaptic();
+                          setEditProfileMessage(null);
+                          setNotifSettings((s) => ({ ...s, reengagementEnabled: !s.reengagementEnabled }));
+                        }}
                       >
-                        <Text style={styles.notifToggleLabel}>Come back reminders</Text>
-                        <Text style={styles.notifToggleValue}>{notifSettings.reengagementEnabled ? "On" : "Off"}</Text>
-                      </Pressable>
-
-                      <Pressable
-                        style={styles.notifToggleRow}
-                        onPress={() =>
-                          setNotifSettings((s) => ({
-                            ...s,
-                            tonePreference: s.tonePreference === "gentle" ? "accountable" : "gentle",
-                          }))
-                        }
-                      >
-                        <Text style={styles.notifToggleLabel}>Tone</Text>
-                        <Text style={styles.notifToggleValue}>
-                          {notifSettings.tonePreference === "gentle" ? "Gentle" : "Accountable"}
+                        <Text
+                          style={[
+                            styles.notifToggleLabel,
+                            notifSettings.reengagementEnabled ? styles.notifToggleLabelEnabled : styles.notifToggleLabelDisabled,
+                          ]}
+                        >
+                          Come back reminders
+                        </Text>
+                        <Text
+                          style={[
+                            styles.notifToggleValue,
+                            notifSettings.reengagementEnabled ? styles.notifToggleValueOn : styles.notifToggleValueOff,
+                          ]}
+                        >
+                          {notifSettings.reengagementEnabled ? "On" : "Off"}
                         </Text>
                       </Pressable>
                     </View>
-
-                    {reminderSnapshot && (
-                      <View style={styles.reminderDebugCard}>
-                        <Text style={styles.reminderDebugTitle}>Verification</Text>
-                        <Text style={styles.reminderDebugItem}>
-                          Permission: {reminderSnapshot.permissionGranted ? "Granted" : "Not granted"}
-                        </Text>
-                        <Text style={styles.reminderDebugItem}>
-                          Daily scheduled: {reminderSnapshot.dailyReminderScheduled ? "Yes" : "No"}
-                        </Text>
-                        <Text style={styles.reminderDebugItem}>
-                          Streak scheduled: {reminderSnapshot.streakReminderScheduled ? "Yes" : "No"}
-                        </Text>
-                        <Text style={styles.reminderDebugItem}>
-                          Total scheduled notifications: {reminderSnapshot.scheduledCount}
-                        </Text>
-                      </View>
-                    )}
 
                     <Pressable
                       style={({ pressed }) => [
@@ -1341,30 +1433,6 @@ export default function ProfileScreen() {
                       onPress={handleDisableReminders}
                     >
                       <Text style={styles.reminderSecondaryButtonText}>Turn Off Reminders</Text>
-                    </Pressable>
-
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.reminderGhostButton,
-                        pressed && styles.menuItemPressed,
-                        editProfileLoading && styles.buttonDisabled,
-                      ]}
-                      disabled={editProfileLoading}
-                      onPress={handleVerifyReminderSetup}
-                    >
-                      <Text style={styles.reminderGhostButtonText}>Verify Reminder Setup</Text>
-                    </Pressable>
-
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.reminderGhostButton,
-                        pressed && styles.menuItemPressed,
-                        editProfileLoading && styles.buttonDisabled,
-                      ]}
-                      disabled={editProfileLoading}
-                      onPress={handleSendTestReminder}
-                    >
-                      <Text style={styles.reminderGhostButtonText}>Send 15s Test Reminder</Text>
                     </Pressable>
 
                     {reminderSnapshot && !reminderSnapshot.permissionGranted && Platform.OS !== "web" && (
@@ -2000,23 +2068,43 @@ const styles = StyleSheet.create({
   reminderPresetTextSelected: {
     color: "#047857",
   },
-  reminderDebugCard: {
-    borderRadius: 12,
+  toneSelectorRow: {
+    marginTop: 4,
+    marginBottom: 10,
+    gap: 8,
+  },
+  toneSelectorButtons: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  tonePill: {
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: "#dbe2ea",
-    backgroundColor: "#f8fafc",
-    padding: 12,
-    gap: 2,
+    borderColor: "#cbd5e1",
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
   },
-  reminderDebugTitle: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#0f172a",
-    marginBottom: 4,
+  tonePillSelected: {
+    borderColor: "#059669",
+    backgroundColor: "#ecfdf5",
   },
-  reminderDebugItem: {
+  tonePillCustom: {
+    borderColor: "#f59e0b",
+    backgroundColor: "#fffbeb",
+  },
+  tonePillText: {
     fontSize: 12,
-    color: "#475569",
+    fontWeight: "700",
+    color: "#64748b",
+  },
+  tonePillTextSelected: {
+    color: "#047857",
+  },
+  tonePillTextCustom: {
+    color: "#b45309",
   },
   notifToggleRow: {
     flexDirection: "row" as const,
@@ -2026,14 +2114,36 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "#e2e8f0",
   },
+  notifToggleRowEnabled: {
+    backgroundColor: "rgba(16, 185, 129, 0.07)",
+    borderRadius: 10,
+    paddingHorizontal: 8,
+  },
+  notifToggleRowDisabled: {
+    backgroundColor: "rgba(148, 163, 184, 0.08)",
+    borderRadius: 10,
+    paddingHorizontal: 8,
+  },
   notifToggleLabel: {
     fontSize: 14,
     color: "#334155",
   },
+  notifToggleLabelEnabled: {
+    color: "#166534",
+    fontWeight: "600" as const,
+  },
+  notifToggleLabelDisabled: {
+    color: "#64748b",
+  },
   notifToggleValue: {
     fontSize: 14,
     fontWeight: "600" as const,
+  },
+  notifToggleValueOn: {
     color: "#10b981",
+  },
+  notifToggleValueOff: {
+    color: "#ef4444",
   },
   editDangerInput: {
     borderColor: "#fecaca",
