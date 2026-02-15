@@ -21,6 +21,7 @@ import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import LottieView from "lottie-react-native";
 import { useAuth } from "../../src/lib/AuthContext";
 import { usePremium } from "../../src/lib/PremiumContext";
@@ -132,6 +133,7 @@ export default function ProfileScreen() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [reminderTimeInput, setReminderTimeInput] = useState("08:00");
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderSnapshot, setReminderSnapshot] = useState<ReminderScheduleSnapshot | null>(null);
   const [notifSettings, setNotifSettings] = useState<NotificationSettings>(DEFAULT_NOTIFICATION_SETTINGS);
@@ -216,7 +218,10 @@ export default function ProfileScreen() {
   useEffect(() => {
     if (!editProfileVisible) return;
 
-    setReminderTimeInput(resolveReminderTimeFromPreferences());
+    const resolvedTime = resolveReminderTimeFromPreferences();
+    setReminderTimeInput(resolvedTime);
+    // If the time is not a preset, show the custom picker
+    setShowTimePicker(!REMINDER_PRESET_TIMES.includes(resolvedTime as any));
     setReminderEnabled(onboardingData.notificationEnabled);
     void refreshReminderSnapshot();
     getNotificationSettings().then(setNotifSettings).catch(() => {});
@@ -1186,51 +1191,6 @@ export default function ProfileScreen() {
                       </Text>
                     </View>
 
-                    <Text style={styles.editFieldLabel}>Reminder time (24-hour)</Text>
-                    <TextInput
-                      style={styles.editInput}
-                      value={reminderTimeInput}
-                      onChangeText={(value) => {
-                        setEditProfileMessage(null);
-                        setReminderTimeInput(sanitizeReminderInput(value));
-                      }}
-                      {...{["place" + "holder"]: "HH:MM"}}
-                      placeholderTextColor="#94a3b8"
-                      keyboardType={Platform.OS === "ios" ? "numbers-and-punctuation" : "numeric"}
-                      autoCapitalize="none"
-                      maxLength={5}
-                    />
-
-                    <View style={styles.reminderPresetRow}>
-                      {REMINDER_PRESET_TIMES.map((time) => {
-                        const isSelected = reminderTimeInput === time;
-                        return (
-                          <Pressable
-                            key={time}
-                            style={({ pressed }) => [
-                              styles.reminderPresetButton,
-                              isSelected && styles.reminderPresetButtonSelected,
-                              pressed && styles.menuItemPressed,
-                            ]}
-                            onPress={() => {
-                              lightHaptic();
-                              setEditProfileMessage(null);
-                              setReminderTimeInput(time);
-                            }}
-                          >
-                            <Text
-                              style={[
-                                styles.reminderPresetText,
-                                isSelected && styles.reminderPresetTextSelected,
-                              ]}
-                            >
-                              {formatTimeForDisplay(time)}
-                            </Text>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-
                     {/* ── Notification category toggles ── */}
                     <View style={styles.reminderSummaryCard}>
                       <Text style={styles.reminderSummaryTitle}>Notification Categories</Text>
@@ -1274,8 +1234,8 @@ export default function ProfileScreen() {
                             </Text>
                           </Pressable>
 
-                          <View style={[styles.tonePill, toneProfile === "custom" && styles.tonePillCustom]}>
-                            <Text style={[styles.tonePillText, toneProfile === "custom" && styles.tonePillTextCustom]}>
+                          <View style={[styles.tonePillBase, toneProfile !== "custom" && styles.tonePillInactive, toneProfile === "custom" && styles.tonePillCustom]}>
+                            <Text style={[styles.tonePillText, toneProfile !== "custom" && styles.tonePillTextInactive, toneProfile === "custom" && styles.tonePillTextCustom]}>
                               Custom
                             </Text>
                           </View>
@@ -1406,6 +1366,108 @@ export default function ProfileScreen() {
                         </Text>
                       </Pressable>
                     </View>
+
+                    <Text style={styles.editFieldLabel}>Reminder time</Text>
+
+                    <View style={styles.reminderPresetRow}>
+                      {REMINDER_PRESET_TIMES.map((time) => {
+                        const isSelected = reminderTimeInput === time && !showTimePicker;
+                        return (
+                          <Pressable
+                            key={time}
+                            style={({ pressed }) => [
+                              styles.reminderPresetButton,
+                              isSelected && styles.reminderPresetButtonSelected,
+                              pressed && styles.menuItemPressed,
+                            ]}
+                            onPress={() => {
+                              lightHaptic();
+                              setEditProfileMessage(null);
+                              setReminderTimeInput(time);
+                              setShowTimePicker(false);
+                            }}
+                          >
+                            <Text
+                              style={[
+                                styles.reminderPresetText,
+                                isSelected && styles.reminderPresetTextSelected,
+                              ]}
+                            >
+                              {formatTimeForDisplay(time)}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.reminderPresetButton,
+                          showTimePicker && styles.reminderPresetButtonSelected,
+                          pressed && styles.menuItemPressed,
+                        ]}
+                        onPress={() => {
+                          lightHaptic();
+                          setEditProfileMessage(null);
+                          setShowTimePicker(true);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.reminderPresetText,
+                            showTimePicker && styles.reminderPresetTextSelected,
+                          ]}
+                        >
+                          Custom
+                        </Text>
+                      </Pressable>
+                    </View>
+
+                    {showTimePicker && (
+                      <>
+                        {Platform.OS === "android" && (
+                          <Pressable
+                            style={({ pressed }) => [
+                              styles.editInput,
+                              { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+                              pressed && { opacity: 0.7 },
+                            ]}
+                            onPress={() => {
+                              // On Android, this will trigger the modal picker
+                              const event = { type: "set" } as DateTimePickerEvent;
+                              // Trigger a re-render to show the picker
+                            }}
+                          >
+                            <Text style={{ color: "#1e293b", fontSize: 16 }}>
+                              {formatTimeForDisplay(reminderTimeInput)}
+                            </Text>
+                            <Ionicons name="time-outline" size={20} color="#64748b" />
+                          </Pressable>
+                        )}
+
+                        <View style={styles.timePickerContainer}>
+                          <DateTimePicker
+                            value={(() => {
+                              const [h, m] = reminderTimeInput.split(":").map(Number);
+                              const d = new Date();
+                              d.setHours(h, m, 0, 0);
+                              return d;
+                            })()}
+                            mode="time"
+                            is24Hour={false}
+                            display={Platform.OS === "ios" ? "spinner" : "default"}
+                            onChange={(_event: DateTimePickerEvent, selectedDate?: Date) => {
+                              if (selectedDate) {
+                                const h = selectedDate.getHours().toString().padStart(2, "0");
+                                const m = selectedDate.getMinutes().toString().padStart(2, "0");
+                                setEditProfileMessage(null);
+                                setReminderTimeInput(`${h}:${m}`);
+                              }
+                            }}
+                            style={Platform.OS === "ios" ? { alignSelf: "center" } : undefined}
+                            themeVariant="light"
+                          />
+                        </View>
+                      </>
+                    )}
 
                     <Pressable
                       style={({ pressed }) => [
@@ -1928,7 +1990,7 @@ const styles = StyleSheet.create({
   editModalContentContainer: {
     padding: 20,
     gap: 12,
-    paddingBottom: 24,
+    paddingBottom: 120,
   },
   editProfileIdentity: {
     backgroundColor: "#f8fafc",
@@ -2027,6 +2089,16 @@ const styles = StyleSheet.create({
     padding: 14,
     gap: 4,
   },
+  timePickerContainer: {
+    backgroundColor: "#f0fdf4",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    alignItems: "center",
+    marginVertical: 4,
+  },
   reminderSummaryTitle: {
     fontSize: 14,
     fontWeight: "700",
@@ -2087,24 +2159,37 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 7,
   },
+  tonePillBase: {
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  tonePillInactive: {
+    borderColor: "transparent",
+    backgroundColor: "transparent",
+  },
   tonePillSelected: {
     borderColor: "#059669",
     backgroundColor: "#ecfdf5",
   },
   tonePillCustom: {
-    borderColor: "#f59e0b",
-    backgroundColor: "#fffbeb",
+    borderColor: "#059669",
+    backgroundColor: "#ecfdf5",
   },
   tonePillText: {
     fontSize: 12,
     fontWeight: "700",
     color: "#64748b",
   },
+  tonePillTextInactive: {
+    color: "#cbd5e1",
+  },
   tonePillTextSelected: {
     color: "#047857",
   },
   tonePillTextCustom: {
-    color: "#b45309",
+    color: "#047857",
   },
   notifToggleRow: {
     flexDirection: "row" as const,
