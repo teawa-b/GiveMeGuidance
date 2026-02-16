@@ -148,53 +148,57 @@ export function SaveJourneyScreen({
 
           {/* Bottom Section - Auth Buttons */}
           <View style={styles.bottomSection}>
-            {/* Apple */}
-            <Pressable
-              style={({ pressed }) => [
-                styles.authButton,
-                styles.appleButton,
-                pressed && styles.buttonPressed,
-                loading !== null && styles.buttonDisabled,
-              ]}
-              onPress={() => {
-                mediumHaptic();
-                handleAppleAuth();
-              }}
-              disabled={loading !== null}
-            >
-              {loading === "apple" ? (
-                <ActivityIndicator color="#ffffff" size="small" />
-              ) : (
-                <>
-                  <Ionicons name="logo-apple" size={20} color="#ffffff" />
-                  <Text style={styles.appleButtonText}>Continue with Apple</Text>
-                </>
-              )}
-            </Pressable>
+            {/* Apple (iOS only) */}
+            {Platform.OS === "ios" && (
+              <Pressable
+                style={({ pressed }) => [
+                  styles.authButton,
+                  styles.appleButton,
+                  pressed && styles.buttonPressed,
+                  loading !== null && styles.buttonDisabled,
+                ]}
+                onPress={() => {
+                  mediumHaptic();
+                  handleAppleAuth();
+                }}
+                disabled={loading !== null}
+              >
+                {loading === "apple" ? (
+                  <ActivityIndicator color="#ffffff" size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="logo-apple" size={20} color="#ffffff" />
+                    <Text style={styles.appleButtonText}>Continue with Apple</Text>
+                  </>
+                )}
+              </Pressable>
+            )}
 
-            {/* Google */}
-            <Pressable
-              style={({ pressed }) => [
-                styles.authButton,
-                styles.googleButton,
-                pressed && styles.buttonPressed,
-                loading !== null && styles.buttonDisabled,
-              ]}
-              onPress={() => {
-                mediumHaptic();
-                handleGoogleAuth();
-              }}
-              disabled={loading !== null}
-            >
-              {loading === "google" ? (
-                <ActivityIndicator color="#333" size="small" />
-              ) : (
-                <>
-                  <Ionicons name="logo-google" size={18} color="#4285F4" />
-                  <Text style={styles.googleButtonText}>Continue with Google</Text>
-                </>
-              )}
-            </Pressable>
+            {/* Google (non-iOS only) */}
+            {Platform.OS !== "ios" && (
+              <Pressable
+                style={({ pressed }) => [
+                  styles.authButton,
+                  styles.googleButton,
+                  pressed && styles.buttonPressed,
+                  loading !== null && styles.buttonDisabled,
+                ]}
+                onPress={() => {
+                  mediumHaptic();
+                  handleGoogleAuth();
+                }}
+                disabled={loading !== null}
+              >
+                {loading === "google" ? (
+                  <ActivityIndicator color="#333" size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="logo-google" size={18} color="#4285F4" />
+                    <Text style={styles.googleButtonText}>Continue with Google</Text>
+                  </>
+                )}
+              </Pressable>
+            )}
 
             {/* Email */}
             <Pressable
@@ -243,18 +247,24 @@ export function SaveJourneyScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fafafa",
+    backgroundColor: "transparent",
   },
   safeArea: {
     flex: 1,
+    backgroundColor: "transparent",
     paddingHorizontal: 24,
-    paddingTop: Platform.OS !== "ios" && Platform.OS !== "web" ? (StatusBar.currentHeight ?? 0) + 32 : 32,
+    paddingTop: Platform.OS === "ios" ? 10 : Platform.OS === "web" ? 24 : (StatusBar.currentHeight ?? 0) + 32,
     paddingBottom: 24,
     justifyContent: "space-between",
   },
   topSection: {
+    width: Platform.OS === "ios" ? "94%" : "100%",
     alignItems: "center",
-    paddingTop: 24,
+    alignSelf: "center",
+    paddingTop: 20,
+    paddingHorizontal: 18,
+    paddingBottom: 22,
+    backgroundColor: "transparent",
   },
   iconContainer: {
     width: 64,
@@ -264,17 +274,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 24,
+    ...Platform.select({
+      ios: {
+        shadowColor: COLORS.primary,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.16,
+        shadowRadius: 10,
+      },
+      default: {},
+    }),
   },
   titleSection: {
     alignItems: "center",
-    marginBottom: 32,
+    marginBottom: 26,
   },
   title: {
-    fontSize: 36,
-    fontWeight: "700",
+    fontSize: 34,
+    fontWeight: "800",
     color: COLORS.textDark,
     textAlign: "center",
-    lineHeight: 44,
+    lineHeight: 42,
     letterSpacing: -0.5,
   },
   titleAccent: {
@@ -282,21 +301,28 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "600",
     color: COLORS.textLight,
-    letterSpacing: 1.5,
+    letterSpacing: 1.2,
     marginTop: 12,
+    textTransform: "uppercase",
   },
   benefitsList: {
     width: "100%",
-    gap: 20,
-    paddingHorizontal: 8,
+    gap: 12,
+    paddingHorizontal: 2,
   },
   benefitItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 16,
+    gap: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 14,
+    backgroundColor: "rgba(255, 255, 255, 0.62)",
+    borderWidth: 1,
+    borderColor: "rgba(116, 159, 130, 0.15)",
   },
   checkCircle: {
     width: 24,
@@ -304,37 +330,47 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1.5,
     borderColor: "rgba(116, 159, 130, 0.5)",
-    backgroundColor: "rgba(255, 255, 255, 0.6)",
     alignItems: "center",
     justifyContent: "center",
     ...Platform.select({
       ios: {
+        backgroundColor: "rgba(255, 255, 255, 0.6)",
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.05,
         shadowRadius: 2,
       },
       default: {
+        backgroundColor: "#ffffff",
         elevation: 1,
+      },
+      web: {
+        backgroundColor: "rgba(255, 255, 255, 0.6)",
       },
     }),
   },
   benefitText: {
-    fontSize: 18,
-    fontWeight: "500",
+    fontSize: 16,
+    fontWeight: "600",
     color: COLORS.textDark,
     opacity: 0.9,
   },
   bottomSection: {
     gap: 12,
+    marginTop: 10,
+    alignItems: "center",
   },
   authButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     height: 56,
+    width: Platform.OS === "ios" ? "92%" : "100%",
+    maxWidth: 380,
+    alignSelf: "center",
     borderRadius: 16,
     gap: 12,
+    paddingHorizontal: 16,
   },
   buttonPressed: {
     opacity: 0.85,
@@ -411,6 +447,8 @@ const styles = StyleSheet.create({
   },
   errorContainer: {
     backgroundColor: COLORS.errorBg,
+    width: Platform.OS === "ios" ? "92%" : "100%",
+    maxWidth: 380,
     padding: 12,
     borderRadius: 12,
   },

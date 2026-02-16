@@ -34,7 +34,6 @@ const isInvalidGoogleClientId = (value: string) => {
 
 const hasValidGoogleWebClientId = !isInvalidGoogleClientId(GOOGLE_WEB_CLIENT_ID);
 const hasValidGoogleIosClientId = !isInvalidGoogleClientId(GOOGLE_IOS_CLIENT_ID);
-const hasNativeGoogleConfig = hasValidGoogleWebClientId || hasValidGoogleIosClientId;
 
 // Configure Google Sign In (only on native platforms)
 if (Platform.OS !== "web" && GoogleSignin) {
@@ -180,16 +179,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signInWithGoogle = useCallback(async () => {
-    // Use native Google Sign In on iOS
-    if (Platform.OS === "ios" && GoogleSignin) {
-      if (!hasNativeGoogleConfig) {
+    // Use native Google Sign-In on iOS and Android
+    if (Platform.OS !== "web" && GoogleSignin) {
+      if (!hasValidGoogleWebClientId) {
         return {
           error:
-            "Google sign in is not configured for iOS. Set EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID and EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID.",
+            "Google sign in is not configured. Set EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID.",
+        };
+      }
+
+      if (Platform.OS === "ios" && !hasValidGoogleIosClientId) {
+        return {
+          error:
+            "Google sign in is not configured for iOS. Set EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID.",
         };
       }
 
       try {
+        if (Platform.OS === "android" && GoogleSignin.hasPlayServices) {
+          await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+        }
+
         // Sign in with Google natively
         const response = await GoogleSignin.signIn();
 
@@ -244,7 +254,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    if (Platform.OS === "ios" && !GoogleSignin) {
+    if (Platform.OS !== "web" && !GoogleSignin) {
       return { error: "Google Sign-In native module is not available in this build." };
     }
 

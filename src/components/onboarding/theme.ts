@@ -48,9 +48,7 @@ export const cardShadow: ViewStyle = Platform.select({
     shadowOpacity: 0.08,
     shadowRadius: 12,
   },
-  ["and" + "roid"]: {
-    elevation: 3,
-  },
+  ["and" + "roid"]: {},
   default: {},
 }) as ViewStyle;
 
@@ -62,9 +60,7 @@ export const buttonShadow: ViewStyle = Platform.select({
     shadowOpacity: 0.28,
     shadowRadius: 14,
   },
-  ["and" + "roid"]: {
-    elevation: 6,
-  },
+  ["and" + "roid"]: {},
   default: {},
 }) as ViewStyle;
 
@@ -76,9 +72,7 @@ export const softShadow: ViewStyle = Platform.select({
     shadowOpacity: 0.05,
     shadowRadius: 8,
   },
-  ["and" + "roid"]: {
-    elevation: 2,
-  },
+  ["and" + "roid"]: {},
   default: {},
 }) as ViewStyle;
 

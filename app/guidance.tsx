@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Pressable,
   Platform,
+  StatusBar,
   Share,
   Modal,
   Alert,
@@ -235,21 +236,23 @@ const fabStyles = StyleSheet.create({
   },
   label: {
     marginTop: 4,
-    backgroundColor: "rgba(255, 255, 255, 0.92)",
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 8,
     ...Platform.select({
       ios: {
+        backgroundColor: "rgba(255, 255, 255, 0.92)",
         shadowColor: "#0f172a",
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.08,
         shadowRadius: 4,
       },
       default: {
+        backgroundColor: "#ffffff",
         elevation: 2,
       },
       web: {
+        backgroundColor: "rgba(255, 255, 255, 0.92)",
         boxShadow: "0 1px 4px rgba(15, 23, 42, 0.08)",
       },
     }),
@@ -276,6 +279,10 @@ export default function GuidanceScreen() {
   const isDailyRequest = params.daily === "true" || params.daily === "1";
   const router = useRouter();
   const headerHeight = useHeaderHeight();
+  const topContentPadding =
+    headerHeight +
+    12 +
+    (Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) : 0);
   
   // Get onboarding preferences
   const { data: onboardingData } = useOnboarding();
@@ -816,7 +823,7 @@ export default function GuidanceScreen() {
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingTop: headerHeight + 12 },
+          { paddingTop: topContentPadding },
         ]}
         showsVerticalScrollIndicator={false}
       >

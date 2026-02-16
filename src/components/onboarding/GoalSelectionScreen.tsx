@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     ...Platform.select({
       ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 4 },
-      default: { elevation: 2 },
+      default: {},
     }),
   },
   progressContainer: { flexDirection: "row", alignItems: "center", gap: 6 },
@@ -308,7 +308,7 @@ const styles = StyleSheet.create({
     position: "relative",
     ...Platform.select({
       ios: { shadowColor: OB_COLORS.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 6 },
-      default: { elevation: 2 },
+      default: {},
     }),
   },
   speechText: { fontSize: 13, fontWeight: "600", color: OB_COLORS.primary },
@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "transparent",
     position: "relative",
-    ...cardShadow,
+    ...(Platform.OS === "ios" ? cardShadow : {}),
   },
   goalCardSelected: {
     borderColor: OB_COLORS.primary,

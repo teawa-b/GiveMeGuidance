@@ -261,7 +261,10 @@ export function PremiumPopup({
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
+          showsVerticalScrollIndicator={Platform.OS === "android"}
+          persistentScrollbar={Platform.OS === "android"}
+          scrollIndicatorInsets={{ right: 2 }}
+          fadingEdgeLength={Platform.OS === "android" ? 36 : 0}
           bounces={false}
         >
           {/* Mascot */}
@@ -277,6 +280,13 @@ export function PremiumPopup({
           <Text style={styles.subtitle}>
             Deepen your journey with full access.
           </Text>
+
+          {Platform.OS === "android" && (
+            <View style={styles.scrollHintCard}>
+              <Ionicons name="chevron-up-circle" size={16} color="#0f766e" />
+              <Text style={styles.scrollHintText}>Swipe up for more plans</Text>
+            </View>
+          )}
 
           {/* Feature cards */}
           <View style={styles.featureRow}>
@@ -392,6 +402,20 @@ export function PremiumPopup({
             </View>
           )}
         </ScrollView>
+
+        {Platform.OS === "android" && (
+          <View pointerEvents="none" style={styles.scrollFadeOverlay}>
+            <LinearGradient
+              colors={["transparent", "rgba(248, 250, 252, 0.96)"]}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={styles.scrollFadeGradient}
+            />
+            <View style={styles.scrollFadeArrowWrap}>
+              <Ionicons name="chevron-up" size={16} color="#64748b" />
+            </View>
+          </View>
+        )}
 
         {/* Sticky bottom CTA */}
         <View style={styles.bottomBar}>
@@ -545,7 +569,46 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: "#64748b",
     textAlign: "center",
-    marginBottom: 20,
+    marginBottom: 10,
+  },
+  scrollHintCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: "rgba(16, 185, 129, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.25)",
+    marginBottom: 16,
+  },
+  scrollHintText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#0f766e",
+  },
+  scrollFadeOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: Platform.OS === "android" ? 118 : 0,
+    height: 50,
+    zIndex: 15,
+    justifyContent: "flex-end",
+    alignItems: "center",
+  },
+  scrollFadeGradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  scrollFadeArrowWrap: {
+    marginBottom: 6,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   // Feature cards row
@@ -597,7 +660,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   pricingCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.8)",
     borderRadius: 20,
     padding: 16,
     borderWidth: 1.5,
@@ -605,12 +667,19 @@ const styles = StyleSheet.create({
     position: "relative",
     ...Platform.select({
       ios: {
+        backgroundColor: "rgba(255, 255, 255, 0.8)",
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.06,
         shadowRadius: 8,
       },
-      default: { elevation: 2 },
+      default: {
+        backgroundColor: "#ffffff",
+        elevation: 2,
+      },
+      web: {
+        backgroundColor: "rgba(255, 255, 255, 0.8)",
+      },
     }),
   },
   pricingCardSelected: {

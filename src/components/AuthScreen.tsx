@@ -220,21 +220,25 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
 
           {/* Auth Buttons */}
           <View style={styles.authButtons}>
-            {/* Apple - Show on all platforms */}
-            <AuthButton
-              type="apple"
-              onPress={handleAppleAuth}
-              loading={loading === "apple"}
-              disabled={loading !== null}
-            />
+            {/* Apple - iOS only */}
+            {Platform.OS === "ios" && (
+              <AuthButton
+                type="apple"
+                onPress={handleAppleAuth}
+                loading={loading === "apple"}
+                disabled={loading !== null}
+              />
+            )}
 
-            {/* Google */}
-            <AuthButton
-              type="google"
-              onPress={handleGoogleAuth}
-              loading={loading === "google"}
-              disabled={loading !== null}
-            />
+            {/* Google (non-iOS only) */}
+            {Platform.OS !== "ios" && (
+              <AuthButton
+                type="google"
+                onPress={handleGoogleAuth}
+                loading={loading === "google"}
+                disabled={loading !== null}
+              />
+            )}
 
             {/* Email */}
             <AuthButton

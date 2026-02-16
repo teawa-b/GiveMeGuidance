@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
-    ...softShadow,
+    ...(Platform.OS === "ios" ? softShadow : {}),
   },
   featureText: { fontSize: 16, color: OB_COLORS.textBody, fontWeight: "600" },
 

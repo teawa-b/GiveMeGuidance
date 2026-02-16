@@ -186,8 +186,10 @@
       }
     },
     "android": {
+      "icon": "./assets/icon.png",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/icon.png",
+        "monochromeImage": "./assets/icon.png",
         "backgroundColor": "#10b981"
       },
       "package": "com.shroozy.givemeguidance"
@@ -202,6 +204,7 @@
       "expo-asset",
       "expo-font",
       "expo-notifications",
+      "@react-native-google-signin/google-signin",
       [
         "expo-tracking-transparency",
         {
