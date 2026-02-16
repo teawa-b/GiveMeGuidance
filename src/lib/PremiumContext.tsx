@@ -67,15 +67,31 @@ interface PremiumContextType {
 const PremiumContext = createContext<PremiumContextType | undefined>(undefined);
 
 export function PremiumProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [isPremium, setIsPremium] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
   const [currentOffering, setCurrentOffering] = useState<PurchasesOffering | null>(null);
   const [packages, setPackages] = useState<PremiumPackage[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
+  const hasConfiguredRevenueCatRef = useRef(false);
   const inFlightCustomerInfoRef = useRef<Promise<CustomerInfo> | null>(null);
+  const identitySyncQueueRef = useRef<Promise<void>>(Promise.resolve());
   const lastStatusCheckAtRef = useRef(0);
+
+  const isDuplicateRequestError = useCallback((error: any): boolean => {
+    const backendErrorCode = error?.info?.backendErrorCode;
+    const statusCode = error?.info?.statusCode;
+    const message = String(error?.message || "").toLowerCase();
+    const underlying = String(error?.underlyingErrorMessage || "").toLowerCase();
+
+    return (
+      backendErrorCode === 7638 ||
+      statusCode === 429 ||
+      message.includes("another request in flight") ||
+      underlying.includes("another request in flight")
+    );
+  }, []);
 
   // Check if user has active entitlement
   const checkEntitlement = useCallback((info: CustomerInfo): boolean => {
@@ -98,6 +114,12 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // In dev Strict Mode, effects can run twice. Ensure configure runs once.
+    if (hasConfiguredRevenueCatRef.current) {
+      return;
+    }
+    hasConfiguredRevenueCatRef.current = true;
+
     try {
       // Wait for interactions to complete to ensure React Native is fully initialized
       // This prevents crashes during early app startup
@@ -116,9 +138,8 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
       }
 
       // Configure RevenueCat
-      await Purchases.configure({ 
+      Purchases.configure({
         apiKey: REVENUECAT_API_KEY,
-        appUserID: user?.id || undefined, // Will use anonymous ID if not provided
       });
 
       console.log("[RevenueCat] Configured successfully");
@@ -133,37 +154,66 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
 
     } catch (error) {
       console.error("[RevenueCat] Failed to initialize:", error);
+      hasConfiguredRevenueCatRef.current = false;
       setIsLoading(false);
     }
-  }, [user?.id, checkEntitlement]);
+  }, [checkEntitlement]);
 
   // Log in user when they authenticate
   const loginUser = useCallback(async (userId: string) => {
     if (Platform.OS === "web" || !isInitialized || !REVENUECAT_ENABLED) return;
 
-    try {
-      const { customerInfo: info } = await Purchases.logIn(userId);
-      console.log("[RevenueCat] User logged in:", userId);
-      setCustomerInfo(info);
-      setIsPremium(checkEntitlement(info));
-    } catch (error) {
-      console.error("[RevenueCat] Login error:", error);
-    }
-  }, [isInitialized, checkEntitlement]);
+    identitySyncQueueRef.current = identitySyncQueueRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        const currentAppUserId = await Purchases.getAppUserID();
+        if (currentAppUserId === userId) {
+          return;
+        }
+
+        const { customerInfo: info } = await Purchases.logIn(userId);
+        console.log("[RevenueCat] User logged in:", userId);
+        setCustomerInfo(info);
+        setIsPremium(checkEntitlement(info));
+      })
+      .catch((error) => {
+        if (isDuplicateRequestError(error)) {
+          console.log("[RevenueCat] Skipping duplicate logIn request");
+          return;
+        }
+        console.error("[RevenueCat] Login error:", error);
+      });
+
+    await identitySyncQueueRef.current;
+  }, [isInitialized, checkEntitlement, isDuplicateRequestError]);
 
   // Log out user
   const logoutUser = useCallback(async () => {
     if (Platform.OS === "web" || !isInitialized || !REVENUECAT_ENABLED) return;
 
-    try {
-      const info = await Purchases.logOut();
-      console.log("[RevenueCat] User logged out");
-      setCustomerInfo(info);
-      setIsPremium(checkEntitlement(info));
-    } catch (error) {
-      console.error("[RevenueCat] Logout error:", error);
-    }
-  }, [isInitialized, checkEntitlement]);
+    identitySyncQueueRef.current = identitySyncQueueRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        const isAnonymous = await Purchases.isAnonymous();
+        if (isAnonymous) {
+          return;
+        }
+
+        const info = await Purchases.logOut();
+        console.log("[RevenueCat] User logged out");
+        setCustomerInfo(info);
+        setIsPremium(checkEntitlement(info));
+      })
+      .catch((error) => {
+        if (isDuplicateRequestError(error)) {
+          console.log("[RevenueCat] Skipping duplicate logOut request");
+          return;
+        }
+        console.error("[RevenueCat] Logout error:", error);
+      });
+
+    await identitySyncQueueRef.current;
+  }, [isInitialized, checkEntitlement, isDuplicateRequestError]);
 
   // Check premium status
   const checkPremiumStatus = useCallback(async () => {
@@ -196,17 +246,7 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
       setIsPremium(checkEntitlement(info));
       console.log("[RevenueCat] Premium status:", checkEntitlement(info));
     } catch (error: any) {
-      const backendErrorCode = error?.info?.backendErrorCode;
-      const statusCode = error?.info?.statusCode;
-      const message = String(error?.message || "");
-      const underlying = String(error?.underlyingErrorMessage || "");
-      const isDuplicateRequestError =
-        backendErrorCode === 7638 ||
-        statusCode === 429 ||
-        message.includes("another request in flight") ||
-        underlying.includes("another request in flight");
-
-      if (isDuplicateRequestError) {
+      if (isDuplicateRequestError(error)) {
         console.log("[RevenueCat] Skipping duplicate getCustomerInfo request");
         return;
       }
@@ -217,7 +257,7 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
       inFlightCustomerInfoRef.current = null;
       setIsLoading(false);
     }
-  }, [checkEntitlement]);
+  }, [checkEntitlement, isDuplicateRequestError]);
 
   // Fetch available offerings and packages
   const fetchOfferings = useCallback(async () => {
@@ -556,13 +596,15 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
   // Handle user authentication changes
   useEffect(() => {
     if (isInitialized) {
+      if (isAuthLoading) return;
+
       if (user?.id) {
         loginUser(user.id);
       } else {
         logoutUser();
       }
     }
-  }, [user?.id, isInitialized, loginUser, logoutUser]);
+  }, [user?.id, isInitialized, isAuthLoading, loginUser, logoutUser]);
 
   return (
     <PremiumContext.Provider

@@ -52,7 +52,7 @@ type EditProfileView = "main" | "changeEmail" | "changePassword" | "dangerZone" 
 const profileBird = require("../../assets/mascot/bird-pointing-right.png");
 const loadingBird = require("../../assets/mascot/bird-reading.png");
 const REMINDER_PRESET_TIMES = ["08:00", "12:00", "18:00", "21:00"] as const;
-type ToneProfileLabel = "gentle" | "accountable" | "custom";
+type ToneProfileLabel = TonePreference | "custom";
 
 const TONE_PRESET_CONFIG: Record<
   TonePreference,
@@ -72,10 +72,17 @@ const TONE_PRESET_CONFIG: Record<
     eveningReflectionEnabled: false,
     reengagementEnabled: true,
   },
-  accountable: {
+  direct: {
     streakProtectionEnabled: true,
     middayNudgeEnabled: true,
     middayNudgeDaysPerWeek: 5,
+    eveningReflectionEnabled: true,
+    reengagementEnabled: true,
+  },
+  deep: {
+    streakProtectionEnabled: true,
+    middayNudgeEnabled: true,
+    middayNudgeDaysPerWeek: 4,
     eveningReflectionEnabled: true,
     reengagementEnabled: true,
   },
@@ -91,14 +98,23 @@ function getToneProfileLabel(settings: NotificationSettings): ToneProfileLabel {
 
   if (matchesGentle) return "gentle";
 
-  const matchesAccountable =
-    settings.streakProtectionEnabled === TONE_PRESET_CONFIG.accountable.streakProtectionEnabled &&
-    settings.middayNudgeEnabled === TONE_PRESET_CONFIG.accountable.middayNudgeEnabled &&
-    settings.middayNudgeDaysPerWeek === TONE_PRESET_CONFIG.accountable.middayNudgeDaysPerWeek &&
-    settings.eveningReflectionEnabled === TONE_PRESET_CONFIG.accountable.eveningReflectionEnabled &&
-    settings.reengagementEnabled === TONE_PRESET_CONFIG.accountable.reengagementEnabled;
+  const matchesDirect =
+    settings.streakProtectionEnabled === TONE_PRESET_CONFIG.direct.streakProtectionEnabled &&
+    settings.middayNudgeEnabled === TONE_PRESET_CONFIG.direct.middayNudgeEnabled &&
+    settings.middayNudgeDaysPerWeek === TONE_PRESET_CONFIG.direct.middayNudgeDaysPerWeek &&
+    settings.eveningReflectionEnabled === TONE_PRESET_CONFIG.direct.eveningReflectionEnabled &&
+    settings.reengagementEnabled === TONE_PRESET_CONFIG.direct.reengagementEnabled;
 
-  if (matchesAccountable) return "accountable";
+  if (matchesDirect) return "direct";
+
+  const matchesDeep =
+    settings.streakProtectionEnabled === TONE_PRESET_CONFIG.deep.streakProtectionEnabled &&
+    settings.middayNudgeEnabled === TONE_PRESET_CONFIG.deep.middayNudgeEnabled &&
+    settings.middayNudgeDaysPerWeek === TONE_PRESET_CONFIG.deep.middayNudgeDaysPerWeek &&
+    settings.eveningReflectionEnabled === TONE_PRESET_CONFIG.deep.eveningReflectionEnabled &&
+    settings.reengagementEnabled === TONE_PRESET_CONFIG.deep.reengagementEnabled;
+
+  if (matchesDeep) return "deep";
   return "custom";
 }
 
@@ -204,6 +220,14 @@ export default function ProfileScreen() {
     return `${displayHour}:${minute.toString().padStart(2, "0")} ${period}`;
   }, [isValidTimeInput]);
 
+  const hasCustomReminderTime = useMemo(() => {
+    return !REMINDER_PRESET_TIMES.includes(reminderTimeInput as (typeof REMINDER_PRESET_TIMES)[number]);
+  }, [reminderTimeInput]);
+
+  const customReminderOptionLabel = useMemo(() => {
+    return hasCustomReminderTime ? formatTimeForDisplay(reminderTimeInput) : "Custom";
+  }, [formatTimeForDisplay, hasCustomReminderTime, reminderTimeInput]);
+
   const refreshReminderSnapshot = useCallback(async () => {
     try {
       const snapshot = await getReminderScheduleSnapshot();
@@ -220,8 +244,8 @@ export default function ProfileScreen() {
 
     const resolvedTime = resolveReminderTimeFromPreferences();
     setReminderTimeInput(resolvedTime);
-    // If the time is not a preset, show the custom picker
-    setShowTimePicker(!REMINDER_PRESET_TIMES.includes(resolvedTime as any));
+    // Always reopen reminders with the picker collapsed.
+    setShowTimePicker(false);
     setReminderEnabled(onboardingData.notificationEnabled);
     void refreshReminderSnapshot();
     getNotificationSettings().then(setNotifSettings).catch(() => {});
@@ -231,6 +255,11 @@ export default function ProfileScreen() {
     refreshReminderSnapshot,
     resolveReminderTimeFromPreferences,
   ]);
+
+  useEffect(() => {
+    if (!editProfileVisible || editProfileView !== "reminders") return;
+    setShowTimePicker(false);
+  }, [editProfileView, editProfileVisible]);
 
   const buildOnboardingTimeOverrides = useCallback((hour: number, minute: number) => {
     if (hour === 8 && minute === 0) {
@@ -261,13 +290,13 @@ export default function ProfileScreen() {
     }));
   }, []);
 
-  const handleSaveReminderSettings = useCallback(async () => {
+  const handleSaveReminderSettings = useCallback(async (): Promise<boolean> => {
     if (Platform.OS === "web") {
       setEditProfileMessage({
         type: "error",
         text: "Reminders are available on iOS and Mobile builds only.",
       });
-      return;
+      return false;
     }
 
     const normalizedInput = reminderTimeInput.trim();
@@ -276,7 +305,7 @@ export default function ProfileScreen() {
         type: "error",
         text: "Enter time as HH:MM in 24-hour format (for example, 21:00).",
       });
-      return;
+      return false;
     }
 
     const [hour, minute] = normalizedInput.split(":").map(Number);
@@ -299,7 +328,7 @@ export default function ProfileScreen() {
           type: "error",
           text: "Could not schedule reminders. Enable notifications in system Settings and try again.",
         });
-        return;
+        return false;
       }
 
       await saveOnboarding({
@@ -313,12 +342,14 @@ export default function ProfileScreen() {
         type: "success",
         text: `Reminders are active. Daily at ${formatTimeForDisplay(normalizedInput)}.`,
       });
+      return true;
     } catch (error: any) {
       console.error("Failed to save reminder settings:", error);
       setEditProfileMessage({
         type: "error",
         text: error?.message || "Unable to update reminders right now.",
       });
+      return false;
     } finally {
       setEditProfileLoading(false);
     }
@@ -331,6 +362,23 @@ export default function ProfileScreen() {
     refreshReminderSnapshot,
     saveOnboarding,
   ]);
+
+  const handleReminderBackPress = useCallback(async () => {
+    if (editProfileLoading) return;
+
+    lightHaptic();
+    setEditProfileMessage(null);
+
+    if (!reminderEnabled) {
+      setEditProfileView("main");
+      return;
+    }
+
+    const saved = await handleSaveReminderSettings();
+    if (saved) {
+      setEditProfileView("main");
+    }
+  }, [editProfileLoading, handleSaveReminderSettings, reminderEnabled]);
 
   const handleDisableReminders = useCallback(async () => {
     if (Platform.OS === "web") {
@@ -1013,6 +1061,7 @@ export default function ProfileScreen() {
                         lightHaptic();
                         setEditProfileMessage(null);
                         setReminderTimeInput(resolveReminderTimeFromPreferences());
+                        setShowTimePicker(false);
                         setReminderEnabled(onboardingData.notificationEnabled);
                         setEditProfileView("reminders");
                         void refreshReminderSnapshot();
@@ -1172,9 +1221,7 @@ export default function ProfileScreen() {
                     <Pressable
                       style={styles.editBackButton}
                       onPress={() => {
-                        lightHaptic();
-                        setEditProfileMessage(null);
-                        setEditProfileView("main");
+                        void handleReminderBackPress();
                       }}
                     >
                       <Ionicons name="arrow-back" size={18} color="#64748b" />
@@ -1219,18 +1266,36 @@ export default function ProfileScreen() {
                           <Pressable
                             style={({ pressed }) => [
                               styles.tonePill,
-                              toneProfile === "accountable" && styles.tonePillSelected,
+                              toneProfile === "direct" && styles.tonePillSelected,
                               pressed && styles.menuItemPressed,
                             ]}
-                            onPress={() => handleApplyToneProfile("accountable")}
+                            onPress={() => handleApplyToneProfile("direct")}
                           >
                             <Text
                               style={[
                                 styles.tonePillText,
-                                toneProfile === "accountable" && styles.tonePillTextSelected,
+                                toneProfile === "direct" && styles.tonePillTextSelected,
                               ]}
                             >
-                              Accountable
+                              Direct
+                            </Text>
+                          </Pressable>
+
+                          <Pressable
+                            style={({ pressed }) => [
+                              styles.tonePill,
+                              toneProfile === "deep" && styles.tonePillSelected,
+                              pressed && styles.menuItemPressed,
+                            ]}
+                            onPress={() => handleApplyToneProfile("deep")}
+                          >
+                            <Text
+                              style={[
+                                styles.tonePillText,
+                                toneProfile === "deep" && styles.tonePillTextSelected,
+                              ]}
+                            >
+                              Deep
                             </Text>
                           </Pressable>
 
@@ -1401,7 +1466,7 @@ export default function ProfileScreen() {
                       <Pressable
                         style={({ pressed }) => [
                           styles.reminderPresetButton,
-                          showTimePicker && styles.reminderPresetButtonSelected,
+                          (showTimePicker || hasCustomReminderTime) && styles.reminderPresetButtonSelected,
                           pressed && styles.menuItemPressed,
                         ]}
                         onPress={() => {
@@ -1413,10 +1478,10 @@ export default function ProfileScreen() {
                         <Text
                           style={[
                             styles.reminderPresetText,
-                            showTimePicker && styles.reminderPresetTextSelected,
+                            (showTimePicker || hasCustomReminderTime) && styles.reminderPresetTextSelected,
                           ]}
                         >
-                          Custom
+                          {customReminderOptionLabel}
                         </Text>
                       </Pressable>
                     </View>

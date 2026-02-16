@@ -2,7 +2,7 @@
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { View, Pressable, StyleSheet, Platform } from "react-native";
-import { mediumHaptic } from "../../src/lib/haptics";
+import { lightHaptic } from "../../src/lib/haptics";
 import { playClickSound } from "../../src/lib/sounds";
 import { NewGuidanceModal } from "../../src/components/NewGuidanceModal";
 
@@ -17,7 +17,7 @@ export default function TabLayout() {
         style={styles.centerButton}
         onPress={() => {
           playClickSound();
-          mediumHaptic();
+          lightHaptic();
           setNewGuidanceModalVisible(true);
         }}
       >
@@ -81,6 +81,7 @@ export default function TabLayout() {
         listeners={{
           tabPress: () => {
             playClickSound();
+            lightHaptic();
           },
         }}
       />
@@ -99,6 +100,7 @@ export default function TabLayout() {
         listeners={{
           tabPress: () => {
             playClickSound();
+            lightHaptic();
           },
         }}
       />
@@ -111,6 +113,7 @@ export default function TabLayout() {
         listeners={{
           tabPress: (e) => {
             playClickSound();
+            lightHaptic();
             e.preventDefault();
           },
         }}
@@ -130,6 +133,7 @@ export default function TabLayout() {
         listeners={{
           tabPress: () => {
             playClickSound();
+            lightHaptic();
           },
         }}
       />
@@ -148,6 +152,7 @@ export default function TabLayout() {
         listeners={{
           tabPress: () => {
             playClickSound();
+            lightHaptic();
           },
         }}
       />

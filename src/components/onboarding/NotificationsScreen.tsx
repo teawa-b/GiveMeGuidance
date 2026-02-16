@@ -14,15 +14,33 @@ import {
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { EtherealBackground } from "../EtherealBackground";
 import { mediumHaptic, successHaptic, lightHaptic, warningHaptic } from "../../lib/haptics";
+import type { GuidanceStyle } from "../../lib/OnboardingContext";
 
 interface NotificationsScreenProps {
+  toneStyle: GuidanceStyle;
   preferredTime: string; // Display time like "8:00 AM"
   onEnable: () => Promise<boolean>;
   onContinue: () => Promise<void> | void;
   onSkip: () => Promise<void> | void;
 }
 
+const TONE_PREVIEW_COPY: Record<GuidanceStyle, { subtitle: string; preview: string }> = {
+  gentle: {
+    subtitle: "We'll send warm, encouraging reminders at your chosen time.",
+    preview: "Your daily walk is ready. Take a peaceful moment to connect with God.",
+  },
+  direct: {
+    subtitle: "We'll send clear, focused reminders at your chosen time.",
+    preview: "Time for today's guidance. Take two minutes and complete your daily step.",
+  },
+  deep: {
+    subtitle: "We'll send scripture-focused reminders at your chosen time.",
+    preview: "Your daily Scripture reflection is ready. Come back for a deeper study moment.",
+  },
+};
+
 export function NotificationsScreen({
+  toneStyle,
   preferredTime,
   onEnable,
   onContinue,
@@ -31,6 +49,7 @@ export function NotificationsScreen({
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [isEnabling, setIsEnabling] = useState(false);
   const confirmationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toneCopy = TONE_PREVIEW_COPY[toneStyle];
 
   useEffect(() => {
     return () => {
@@ -138,7 +157,7 @@ export function NotificationsScreen({
           <View style={styles.titleSection}>
             <Text style={styles.title}>Want a reminder for your daily time with God?</Text>
             <Text style={styles.subtitle}>
-              We'll send one gentle reminder at your chosen time.
+              {toneCopy.subtitle}
             </Text>
           </View>
 
@@ -154,7 +173,7 @@ export function NotificationsScreen({
               </View>
             </View>
             <Text style={styles.previewMessage}>
-              Your daily walk is ready. Take 2 minutes to connect with God today.
+              {toneCopy.preview}
             </Text>
           </View>
 

@@ -375,7 +375,7 @@ export async function rescheduleAllNotifications(streakCount = 0): Promise<boole
       }
 
       const fireAt = londonDateAt(dateStr, hour, minute);
-      const text = dailyReminderText(settings.tonePreference);
+      const text = dailyReminderText(settings.tonePreference, dateStr);
       await trySchedule({
         identifier: notifId("dailyReminder", dateStr),
         title: text.title,
@@ -389,7 +389,7 @@ export async function rescheduleAllNotifications(streakCount = 0): Promise<boole
     if (settings.middayNudgeEnabled && middayDays.includes(dayOffset) && !completedThisDay) {
       const { hour: nudgeHour, minute: nudgeMinute } = deterministicMiddayTime(dateStr);
       const fireAt = londonDateAt(dateStr, nudgeHour, nudgeMinute);
-      const text = middayNudgeText(settings.tonePreference);
+      const text = middayNudgeText(settings.tonePreference, dateStr);
       await trySchedule({
         identifier: notifId("middayNudge", dateStr),
         title: text.title,
@@ -403,7 +403,7 @@ export async function rescheduleAllNotifications(streakCount = 0): Promise<boole
     if (settings.eveningReflectionEnabled && !completedThisDay) {
       const { hour, minute } = settings.eveningReflectionTime;
       const fireAt = londonDateAt(dateStr, hour, minute);
-      const text = eveningReflectionText(settings.tonePreference);
+      const text = eveningReflectionText(settings.tonePreference, dateStr);
       await trySchedule({
         identifier: notifId("eveningReflection", dateStr),
         title: text.title,
@@ -420,7 +420,7 @@ export async function rescheduleAllNotifications(streakCount = 0): Promise<boole
       // B1 – 4 hours before expiry
       const b1 = londonDateAt(dateStr, eh, em);
       b1.setTime(b1.getTime() - 4 * 3600_000);
-      const textB1 = streakWarn4hText(settings.tonePreference);
+      const textB1 = streakWarn4hText(settings.tonePreference, dateStr);
       await trySchedule({
         identifier: notifId("streakWarn4h", dateStr),
         title: textB1.title,
@@ -433,7 +433,7 @@ export async function rescheduleAllNotifications(streakCount = 0): Promise<boole
       // B2 – 1 hour before expiry
       const b2 = londonDateAt(dateStr, eh, em);
       b2.setTime(b2.getTime() - 1 * 3600_000);
-      const textB2 = streakWarn1hText(settings.tonePreference);
+      const textB2 = streakWarn1hText(settings.tonePreference, dateStr);
       await trySchedule({
         identifier: notifId("streakWarn1h", dateStr),
         title: textB2.title,
@@ -447,7 +447,7 @@ export async function rescheduleAllNotifications(streakCount = 0): Promise<boole
       if (streakCount >= 5) {
         const b3 = londonDateAt(dateStr, eh, em);
         b3.setTime(b3.getTime() - 15 * 60_000);
-        const textB3 = streakFinalText(settings.tonePreference, streakCount);
+        const textB3 = streakFinalText(settings.tonePreference, streakCount, dateStr);
         await trySchedule({
           identifier: notifId("streakFinal", dateStr),
           title: textB3.title,
@@ -469,7 +469,7 @@ export async function rescheduleAllNotifications(streakCount = 0): Promise<boole
       if (inactiveDays === 2) {
         const dateStr = todayStr;
         const fireAt = londonDateAt(dateStr, 18, 0);
-        const text = reengage2dText(settings.tonePreference);
+        const text = reengage2dText(settings.tonePreference, dateStr);
         await trySchedule({
           identifier: notifId("reengage2d", dateStr),
           title: text.title,
@@ -485,7 +485,7 @@ export async function rescheduleAllNotifications(streakCount = 0): Promise<boole
         const targetDateStr = addDays(lastCompletionDate, 5);
         const fireAt = londonDateAt(targetDateStr, 18, 0);
         if (fireAt.getTime() > Date.now()) {
-          const text = reengage5dText(settings.tonePreference);
+          const text = reengage5dText(settings.tonePreference, targetDateStr);
           await trySchedule({
             identifier: notifId("reengage5d", targetDateStr),
             title: text.title,
@@ -504,7 +504,7 @@ export async function rescheduleAllNotifications(streakCount = 0): Promise<boole
           const targetDateStr = addDays(lastCompletionDate, 7 * w);
           const fireAt = londonDateAt(targetDateStr, 18, 0);
           if (fireAt.getTime() > Date.now() && weekTotal() < 7) {
-            const text = reengageWeeklyText(settings.tonePreference);
+            const text = reengageWeeklyText(settings.tonePreference, targetDateStr);
             await trySchedule({
               identifier: notifId("reengageWeekly", targetDateStr),
               title: text.title,
@@ -529,6 +529,7 @@ export async function onDailyCompletion(streakCount: number): Promise<void> {
   if (Platform.OS === "web") return;
 
   const todayStr = getLondonDateString();
+  const settings = await getNotificationSettings();
   await setLastCompletionDate(todayStr);
 
   // Cancel same-day notifications in categories A2, A3, B1, B2, B3, and D*
@@ -560,7 +561,7 @@ export async function onDailyCompletion(streakCount: number): Promise<void> {
 
   // C1 – Milestone celebration
   if (MILESTONE_STREAKS.includes(streakCount)) {
-    const text = milestoneText(streakCount);
+    const text = milestoneText(settings.tonePreference, streakCount, todayStr);
     await scheduleOne({
       identifier: notifId("milestone", todayStr, String(streakCount)),
       title: text.title,

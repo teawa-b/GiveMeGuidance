@@ -16,6 +16,10 @@ import {
   cancelAllReminderNotifications,
   requestAndScheduleDailyAndStreakReminders,
 } from "../../src/services/notifications";
+import {
+  saveNotificationSettings,
+  tonePreferenceFromGuidanceStyle,
+} from "../../src/services/notificationSettings";
 import { supabase } from "../../src/lib/supabase";
 import {
   GoalSelectionScreen,
@@ -132,6 +136,10 @@ export default function OnboardingScreen() {
     setIsGenerating(true);
 
     try {
+      await saveNotificationSettings({
+        tonePreference: tonePreferenceFromGuidanceStyle(data.preferredStyle),
+      });
+
       // Save preferences to Supabase first
       await savePreferencesToSupabase();
       
@@ -233,6 +241,9 @@ export default function OnboardingScreen() {
   const handleNotificationsEnable = async (): Promise<boolean> => {
     try {
       const { hour, minute } = getPreferredReminderTime();
+      await saveNotificationSettings({
+        tonePreference: tonePreferenceFromGuidanceStyle(data.preferredStyle),
+      });
       const enabled = await requestAndScheduleDailyAndStreakReminders(
         { hour, minute },
         { streakTime: streakReminderTime }
@@ -249,6 +260,9 @@ export default function OnboardingScreen() {
   };
 
   const handleNotificationsContinue = async () => {
+    await saveNotificationSettings({
+      tonePreference: tonePreferenceFromGuidanceStyle(data.preferredStyle),
+    });
     await saveOnboarding({
       onboardingCompleted: true,
       notificationEnabled: notificationsEnabled,
@@ -263,6 +277,10 @@ export default function OnboardingScreen() {
     } catch (error) {
       console.error("[Onboarding] Failed to cancel reminders:", error);
     }
+
+    await saveNotificationSettings({
+      tonePreference: tonePreferenceFromGuidanceStyle(data.preferredStyle),
+    });
 
     setNotificationsEnabled(false);
     updateData({ notificationEnabled: false });
@@ -448,6 +466,7 @@ export default function OnboardingScreen() {
       case "notifications":
         return (
           <NotificationsScreen
+            toneStyle={data.preferredStyle}
             preferredTime={getDisplayTime()}
             onEnable={handleNotificationsEnable}
             onContinue={handleNotificationsContinue}
